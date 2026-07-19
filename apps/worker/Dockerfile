@@ -2,9 +2,14 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY apps/worker/pyproject.toml ./
-COPY apps/worker/worker ./worker
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+  && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir -e .
+COPY apps/api /opt/codeintel/api
+COPY apps/worker /opt/codeintel/worker
 
+RUN pip install --no-cache-dir -e /opt/codeintel/api -e /opt/codeintel/worker
+
+WORKDIR /opt/codeintel/worker
+ENV PYTHONPATH=/opt/codeintel/api
 CMD ["python", "-m", "worker"]

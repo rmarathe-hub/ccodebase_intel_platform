@@ -49,6 +49,13 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://codeintel:codeintel@postgres:5432/codeintel
       APP_ENV: local
+      WORKER_ID: worker-1
+      JOB_LEASE_SECONDS: "60"
+      JOB_RETRY_DELAY_SECONDS: "30"
+      WORKER_POLL_INTERVAL_SECONDS: "2"
+      GIT_CLONE_TIMEOUT_SECONDS: "120"
+      GIT_CLONE_MAX_BYTES: "52428800"
+      GIT_CLONE_BASE_DIR: /tmp/codeintel-clones
     depends_on:
       postgres:
         condition: service_healthy
