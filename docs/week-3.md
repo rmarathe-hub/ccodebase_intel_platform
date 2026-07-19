@@ -4,20 +4,25 @@
 
 | Day | Scope | Status |
 | --- | --- | --- |
-| 1 | `source_files` schema, migration, language/discovery contracts, policy doc | Done (local) |
-| 2 | Pure discovery walker + unit tests | Done (local) |
-| 3 | Worker wiring + persist `source_files` | Not started |
-| 4 | Files API + UI | Not started |
+| 1 | `source_files` schema, migration, language/discovery contracts, policy doc | Done |
+| 2 | Pure discovery walker + unit tests | Done |
+| 3 | Worker wiring + persist `source_files` | Done (local) |
+| 4 | Files API + UI | Done (local) |
 | 5 | Retail fixture golden tests | Not started |
 
-## Day 1–2 artifacts
+## Day 3–4 artifacts
 
-- `apps/api/app/core/language_contract.py` — DEEP/GENERIC/SKIP, ignore dirs, secrets, helpers
-- `apps/api/app/models/entities.py` — `SourceFile`
-- `apps/api/alembic/versions/0002_source_files.py`
-- `apps/api/app/services/discovery.py` — `discover_repository` / `classify_file`
-- `docs/discovery-policy.md`
-- `apps/api/tests/test_discovery.py`
+- `apps/api/app/services/source_files.py` — replace rows for a snapshot
+- `apps/api/app/services/files_query.py` — list repos / files
+- `apps/api/app/schemas/files.py`
+- `apps/api/app/api/v1.py` — `GET /repositories`, `GET /repositories/{id}/files`
+- `apps/worker/worker/__main__.py` — clone → discover → persist → succeed
+- `apps/web/src/pages/FilesPage.tsx` — browse with deep/generic/skip filters
+- Tests: `test_source_files_persist.py`, `test_files_api.py`, `files.test.ts`
+
+## Honesty note
+
+Jobs mark **SUCCEEDED** after discovery. Later pipeline stages remain future work; the Jobs page copy states this explicitly.
 
 ## Git policy
 

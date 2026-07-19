@@ -1,4 +1,4 @@
-"""Background worker: claim jobs, securely clone, create snapshot, retry."""
+"""Background worker: claim jobs, clone, discover files, persist source_files."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 from app.models.entities import IndexingJob, SnapshotStatus
 from app.models.job_stages import JobStage
+from app.services.discovery import discover_repository
 from app.services.git_clone import GitCloneError, secure_clone
 from app.services.job_queue import (
     claim_next_job,
@@ -22,8 +23,8 @@ from app.services.job_queue import (
     schedule_retry,
 )
 from app.services.jobs import mark_job_succeeded, set_job_stage
-from app.services.snapshots import count_files_excluding_git, create_or_update_snapshot
-
+from app.services.source_files import replace_source_files_for_snapshot
+from app.services.snapshots import create_or_update_snapshot
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("codeintel.worker")
@@ -71,26 +72,55 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     worker_id=worker_id,
                     lease_seconds=settings.job_lease_seconds,
                 )
+
                 set_job_stage(job, JobStage.DISCOVERING_FILES)
-                file_count = count_files_excluding_git(cloned.path)
+                session.commit()
+
+                discovery = discover_repository(
+                    cloned.path,
+                    max_file_bytes=settings.discovery_max_file_bytes,
+                    max_files=settings.discovery_max_files,
+                    binary_sample_bytes=settings.discovery_binary_sample_bytes,
+                )
+
+                job = session.get(IndexingJob, job_id)
+                if job is None:
+                    raise RuntimeError(f"Job {job_id} disappeared during discovery")
+                heartbeat_job(
+                    session,
+                    job_id=job_id,
+                    worker_id=worker_id,
+                    lease_seconds=settings.job_lease_seconds,
+                )
+
                 snapshot = create_or_update_snapshot(
                     session,
                     repository_id=repository_id,
                     branch=cloned.branch,
                     commit_sha=cloned.commit_sha,
-                    file_count=file_count,
+                    file_count=len(discovery.files),
                     status=SnapshotStatus.READY,
                 )
                 job.snapshot_id = snapshot.id
-                # Full indexing continues in later weeks; clone+snapshot completes Week 2.
+                replace_source_files_for_snapshot(
+                    session,
+                    snapshot_id=snapshot.id,
+                    discovery=discovery,
+                )
+
+                # Parsing / relationships / embeddings land later; discovery completes this job.
                 mark_job_succeeded(job)
                 session.commit()
                 logger.info(
-                    "Snapshot %s for %s@%s files=%s job=%s",
+                    "Discovered snapshot %s for %s@%s files=%s deep=%s generic=%s skip=%s truncated=%s job=%s",
                     snapshot.id,
                     repo_label,
                     cloned.commit_sha[:12],
-                    file_count,
+                    len(discovery.files),
+                    discovery.deep_count,
+                    discovery.generic_count,
+                    discovery.skip_count,
+                    discovery.truncated,
                     job_id,
                 )
             return True

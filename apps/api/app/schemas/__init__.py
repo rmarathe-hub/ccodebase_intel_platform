@@ -1,3 +1,4 @@
+from app.schemas.files import RepositoryListItem, SourceFileListResponse, SourceFileRead
 from app.schemas.jobs import IndexingJobCreateDefaults, IndexingJobRead
 from app.schemas.repositories import (
     ParsedRepositoryURL,
@@ -12,6 +13,9 @@ __all__ = [
     "ParsedRepositoryURL",
     "RepositoryImportRequest",
     "RepositoryImportResponse",
+    "RepositoryListItem",
     "RepositoryRead",
     "SnapshotRead",
+    "SourceFileListResponse",
+    "SourceFileRead",
 ]

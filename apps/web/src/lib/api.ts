@@ -37,3 +37,29 @@ export function retryJob(jobId: string) {
     method: "POST",
   });
 }
+
+export function fetchRepositories(limit = 50) {
+  return request<import("./files").RepositoryListItem[]>(`/api/v1/repositories?limit=${limit}`);
+}
+
+export function fetchRepositoryFiles(
+  repositoryId: string,
+  params: {
+    support_level?: string;
+    path_prefix?: string;
+    include_skipped?: boolean;
+    limit?: number;
+    offset?: number;
+  } = {},
+) {
+  const query = new URLSearchParams();
+  if (params.support_level) query.set("support_level", params.support_level);
+  if (params.path_prefix) query.set("path_prefix", params.path_prefix);
+  if (params.include_skipped === false) query.set("include_skipped", "false");
+  if (params.limit != null) query.set("limit", String(params.limit));
+  if (params.offset != null) query.set("offset", String(params.offset));
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return request<import("./files").SourceFileListResponse>(
+    `/api/v1/repositories/${repositoryId}/files${suffix}`,
+  );
+}
