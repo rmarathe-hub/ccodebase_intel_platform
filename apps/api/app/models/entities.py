@@ -5,6 +5,8 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    BigInteger,
+    Boolean,
     DateTime,
     ForeignKey,
     Integer,
@@ -107,6 +109,42 @@ class RepositorySnapshot(Base):
 
     repository: Mapped[Repository] = relationship(back_populates="snapshots")
     jobs: Mapped[list[IndexingJob]] = relationship(back_populates="snapshot")
+    source_files: Mapped[list[SourceFile]] = relationship(back_populates="snapshot")
+
+
+class SourceFile(Base):
+    """A discovered file under a repository snapshot (Week 3+)."""
+
+    __tablename__ = "source_files"
+    __table_args__ = (
+        UniqueConstraint("snapshot_id", "path", name="uq_source_files_snapshot_path"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("repository_snapshots.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    path: Mapped[str] = mapped_column(Text, nullable=False)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    line_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    language: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    support_level: Mapped[str] = mapped_column(String(16), nullable=False, default="skip")
+    parser_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    parser_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    skip_reason: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    is_test_file: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_generated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_vendor: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_binary: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    snapshot: Mapped[RepositorySnapshot] = relationship(back_populates="source_files")
 
 
 class IndexingJob(Base):

@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     git_clone_max_bytes: int = 50 * 1024 * 1024
     git_clone_base_dir: str = "/tmp/codeintel-clones"
 
+    # Discovery (Week 3)
+    discovery_max_file_bytes: int = 1_048_576  # 1 MiB per file
+    discovery_max_files: int = 50_000
+    discovery_binary_sample_bytes: int = 8192
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]

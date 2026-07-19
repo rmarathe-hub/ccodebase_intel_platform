@@ -7,6 +7,7 @@ from app.models.entities import (
     Repository,
     RepositorySnapshot,
     SnapshotStatus,
+    SourceFile,
     User,
 )
 from app.models.job_stages import JOB_STAGE_LABELS, JOB_STAGE_PROGRESS, JobStage
@@ -21,5 +22,6 @@ __all__ = [
     "Repository",
     "RepositorySnapshot",
     "SnapshotStatus",
+    "SourceFile",
     "User",
 ]
