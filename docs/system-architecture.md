@@ -120,22 +120,25 @@ Query classification routes to tools / ranking signals:
 
 Hybrid ranker combines scores; UI exposes Hybrid / Semantic / Symbols / Exact / Config / Docs tabs.
 
-## Ask architecture
+## Ask / enrichment architecture
 
 ```text
-User question
-  → retrieve evidence via tools (search, symbols, ranges, graph)
-  → LLM drafts structured answer + citations
-  → citation validator checks file/snapshot/lines/retrieval/support_level
-  → response to UI with badges + expandable evidence
+User question or enrichment job
+  → retrieve or select parser-derived evidence
+  → LLMProvider drafts structured output (Azure OpenAI primary)
+  → citation / range validator checks file/snapshot/lines/support_level
+  → response or persisted enrichment with provenance
 ```
 
 Providers:
 
-- Optional `LLMProvider` abstraction for enrichment / Ask (OpenAI, Azure OpenAI,
-  Anthropic, or another configured provider)
-- Local Ollama when configured
+- `LLMProvider` abstraction in `apps/api/app/services/llm/`
+- Primary when enabled: **Azure OpenAI** (LangChain adapter and/or direct SDK)
+- Optional: OpenAI, Anthropic, Ollama — same interface
+- LangChain is a thin orchestration adapter only — **not** an agent runtime
 - Enrichment and Ask remain opt-in / capped; deterministic index never depends on them
+
+Details: [llm-enrichment.md](./llm-enrichment.md).
 
 ## Local vs temporary cloud
 

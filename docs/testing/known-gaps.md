@@ -8,7 +8,7 @@ Honest deferrals after Weeks 0–6. Update as Week 7+ lands.
 2. Exact chunk search API and functional Search UI
 3. Ask API / citation-validated answers
 4. Generic parser-derived structural chunks (Tree-sitter / format-native) — planned Week 7
-5. Optional validated LLM enrichment (opt-in, budgeted) — planned Week 7
+4. Optional validated LLM enrichment (opt-in, Azure OpenAI primary, LangChain thin adapter) — planned Week 7
 6. Deterministic repository summaries API — planned Week 7
 7. Interactive graph visualization (Graph page is still a call-site table)
 8. Authentication / multi-tenancy
@@ -29,6 +29,7 @@ Honest deferrals after Weeks 0–6. Update as Week 7+ lands.
 - Deep languages chunk from existing verified symbols only
 - Generic languages stay `support_level=generic`, `verified_deep=false`
 - Paid LLM enrichment opt-in; CI mocks providers; exact search works offline
+- Azure OpenAI primary; LangChain thin adapter only (no indexing agents)
 - First-cut generic languages: Go, Rust, C/C++, C#, Ruby, Shell, SQL + JSON/YAML/TOML/XML/Dockerfile/Markdown
 - Remaining generic languages share the same parser interface later
 

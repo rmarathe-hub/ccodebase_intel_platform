@@ -15,6 +15,15 @@ ROOT = Path(__file__).resolve().parents[3]
 def test_week_docs_exist() -> None:
     for name in ("week-0.md", "week-3.md", "week-4.md", "week-5.md", "week-6.md", "week-7.md"):
         assert (ROOT / "docs" / name).is_file()
+    assert (ROOT / "docs" / "llm-enrichment.md").is_file()
+
+
+def test_security_model_allows_capped_azure_openai_enrichment() -> None:
+    text = (ROOT / "docs" / "security-model.md").read_text(encoding="utf-8")
+    assert "opt-in" in text.lower() or "Opt-in" in text or "optional" in text.lower()
+    assert "Unrestricted" in text or "uncapped" in text.lower()
+    assert "Azure OpenAI" in text
+    assert "LangChain" in text
 
 
 def test_cost_and_shutdown_artifacts() -> None:
@@ -84,12 +93,17 @@ def test_no_paid_sdk_imports_in_app() -> None:
     """Infra SDKs banned everywhere; LLM SDKs only under app/services/llm/."""
     app_root = ROOT / "apps" / "api" / "app"
     banned_everywhere = ("azure", "boto3", "redis", "kubernetes")
-    llm_only = ("openai", "anthropic")
+    llm_only = ("openai", "anthropic", "langchain", "langchain_openai", "langchain_core")
     for path in app_root.rglob("*.py"):
         text = path.read_text(encoding="utf-8")
         rel = path.relative_to(app_root)
         in_llm = rel.parts[:2] == ("services", "llm")
         for token in banned_everywhere:
+            # azure_openai module name is ours; ban azure.* cloud SDK imports only.
+            if token == "azure":
+                assert "import azure" not in text
+                assert "from azure" not in text
+                continue
             assert f"import {token}" not in text
             assert f"from {token}" not in text
         if not in_llm:

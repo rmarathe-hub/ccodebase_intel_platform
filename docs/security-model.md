@@ -68,7 +68,10 @@ Never return or include in model context / responses:
 
 - Deterministic indexing and exact search must work with enrichment **disabled**
 - Optional paid LLM enrichment is opt-in, budget-capped, cached, and CI-mocked
-  (see [deployment/cost-policy.md](./deployment/cost-policy.md))
+  (see [deployment/cost-policy.md](./deployment/cost-policy.md) and
+  [llm-enrichment.md](./llm-enrichment.md))
+- Primary enrichment provider when enabled: **Azure OpenAI**
+- LangChain may be used only as a thin orchestration adapter — not an agent runtime
 - Local Ollama (or similar) may be configured for Ask / enrichment when desired
 - Hosted AI keys (local enrichment or Week 12) must be:
   - Project-specific

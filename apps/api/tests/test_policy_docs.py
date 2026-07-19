@@ -21,6 +21,7 @@ REQUIRED_DOCS = [
     "docs/deployment/calendar-reminders.md",
     "docs/deployment/reminders.ics",
     "docs/language-support.md",
+    "docs/llm-enrichment.md",
     "docs/week-0.md",
     "docs/week-7.md",
     "docs/product-requirements.md",
@@ -56,6 +57,17 @@ def test_cost_policy_hard_limits() -> None:
         assert needle in text
 
 
+def test_llm_enrichment_doc_locks_azure_and_langchain_boundary() -> None:
+    text = (ROOT / "docs/llm-enrichment.md").read_text(encoding="utf-8")
+    assert "Azure OpenAI" in text
+    assert "LangChain" in text
+    assert "agent" in text.lower()
+    assert "one LLM call per chunk" in text or "one call per chunk" in text.lower()
+    week7 = (ROOT / "docs/week-7.md").read_text(encoding="utf-8")
+    assert "Azure OpenAI" in week7
+    assert "LLMProvider" in week7
+
+
 def test_language_support_forbids_regex_structure() -> None:
     text = (ROOT / "docs/language-support.md").read_text(encoding="utf-8")
     assert "Forbidden" in text or "forbidden" in text.lower()
@@ -63,6 +75,7 @@ def test_language_support_forbids_regex_structure() -> None:
     assert "verified_deep" in text
     assert "generic_structure" in text
     assert "symbol-aware" in text.lower()
+    assert "Azure OpenAI" in text
 
 
 def test_shutdown_checklist_items() -> None:
@@ -104,9 +117,10 @@ def test_pyproject_has_no_paid_cloud_sdks() -> None:
     for banned in ("boto3", "azure-", "google-cloud"):
         assert banned not in main
         assert banned not in optional
-    # openai / anthropic must not be required runtime deps; optional extras OK later.
-    for llm in ("openai", "anthropic"):
+    # openai / anthropic / langchain must not be required runtime deps.
+    for llm in ("openai", "anthropic", "langchain"):
         assert llm not in main
+    assert 'llm = [' in optional or "llm = [" in optional
 
 
 def test_gitignore_excludes_env_secrets() -> None:

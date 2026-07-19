@@ -35,9 +35,9 @@ CI must never require a paid API call.
 
 ## Optional paid LLM enrichment (local / demo)
 
-Paid provider APIs (OpenAI, Azure OpenAI, Anthropic, or another configured
-provider) are **permitted only when explicitly enabled** for semantic enrichment
-of parser-derived chunks and summaries.
+Paid provider APIs (Azure OpenAI primary; OpenAI, Anthropic, or another
+configured provider) are **permitted only when explicitly enabled** for semantic
+enrichment of parser-derived chunks and summaries. See [llm-enrichment.md](../llm-enrichment.md).
 
 Rules:
 
@@ -48,12 +48,16 @@ Rules:
 | Deterministic path | Must succeed with enrichment off |
 | Exact search | Must not depend on LLM |
 | Opt-in | Environment / settings flag only (opt-in; never default-on) |
+| Batching | Related prioritized chunks per request — **not** one call per chunk |
+| Priority | Summaries, README/docs, top-level decls, entry candidates, config/build |
 | Caps | Max requests, tokens, and estimated cost **per indexing job** |
 | Daily budget | Configurable project daily spend ceiling |
 | Kill switch | Immediate disable without deleting deterministic index |
-| Caching | Cache by content hash + parser version + prompt version + model |
+| Caching | Cache by content hash + parser version + prompt version + model/deployment |
 | Over budget | Keep parser-derived chunks; skip enrichment only |
 | Keys | Never hardcoded; never logged; never committed |
+| Primary provider | Azure OpenAI when `LLM_PROVIDER=azure_openai` |
+| LangChain | Thin adapter only; no agents for indexing enrichment |
 
 Uncapped bulk enrichment and unrestricted public Ask endpoints remain prohibited.
 

@@ -82,7 +82,8 @@ See [language-support.md](./language-support.md).
 
 ### Ask (AI answers)
 
-- Optional LLM providers behind `LLMProvider` (local or hosted); enrichment/Ask opt-in and capped
+- Optional LLM providers behind `LLMProvider` (Azure OpenAI primary when enabled)
+- LangChain only as thin orchestration; no free-running agents for indexing
 - Structured answers with citations: file, start/end line, claim
 - Validate citations against retrieved evidence before display
 - Surface support-level and limitations honestly

@@ -172,9 +172,13 @@ or create verified deep symbols.
 
 - Opt-in; disabled by default and in CI
 - Not required for deterministic indexing or exact search
-- Prioritize entry points, top-level decls, README/architecture, config/build
+- Primary provider when enabled: Azure OpenAI behind `LLMProvider`
+- LangChain used only as a thin orchestration adapter (not an agent)
+- Prefer first-party code for budget, cache, batching, and validation
+- Prioritize summaries, README/docs, top-level decls, entry points, config/build
+- Batch chunks; never one call per chunk by default
 - Strict structured output + evidence validation
-- Budget / cache / kill-switch controls — see [deployment/cost-policy.md](./deployment/cost-policy.md)
+- See [llm-enrichment.md](./llm-enrichment.md) and [deployment/cost-policy.md](./deployment/cost-policy.md)
 
 ---
 

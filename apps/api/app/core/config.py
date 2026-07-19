@@ -24,9 +24,10 @@ class Settings(BaseSettings):
     discovery_max_files: int = 50_000
     discovery_binary_sample_bytes: int = 8192
 
-    # Optional LLM enrichment (Week 7+) — disabled by default; CI must keep off.
+    # Optional LLM enrichment — disabled by default; CI must keep off.
+    # Primary provider when enabled: azure_openai (LangChain thin adapter / direct SDK).
     llm_enrichment_enabled: bool = False
-    llm_provider: str = "none"  # none | openai | azure_openai | anthropic | ollama
+    llm_provider: str = "none"  # none | azure_openai | openai | anthropic | ollama
     llm_model: str = ""
     llm_api_key: str = ""
     llm_api_base: str = ""
@@ -37,9 +38,20 @@ class Settings(BaseSettings):
     llm_max_requests_per_job: int = 50
     llm_max_tokens_per_file: int = 4_000
     llm_max_tokens_per_repository: int = 100_000
+    llm_max_tokens_per_job: int = 80_000
     llm_max_estimated_cost_usd_per_job: float = 0.50
     llm_daily_budget_usd: float = 5.0
     llm_kill_switch: bool = False
+    # Batching: never default to one call per chunk.
+    llm_max_chunks_per_request: int = 12
+    llm_orchestration: str = "auto"  # auto | langchain | direct_sdk
+
+    # Azure OpenAI (when llm_provider=azure_openai)
+    azure_openai_endpoint: str = ""
+    azure_openai_api_key: str = ""
+    azure_openai_api_version: str = "2024-10-21"
+    azure_openai_deployment: str = ""
+    azure_openai_embedding_deployment: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:
@@ -52,6 +64,14 @@ class Settings(BaseSettings):
             self.llm_enrichment_enabled
             and not self.llm_kill_switch
             and self.llm_provider not in {"", "none"}
+        )
+
+    @property
+    def azure_openai_configured(self) -> bool:
+        return bool(
+            self.azure_openai_endpoint.strip()
+            and (self.azure_openai_api_key.strip() or self.llm_api_key.strip())
+            and self.azure_openai_deployment.strip()
         )
 
 

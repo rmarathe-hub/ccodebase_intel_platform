@@ -44,6 +44,9 @@ def test_defaults_are_local_first() -> None:
     assert settings.llm_enrichment_active is False
     assert settings.llm_temperature == 0.0
     assert settings.llm_kill_switch is False
+    assert settings.llm_max_chunks_per_request >= 1
+    assert settings.llm_orchestration == "auto"
+    assert settings.azure_openai_configured is False
 
 
 def test_llm_enrichment_active_requires_opt_in() -> None:
@@ -51,12 +54,27 @@ def test_llm_enrichment_active_requires_opt_in() -> None:
     assert off.llm_enrichment_active is False
     killed = Settings(
         llm_enrichment_enabled=True,
-        llm_provider="openai",
+        llm_provider="azure_openai",
         llm_kill_switch=True,
     )
     assert killed.llm_enrichment_active is False
-    on = Settings(llm_enrichment_enabled=True, llm_provider="openai")
+    on = Settings(llm_enrichment_enabled=True, llm_provider="azure_openai")
     assert on.llm_enrichment_active is True
+
+
+def test_azure_openai_configured_requires_endpoint_key_deployment() -> None:
+    partial = Settings(
+        azure_openai_endpoint="https://example.openai.azure.com/",
+        azure_openai_api_key="x",
+        azure_openai_deployment="",
+    )
+    assert partial.azure_openai_configured is False
+    full = Settings(
+        azure_openai_endpoint="https://example.openai.azure.com/",
+        azure_openai_api_key="x",
+        azure_openai_deployment="gpt-4o",
+    )
+    assert full.azure_openai_configured is True
 
 
 @pytest.mark.parametrize(
