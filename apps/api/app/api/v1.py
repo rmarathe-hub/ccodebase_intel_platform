@@ -209,12 +209,18 @@ def get_repository_symbols(
         "function",
         "method",
         "import",
+        "export",
+        "interface",
+        "type_alias",
     }:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={
                 "code": "invalid_symbol_kind",
-                "message": "kind must be class, function, method, or import",
+                "message": (
+                    "kind must be class, function, method, import, export, "
+                    "interface, or type_alias"
+                ),
             },
         )
 
@@ -225,6 +231,7 @@ def get_repository_symbols(
         "sqlalchemy_model",
         "celery_task",
         "pydantic_model",
+        "react_component",
     }
     if framework_role is not None and framework_role not in allowed_roles:
         raise HTTPException(

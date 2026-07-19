@@ -48,8 +48,11 @@ similar package/cache folders.
 - Generic languages must never be reported as deep symbols.
 - SKIP files must carry `skip_reason`.
 - After Week 3 Day 7, successfully parsed deep **Python** files set
-  `parser_name=python-ast` and populate `symbols`. Other deep languages remain
-  eligible but unparsed (`parser_name` null) until their parsers ship.
+  `parser_name=python-ast` and populate `symbols`.
+- After Week 5 Days 1–2, successfully parsed deep **TypeScript / JavaScript**
+  (including TSX/JSX) files set `parser_name` to the matching `*-treesitter`
+  stamp and populate symbols. Java remains eligible but unparsed until its
+  parser ships.
 - Retail golden tests assert classification levels/paths, not content hashes (fixture docs may change).
 
 ## Fixture golden tests (Days 5–6)

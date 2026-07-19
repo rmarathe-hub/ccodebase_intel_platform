@@ -48,8 +48,19 @@ def replace_python_symbols_for_snapshot(
 
     Returns ``(parsed_file_count, symbol_count, call_count)``.
     """
-    session.execute(delete(SymbolCall).where(SymbolCall.snapshot_id == snapshot_id))
-    session.execute(delete(Symbol).where(Symbol.snapshot_id == snapshot_id))
+    # Language-scoped replace so JS/TS symbols (Week 5+) are preserved.
+    session.execute(
+        delete(SymbolCall).where(
+            SymbolCall.snapshot_id == snapshot_id,
+            SymbolCall.language == "python",
+        )
+    )
+    session.execute(
+        delete(Symbol).where(
+            Symbol.snapshot_id == snapshot_id,
+            Symbol.language == "python",
+        )
+    )
 
     deep_python = list(
         session.scalars(

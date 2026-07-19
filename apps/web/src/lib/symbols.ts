@@ -1,4 +1,11 @@
-export type SymbolKind = "class" | "function" | "method" | "import";
+export type SymbolKind =
+  | "class"
+  | "function"
+  | "method"
+  | "import"
+  | "export"
+  | "interface"
+  | "type_alias";
 
 export type FrameworkRole =
   | "fastapi_route"
@@ -6,7 +13,8 @@ export type FrameworkRole =
   | "django_view"
   | "sqlalchemy_model"
   | "celery_task"
-  | "pydantic_model";
+  | "pydantic_model"
+  | "react_component";
 
 export interface SymbolParameter {
   name: string;
@@ -59,6 +67,12 @@ export function symbolKindLabel(kind: string): string {
       return "Method";
     case "import":
       return "Import";
+    case "export":
+      return "Export";
+    case "interface":
+      return "Interface";
+    case "type_alias":
+      return "Type alias";
     default:
       return kind;
   }
@@ -79,6 +93,8 @@ export function frameworkRoleLabel(role: string | null | undefined): string {
       return "Celery task";
     case "pydantic_model":
       return "Pydantic model";
+    case "react_component":
+      return "React component";
     default:
       return role;
   }

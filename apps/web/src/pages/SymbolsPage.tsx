@@ -31,7 +31,10 @@ const KIND_FILTERS: Array<{ id: "all" | SymbolKind; label: string }> = [
   { id: "class", label: "Classes" },
   { id: "function", label: "Functions" },
   { id: "method", label: "Methods" },
+  { id: "interface", label: "Interfaces" },
+  { id: "type_alias", label: "Type aliases" },
   { id: "import", label: "Imports" },
+  { id: "export", label: "Exports" },
 ];
 
 const ROLE_FILTERS: Array<{ id: "all" | FrameworkRole; label: string }> = [
@@ -42,6 +45,7 @@ const ROLE_FILTERS: Array<{ id: "all" | FrameworkRole; label: string }> = [
   { id: "sqlalchemy_model", label: "SQLAlchemy" },
   { id: "pydantic_model", label: "Pydantic" },
   { id: "celery_task", label: "Celery" },
+  { id: "react_component", label: "React" },
 ];
 
 function presetParams(preset: ViewPreset): {
