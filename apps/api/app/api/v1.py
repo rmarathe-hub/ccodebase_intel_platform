@@ -10,6 +10,7 @@ from app.schemas.files import RepositoryListItem, SourceFileListResponse, Source
 from app.schemas.jobs import IndexingJobRead
 from app.schemas.repositories import RepositoryImportRequest, RepositoryRead
 from app.schemas.snapshots import RepositoryImportResponse
+from app.schemas.symbols import SymbolListResponse, SymbolRead
 from app.services.files_query import (
     latest_ready_snapshot,
     list_repositories,
@@ -21,6 +22,7 @@ from app.services.import_repository import (
     import_repository,
     retry_indexing_job,
 )
+from app.services.symbols_query import list_symbols
 
 router = APIRouter(prefix="/api/v1")
 
@@ -117,6 +119,87 @@ def get_repository_files(
         limit=limit,
         offset=offset,
         files=[SourceFileRead.model_validate(row) for row in rows],
+    )
+
+
+@router.get(
+    "/repositories/{repository_id}/symbols",
+    response_model=SymbolListResponse,
+)
+def get_repository_symbols(
+    repository_id: UUID,
+    kind: str | None = Query(default=None),
+    path_prefix: str | None = Query(default=None),
+    name_contains: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+) -> SymbolListResponse:
+    repo = db.get(Repository, repository_id)
+    if repo is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Repository not found",
+        )
+
+    if kind is not None and kind.lower() not in {
+        "class",
+        "function",
+        "method",
+        "import",
+    }:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "invalid_symbol_kind",
+                "message": "kind must be class, function, method, or import",
+            },
+        )
+
+    snapshot = latest_ready_snapshot(db, repository_id)
+    if snapshot is None:
+        return SymbolListResponse(
+            repository_id=repository_id,
+            snapshot_id=None,
+            total=0,
+            limit=limit,
+            offset=offset,
+            symbols=[],
+        )
+
+    rows, total = list_symbols(
+        db,
+        snapshot_id=snapshot.id,
+        kind=kind,
+        path_prefix=path_prefix,
+        name_contains=name_contains,
+        limit=limit,
+        offset=offset,
+    )
+    symbols = [
+        SymbolRead(
+            id=sym.id,
+            snapshot_id=sym.snapshot_id,
+            source_file_id=sym.source_file_id,
+            path=path,
+            kind=sym.kind,
+            name=sym.name,
+            qualified_name=sym.qualified_name,
+            language=sym.language,
+            start_line=sym.start_line,
+            end_line=sym.end_line,
+            signature=sym.signature,
+            created_at=sym.created_at,
+        )
+        for sym, path in rows
+    ]
+    return SymbolListResponse(
+        repository_id=repository_id,
+        snapshot_id=snapshot.id,
+        total=total,
+        limit=limit,
+        offset=offset,
+        symbols=symbols,
     )
 
 

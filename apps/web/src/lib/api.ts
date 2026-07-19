@@ -63,3 +63,25 @@ export function fetchRepositoryFiles(
     `/api/v1/repositories/${repositoryId}/files${suffix}`,
   );
 }
+
+export function fetchRepositorySymbols(
+  repositoryId: string,
+  params: {
+    kind?: string;
+    path_prefix?: string;
+    name_contains?: string;
+    limit?: number;
+    offset?: number;
+  } = {},
+) {
+  const query = new URLSearchParams();
+  if (params.kind) query.set("kind", params.kind);
+  if (params.path_prefix) query.set("path_prefix", params.path_prefix);
+  if (params.name_contains) query.set("name_contains", params.name_contains);
+  if (params.limit != null) query.set("limit", String(params.limit));
+  if (params.offset != null) query.set("offset", String(params.offset));
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return request<import("./symbols").SymbolListResponse>(
+    `/api/v1/repositories/${repositoryId}/symbols${suffix}`,
+  );
+}

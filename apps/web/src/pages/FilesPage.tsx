@@ -46,7 +46,7 @@ export function FilesPage() {
     <div className="space-y-4">
       <PageShell
         title="Files"
-        description="Browse discovered files with honesty labels (deep / generic / skip). Structural parsing comes later; this view reflects discovery only."
+        description="Browse discovered files with honesty labels (deep / generic / skip). Python deep files may show parser_name=python-ast after the worker parsing stage."
       />
 
       <section className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-6">

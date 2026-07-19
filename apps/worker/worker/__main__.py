@@ -1,4 +1,4 @@
-"""Background worker: claim jobs, clone, discover files, persist source_files."""
+"""Background worker: claim jobs, clone, discover, parse Python, persist."""
 
 from __future__ import annotations
 
@@ -25,6 +25,7 @@ from app.services.job_queue import (
 from app.services.jobs import mark_job_succeeded, set_job_stage
 from app.services.source_files import replace_source_files_for_snapshot
 from app.services.snapshots import create_or_update_snapshot
+from app.services.symbols import replace_python_symbols_for_snapshot
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("codeintel.worker")
@@ -107,19 +108,40 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     snapshot_id=snapshot.id,
                     discovery=discovery,
                 )
+                session.flush()
 
-                # Parsing / relationships / embeddings land later; discovery completes this job.
+                set_job_stage(job, JobStage.PARSING)
+                session.commit()
+
+                job = session.get(IndexingJob, job_id)
+                if job is None:
+                    raise RuntimeError(f"Job {job_id} disappeared during parsing")
+                heartbeat_job(
+                    session,
+                    job_id=job_id,
+                    worker_id=worker_id,
+                    lease_seconds=settings.job_lease_seconds,
+                )
+
+                parsed_files, symbol_count = replace_python_symbols_for_snapshot(
+                    session,
+                    snapshot_id=snapshot.id,
+                    repo_root=cloned.path,
+                )
+
+                # Relationships / chunking / embeddings remain future work.
                 mark_job_succeeded(job)
                 session.commit()
                 logger.info(
-                    "Discovered snapshot %s for %s@%s files=%s deep=%s generic=%s skip=%s truncated=%s job=%s",
+                    "Indexed snapshot %s for %s@%s files=%s deep=%s parsed_py=%s "
+                    "symbols=%s truncated=%s job=%s",
                     snapshot.id,
                     repo_label,
                     cloned.commit_sha[:12],
                     len(discovery.files),
                     discovery.deep_count,
-                    discovery.generic_count,
-                    discovery.skip_count,
+                    parsed_files,
+                    symbol_count,
                     discovery.truncated,
                     job_id,
                 )

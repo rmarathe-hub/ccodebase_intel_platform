@@ -27,6 +27,8 @@ _POSTGRES_NODE_HINTS = (
     "test_coverage_edges",
     "test_source_files_persist",
     "test_files_api",
+    "test_symbols_persist",
+    "test_symbols_api",
 )
 
 

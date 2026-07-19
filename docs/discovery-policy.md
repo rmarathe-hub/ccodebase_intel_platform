@@ -47,7 +47,9 @@ similar package/cache folders.
 
 - Generic languages must never be reported as deep symbols.
 - SKIP files must carry `skip_reason`.
-- `parser_name` / `parser_version` remain null until a parser runs (Week 4+).
+- After Week 3 Day 7, successfully parsed deep **Python** files set
+  `parser_name=python-ast` and populate `symbols`. Other deep languages remain
+  eligible but unparsed (`parser_name` null) until their parsers ship.
 - Retail golden tests assert classification levels/paths, not content hashes (fixture docs may change).
 
 ## Fixture golden tests (Days 5–6)
@@ -56,6 +58,12 @@ similar package/cache folders.
 - Full retail: cached under `.cache/retail-retention-revenue-intel` or `CODEINTEL_RETAIL_FIXTURE`
 - Perf smoke: discovery of thousands of tiny files stays under a generous wall-clock budget
 
-## Out of scope for Days 1–6
+## Day 7 — Python symbols
 
-Deep parsers / `symbols` table population (optional Day 6–7 stretch deferred).
+- Parser: stdlib `ast` only (no execution)
+- Kinds: `class`, `function`, `method`, `import`
+- Relationships / callers / callees are out of scope for Week 3
+
+## Out of scope after Week 3
+
+Deep parsers for Java / TypeScript / JavaScript, relationship graphs, chunking, embeddings.

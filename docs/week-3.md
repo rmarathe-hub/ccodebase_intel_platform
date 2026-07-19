@@ -6,34 +6,27 @@
 | --- | --- | --- |
 | 1 | `source_files` schema, migration, language/discovery contracts, policy doc | Done |
 | 2 | Pure discovery walker + unit tests | Done |
-| 3 | Worker wiring + persist `source_files` | Done (local) |
-| 4 | Files API + UI | Done (local) |
-| 5 | Retail fixture golden tests | Done (local) |
-| 6 | Perf smoke + path hardening | Done (local) |
+| 3 | Worker wiring + persist `source_files` | Done |
+| 4 | Files API + UI | Done |
+| 5 | Retail fixture golden tests | Done |
+| 6 | Perf smoke + path hardening | Done |
+| 7 | Python AST → `symbols` + Symbols API/UI | Done (local) |
 
-## Day 3–4 artifacts
+## Day 7 artifacts
 
-- `apps/api/app/services/source_files.py` — replace rows for a snapshot
-- `apps/api/app/services/files_query.py` — list repos / files
-- `apps/api/app/schemas/files.py`
-- `apps/api/app/api/v1.py` — `GET /repositories`, `GET /repositories/{id}/files`
-- `apps/worker/worker/__main__.py` — clone → discover → persist → succeed
-- `apps/web/src/pages/FilesPage.tsx` — browse with deep/generic/skip filters
-- Tests: `test_source_files_persist.py`, `test_files_api.py`, `files.test.ts`
-
-## Day 5–6 artifacts
-
-- `apps/api/tests/fixtures/retail_retention_golden.json` — committed golden for the retail demo repo
-- `apps/api/tests/fixtures/retail_shape/` + `retail_shape_golden.json` — always-offline mini tree
-- `apps/api/tests/helpers/retail_fixture.py` — env / `.cache` / one-time shallow clone resolver
-- `apps/api/tests/test_retail_discovery_golden.py` — golden + key-path policy checks
-- `apps/api/tests/test_discovery_perf.py` — thousands-of-files smoke, ignore leak, normalize property
-
-Fixture resolution order: `CODEINTEL_RETAIL_FIXTURE` → `.cache/retail-retention-revenue-intel` → one-time `git clone --depth 1`.
+- `apps/api/alembic/versions/0003_symbols.py` — `symbols` table
+- `apps/api/app/services/python_ast_parser.py` — stdlib `ast` extractor (`python-ast`)
+- `apps/api/app/services/symbols.py` — persist + stamp `parser_name` / `parser_version`
+- `apps/api/app/api/v1.py` — `GET /repositories/{id}/symbols`
+- Worker: clone → discover → **PARSING** → persist symbols → SUCCEEDED
+- `apps/web/src/pages/SymbolsPage.tsx` — browse verified Python symbols
+- Tests: `test_python_ast_parser.py`, `test_symbols_persist.py`, `test_symbols_api.py`, `symbols.test.ts`
 
 ## Honesty note
 
-Jobs mark **SUCCEEDED** after discovery. Later pipeline stages remain future work; the Jobs page copy states this explicitly. Day 6 does **not** ship Python AST → `symbols` (stretch deferred).
+Jobs mark **SUCCEEDED** after discovery **and** Python AST parsing. Still not done:
+relationships, chunking, embeddings, or deep parsers for Java / TypeScript / JavaScript.
+Syntax-error Python files stay without `parser_name` and contribute no symbols.
 
 ## Git policy
 
