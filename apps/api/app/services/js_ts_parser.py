@@ -30,7 +30,7 @@ from app.services.js_ts_imports import (
     resolve_import_specifier,
 )
 
-PARSER_VERSION = "5.4-treesitter"
+PARSER_VERSION = "5.6-treesitter"
 
 _FUNCTION_TYPES = frozenset(
     {

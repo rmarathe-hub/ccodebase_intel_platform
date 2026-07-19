@@ -137,19 +137,18 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     lease_seconds=settings.job_lease_seconds,
                 )
 
-                parsed_py, py_symbols, call_count = replace_python_symbols_for_snapshot(
+                parsed_py, py_symbols, py_calls = replace_python_symbols_for_snapshot(
                     session,
                     snapshot_id=snapshot.id,
                     repo_root=cloned.path,
                 )
-                parsed_js, js_symbols = replace_js_ts_symbols_for_snapshot(
+                parsed_js, js_symbols, js_calls = replace_js_ts_symbols_for_snapshot(
                     session,
                     snapshot_id=snapshot.id,
                     repo_root=cloned.path,
                 )
 
                 # Chunking / embeddings remain future work.
-                # JS/TS call extraction is Week 5 Day 5+.
                 mark_job_succeeded(job)
                 session.commit()
                 logger.info(
@@ -163,7 +162,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     parsed_py,
                     parsed_js,
                     py_symbols + js_symbols,
-                    call_count,
+                    py_calls + js_calls,
                     discovery.truncated,
                     job_id,
                 )

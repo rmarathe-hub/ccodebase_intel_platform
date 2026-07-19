@@ -1,4 +1,4 @@
-"""Persist JavaScript / TypeScript tree-sitter symbols for a snapshot (Week 5)."""
+"""Persist JavaScript / TypeScript tree-sitter symbols and call sites (Week 5)."""
 
 from __future__ import annotations
 
@@ -10,11 +10,13 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.language_contract import SupportLevel
-from app.models.entities import SourceFile, Symbol
+from app.models.entities import SourceFile, Symbol, SymbolCall
+from app.services.js_ts_calls import SymbolRef, extract_js_ts_calls, module_from_qname
 from app.services.js_ts_imports import load_tsconfig_paths, path_to_module
 from app.services.js_ts_parser import (
     PARSER_VERSION,
     ExtractedSymbol,
+    module_qualified_name,
     parse_js_ts_source,
 )
 
@@ -43,13 +45,21 @@ def replace_js_ts_symbols_for_snapshot(
     *,
     snapshot_id: UUID,
     repo_root: Path,
-) -> tuple[int, int]:
-    """Parse deep JS/TS files; replace only javascript/typescript symbols.
+) -> tuple[int, int, int]:
+    """Parse deep JS/TS files; replace symbols and call sites.
 
     Day 3: resolves imports against known modules + tsconfig paths.
     Day 4: attaches framework roles.
-    Returns ``(parsed_file_count, symbol_count)``.
+    Day 5: extracts call sites with confidence labels.
+
+    Returns ``(parsed_file_count, symbol_count, call_count)``.
     """
+    session.execute(
+        delete(SymbolCall).where(
+            SymbolCall.snapshot_id == snapshot_id,
+            SymbolCall.language.in_(_JS_TS_LANGUAGES),
+        )
+    )
     session.execute(
         delete(Symbol).where(
             Symbol.snapshot_id == snapshot_id,
@@ -77,6 +87,9 @@ def replace_js_ts_symbols_for_snapshot(
 
     symbol_rows: list[Symbol] = []
     parsed_files = 0
+    file_sources: dict[UUID, tuple[str, str, str]] = {}
+    # file_id -> (path, text, language)
+    extracted_by_file: dict[UUID, tuple[ExtractedSymbol, ...]] = {}
 
     for file_row in deep_files:
         absolute = (repo_root / file_row.path).resolve()
@@ -103,6 +116,8 @@ def replace_js_ts_symbols_for_snapshot(
         parsed_files += 1
         file_row.parser_name = result.parser_name
         file_row.parser_version = PARSER_VERSION
+        file_sources[file_row.id] = (file_row.path, text, result.language)
+        extracted_by_file[file_row.id] = result.symbols
 
         for item in result.symbols:
             symbol_rows.append(
@@ -132,4 +147,47 @@ def replace_js_ts_symbols_for_snapshot(
 
     session.add_all(symbol_rows)
     session.flush()
-    return parsed_files, len(symbol_rows)
+
+    qname_to_id = {row.qualified_name: row.id for row in symbol_rows}
+
+    all_refs: list[SymbolRef] = []
+    for file_id, items in extracted_by_file.items():
+        path, _, _lang = file_sources[file_id]
+        module = module_qualified_name(path)
+        for item in items:
+            all_refs.append(
+                SymbolRef(
+                    kind=item.kind,
+                    name=item.name,
+                    qualified_name=item.qualified_name,
+                    module=module_from_qname(item.qualified_name, item.kind, item.name)
+                    or module,
+                    resolved_module=item.resolved_module,
+                )
+            )
+
+    call_rows: list[SymbolCall] = []
+    for file_id, (path, text, language) in file_sources.items():
+        calls = extract_js_ts_calls(text, relative_path=path, symbols=all_refs)
+        for call in calls:
+            caller_id = None
+            if call.caller_qualified_name:
+                caller_id = qname_to_id.get(call.caller_qualified_name)
+            call_rows.append(
+                SymbolCall(
+                    snapshot_id=snapshot_id,
+                    source_file_id=file_id,
+                    caller_symbol_id=caller_id,
+                    caller_qualified_name=call.caller_qualified_name,
+                    raw_callee=call.raw_callee,
+                    qualified_expression=call.qualified_expression,
+                    line=call.line,
+                    candidate_qualified_name=call.candidate_qualified_name,
+                    confidence=call.confidence,
+                    language=language,
+                )
+            )
+
+    session.add_all(call_rows)
+    session.flush()
+    return parsed_files, len(symbol_rows), len(call_rows)

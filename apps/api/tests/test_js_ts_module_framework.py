@@ -15,7 +15,7 @@ from app.services.js_ts_parser import PARSER_VERSION, parse_js_ts_source
 
 
 def test_parser_version_day34() -> None:
-    assert PARSER_VERSION == "5.4-treesitter"
+    assert PARSER_VERSION == "5.6-treesitter"
 
 
 def test_relative_and_index_resolution() -> None:

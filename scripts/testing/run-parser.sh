@@ -14,4 +14,8 @@ pytest -q \
   tests/test_python_calls.py \
   tests/test_python_calls_matrix.py \
   tests/test_python_deep_fixtures.py \
+  tests/test_js_ts_parser.py \
+  tests/test_js_ts_module_framework.py \
+  tests/test_js_ts_calls.py \
+  tests/test_js_ts_deep_fixtures.py \
   "$@"

@@ -8,7 +8,7 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Repository, SnapshotStatus, Symbol
+from app.models import Repository, SnapshotStatus, Symbol, SymbolCall
 from app.services.discovery import discover_repository
 from app.services.js_ts_symbols import replace_js_ts_symbols_for_snapshot
 from app.services.snapshots import create_or_update_snapshot
@@ -33,7 +33,8 @@ def test_js_ts_and_python_symbols_coexist(
         encoding="utf-8",
     )
     (tmp_path / "lib.js").write_text(
-        "export function add(a, b) { return a + b; }\n",
+        "export function add(a, b) { return a + b; }\n"
+        "export function main() { return add(1, 2); }\n",
         encoding="utf-8",
     )
 
@@ -63,7 +64,7 @@ def test_js_ts_and_python_symbols_coexist(
     py_files, py_syms, _calls = replace_python_symbols_for_snapshot(
         db_session, snapshot_id=snapshot.id, repo_root=tmp_path
     )
-    js_files, js_syms = replace_js_ts_symbols_for_snapshot(
+    js_files, js_syms, js_calls = replace_js_ts_symbols_for_snapshot(
         db_session, snapshot_id=snapshot.id, repo_root=tmp_path
     )
     db_session.commit()
@@ -72,6 +73,14 @@ def test_js_ts_and_python_symbols_coexist(
     assert py_syms >= 1
     assert js_files == 2
     assert js_syms >= 2
+    assert js_calls >= 1
+
+    call_rows = list(
+        db_session.scalars(
+            select(SymbolCall).where(SymbolCall.snapshot_id == snapshot.id)
+        ).all()
+    )
+    assert any(c.language == "javascript" and c.confidence == "resolved" for c in call_rows)
 
     rows = list(
         db_session.scalars(select(Symbol).where(Symbol.snapshot_id == snapshot.id)).all()

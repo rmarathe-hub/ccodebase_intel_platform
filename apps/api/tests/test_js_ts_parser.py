@@ -23,7 +23,7 @@ def test_parser_interfaces_and_stamps() -> None:
     assert TSXTreeSitterParser.parser_name == "tsx-treesitter"
     assert JavaScriptTreeSitterParser.parser_name == "javascript-treesitter"
     assert JSXTreeSitterParser.parser_name == "jsx-treesitter"
-    assert PARSER_VERSION == "5.4-treesitter"
+    assert PARSER_VERSION == "5.6-treesitter"
 
 
 @pytest.mark.parametrize(
