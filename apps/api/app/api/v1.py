@@ -42,6 +42,18 @@ def import_github_repository(
     )
 
 
+@router.get("/jobs", response_model=list[IndexingJobRead])
+def list_jobs(
+    limit: int = 50,
+    db: Session = Depends(get_db),
+) -> list[IndexingJobRead]:
+    capped = max(1, min(limit, 200))
+    jobs = db.scalars(
+        select(IndexingJob).order_by(IndexingJob.created_at.desc()).limit(capped)
+    ).all()
+    return [IndexingJobRead.model_validate(job) for job in jobs]
+
+
 @router.get("/jobs/{job_id}", response_model=IndexingJobRead)
 def get_job(job_id: UUID, db: Session = Depends(get_db)) -> IndexingJobRead:
     job = db.get(IndexingJob, job_id)

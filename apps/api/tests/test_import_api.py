@@ -102,6 +102,16 @@ def test_import_rejects_invalid_url(client: TestClient) -> None:
     assert response.status_code == 422
 
 
+def test_list_jobs(client: TestClient) -> None:
+    imported = client.post("/api/v1/repositories/import", json={"url": RETAIL_URL})
+    assert imported.status_code == 202
+    listed = client.get("/api/v1/jobs?limit=10")
+    assert listed.status_code == 200
+    jobs = listed.json()
+    assert isinstance(jobs, list)
+    assert any(job["id"] == imported.json()["job"]["id"] for job in jobs)
+
+
 def test_retry_failed_job(client: TestClient) -> None:
     engine = create_engine(settings.database_url, pool_pre_ping=True)
     SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)

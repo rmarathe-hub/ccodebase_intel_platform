@@ -54,3 +54,28 @@ export interface IndexingJob {
 export interface RepositoryImportRequest {
   url: string;
 }
+
+export interface RepositoryImportResponse {
+  repository: {
+    id: string;
+    host: string;
+    owner_name: string;
+    name: string;
+    default_branch: string;
+    clone_url: string;
+  };
+  job: IndexingJob;
+  created_new_job: boolean;
+}
+
+export const JOB_STAGE_LABELS = [
+  "Queued",
+  "Cloning",
+  "Discovering files",
+  "Parsing",
+  "Building relationships",
+  "Chunking",
+  "Embedding",
+  "Validating",
+  "Completed",
+] as const;
