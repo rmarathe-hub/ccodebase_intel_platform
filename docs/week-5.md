@@ -10,7 +10,7 @@
 | 4 | Framework metadata (Express / NestJS / Next.js / React) | Done |
 | 5 | Call extraction | Done |
 | 6 | Fixture matrix | Done |
-| 7 | Mixed frontend/backend repository test | Not started |
+| 7 | Mixed frontend/backend repository test | Done |
 
 ## Artifacts
 
@@ -22,6 +22,9 @@
 - `apps/api/app/services/js_ts_calls.py` — call sites with `resolved` / `ambiguous` / `unresolved`
 - `apps/api/app/services/js_ts_symbols.py` — persist symbols + calls (language-scoped)
 - `apps/api/tests/fixtures/js_ts_deep/` — React, Express, Next.js, async arrows, interfaces, duplicates
+- `apps/api/tests/fixtures/mixed_frontend_backend/` — React UI + FastAPI API (+ unparsed Java)
+- `apps/api/tests/test_mixed_frontend_backend.py` — discovery, persist, API, non-clobber
+- Worker coverage: `test_worker_pipeline_succeeds_with_mixed_frontend_backend`
 
 ### Framework roles added
 
@@ -31,6 +34,10 @@
 
 Covers `fn()`, `obj.method()`, `this.method()`, `await fn()`, and arrow/function callers.
 Resolution is name / import / this heuristic — not a type checker.
+
+### Mixed repo (Day 7)
+
+One fixture indexes Python FastAPI routes/models/calls and TypeScript React components/calls in the same snapshot. Language-scoped replace keeps stacks isolated. Java remains DEEP but unparsed.
 
 ## Honesty
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 import sys
 from contextlib import contextmanager
 from pathlib import Path
@@ -126,6 +127,61 @@ def test_worker_pipeline_succeeds_with_python_fixture(
         .filter(SymbolCall.snapshot_id == refreshed.snapshot_id)
         .all()
     )
+    assert any(c.confidence == "resolved" for c in calls)
+
+
+def test_worker_pipeline_succeeds_with_mixed_frontend_backend(
+    db_session: Session,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Week 5 Day 7 — worker indexes React + Python in one snapshot."""
+    fixture = Path(__file__).resolve().parent / "fixtures" / "mixed_frontend_backend"
+    # Copy fixture into tmp so worker clone root is isolated.
+    mixed = tmp_path / "mixed"
+    shutil.copytree(fixture, mixed)
+
+    _repo, job = _enqueue_repo(db_session)
+
+    @contextmanager
+    def fake_clone(*_args, **_kwargs):  # type: ignore[no-untyped-def]
+        yield CloneResult(
+            path=mixed,
+            branch="main",
+            commit_sha="mixed123456789",
+            bytes_on_disk=512,
+        )
+
+    monkeypatch.setattr("worker.__main__.secure_clone", fake_clone)
+
+    factory = _session_factory(db_session)
+    assert process_one(factory, worker_id="test-worker-mixed") is True
+
+    db_session.expire_all()
+    refreshed = db_session.get(IndexingJob, job.id)
+    assert refreshed is not None
+    assert refreshed.status == JobStatus.SUCCEEDED
+    assert refreshed.snapshot_id is not None
+
+    symbols = (
+        db_session.query(Symbol)
+        .filter(Symbol.snapshot_id == refreshed.snapshot_id)
+        .all()
+    )
+    langs = {s.language for s in symbols}
+    assert "python" in langs
+    assert "typescript" in langs
+    assert any(s.framework_role == "fastapi_route" for s in symbols)
+    assert any(s.framework_role == "react_component" for s in symbols)
+
+    calls = (
+        db_session.query(SymbolCall)
+        .filter(SymbolCall.snapshot_id == refreshed.snapshot_id)
+        .all()
+    )
+    call_langs = {c.language for c in calls}
+    assert "python" in call_langs
+    assert "typescript" in call_langs
     assert any(c.confidence == "resolved" for c in calls)
 
 
