@@ -9,8 +9,10 @@ COPY apps/api/pyproject.toml apps/api/README.md ./
 COPY apps/api/app ./app
 COPY apps/api/alembic ./alembic
 COPY apps/api/alembic.ini ./
+COPY apps/api/scripts/entrypoint.sh ./scripts/entrypoint.sh
 
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir -e . \
+  && chmod +x ./scripts/entrypoint.sh
 
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["./scripts/entrypoint.sh"]

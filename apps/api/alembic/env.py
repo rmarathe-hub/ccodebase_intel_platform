@@ -7,6 +7,12 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 from app.core.config import settings
 from app.db.session import Base
+from app.models import (  # noqa: F401 — register metadata
+    IndexingJob,
+    Repository,
+    RepositorySnapshot,
+    User,
+)
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

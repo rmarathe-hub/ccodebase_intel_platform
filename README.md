@@ -19,3 +19,5 @@ cd apps/web && npm run dev
 ```
 
 Docker Compose (`make dev`) wires postgres, api, worker, and web.
+
+Postgres is published on host port **5434** (avoids clashing with a local Postgres on 5432).
