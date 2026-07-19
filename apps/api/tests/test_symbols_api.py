@@ -77,6 +77,13 @@ def test_list_symbols_api(client: TestClient, db_session: Session, tmp_path: Pat
     assert body["snapshot_id"] == str(snapshot.id)
     assert body["total"] >= 3
     assert any(s["kind"] == "class" for s in body["symbols"])
+    assert any(
+        s["qualified_name"].endswith("Service") or "Service" in s["qualified_name"]
+        for s in body["symbols"]
+    )
+    method = next(s for s in body["symbols"] if s["kind"] == "method")
+    assert "parameters" in method
+    assert isinstance(method["parameters"], list)
 
     filtered = client.get(
         f"/api/v1/repositories/{repo.id}/symbols",

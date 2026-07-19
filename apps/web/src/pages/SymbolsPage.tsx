@@ -47,7 +47,7 @@ export function SymbolsPage() {
     <div className="space-y-4">
       <PageShell
         title="Symbols"
-        description="Browse verified Python symbols from python-ast. Java / TypeScript / JavaScript deep parsing, relationships, and heuristic sections are not shipped yet."
+        description="Browse verified Python symbols with qualified names, signatures, decorators, and docstrings from python-ast. Framework detection, import/call graphs, and Java/TS parsers are not shipped yet."
       />
 
       <section className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-6">
@@ -141,23 +141,34 @@ export function SymbolsPage() {
                 <thead className="text-[var(--muted)]">
                   <tr className="border-b border-[var(--border)]">
                     <th className="py-2 pr-3 font-medium">Kind</th>
-                    <th className="py-2 pr-3 font-medium">Name</th>
+                    <th className="py-2 pr-3 font-medium">Qualified name</th>
                     <th className="py-2 pr-3 font-medium">Path</th>
                     <th className="py-2 pr-3 font-medium">Lines</th>
-                    <th className="py-2 font-medium">Signature</th>
+                    <th className="py-2 font-medium">Details</th>
                   </tr>
                 </thead>
                 <tbody>
                   {symbolsQuery.data.symbols.map((sym) => (
-                    <tr key={sym.id} className="border-b border-[var(--border)]/60">
-                      <td className="py-2 pr-3">{symbolKindLabel(sym.kind)}</td>
+                    <tr key={sym.id} className="border-b border-[var(--border)]/60 align-top">
+                      <td className="py-2 pr-3">
+                        {symbolKindLabel(sym.kind)}
+                        {sym.is_async ? (
+                          <span className="ml-1 text-xs text-[var(--muted)]">async</span>
+                        ) : null}
+                      </td>
                       <td className="py-2 pr-3 font-mono text-xs">{sym.qualified_name}</td>
                       <td className="py-2 pr-3 font-mono text-xs">{sym.path}</td>
                       <td className="py-2 pr-3 tabular-nums">
                         {sym.start_line}–{sym.end_line}
                       </td>
-                      <td className="py-2 font-mono text-xs text-[var(--muted)]">
-                        {sym.signature ?? "—"}
+                      <td className="py-2 text-xs text-[var(--muted)]">
+                        <div className="font-mono">{sym.signature ?? "—"}</div>
+                        {sym.decorators.length > 0 && (
+                          <div className="mt-1">@{sym.decorators.join(" @")}</div>
+                        )}
+                        {sym.docstring && (
+                          <div className="mt-1 line-clamp-2 italic">{sym.docstring}</div>
+                        )}
                       </td>
                     </tr>
                   ))}

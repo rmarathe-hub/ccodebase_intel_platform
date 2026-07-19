@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from uuid import UUID
 
@@ -13,8 +14,26 @@ from app.models.entities import SourceFile, Symbol
 from app.services.python_ast_parser import (
     PARSER_NAME,
     PARSER_VERSION,
+    ExtractedSymbol,
     parse_python_source,
 )
+
+
+def _decorators_json(item: ExtractedSymbol) -> str | None:
+    if not item.decorators:
+        return None
+    return json.dumps(list(item.decorators))
+
+
+def _parameters_json(item: ExtractedSymbol) -> str | None:
+    if not item.parameters:
+        return None
+    return json.dumps(
+        [
+            {"name": p.name, "annotation": p.annotation, "kind": p.kind}
+            for p in item.parameters
+        ]
+    )
 
 
 def replace_python_symbols_for_snapshot(
@@ -81,6 +100,11 @@ def replace_python_symbols_for_snapshot(
                     start_line=item.start_line,
                     end_line=item.end_line,
                     signature=item.signature,
+                    docstring=item.docstring,
+                    decorators_json=_decorators_json(item),
+                    parameters_json=_parameters_json(item),
+                    return_annotation=item.return_annotation,
+                    is_async=item.is_async,
                 )
             )
 

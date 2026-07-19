@@ -189,6 +189,11 @@ def get_repository_symbols(
             start_line=sym.start_line,
             end_line=sym.end_line,
             signature=sym.signature,
+            docstring=sym.docstring,
+            decorators=sym.decorators_json,
+            parameters=sym.parameters_json,
+            return_annotation=sym.return_annotation,
+            is_async=sym.is_async,
             created_at=sym.created_at,
         )
         for sym, path in rows

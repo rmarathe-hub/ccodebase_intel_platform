@@ -184,6 +184,11 @@ class Symbol(Base):
     start_line: Mapped[int] = mapped_column(Integer, nullable=False)
     end_line: Mapped[int] = mapped_column(Integer, nullable=False)
     signature: Mapped[str | None] = mapped_column(Text, nullable=True)
+    docstring: Mapped[str | None] = mapped_column(Text, nullable=True)
+    decorators_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    parameters_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    return_annotation: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_async: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

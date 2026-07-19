@@ -1,7 +1,10 @@
-"""Python stdlib AST deep parser (Week 3 Day 7).
+"""Python stdlib AST deep parser (Week 4 Days 1–2).
 
 Honesty: only Python. No code execution — ``ast.parse`` only. Syntax errors
 yield an empty result with ``ok=False`` so callers leave ``parser_name`` unset.
+
+Day 1 adds decorators, parameters, return annotations, and docstrings.
+Day 2 tightens module/nested qualified names (including ``__init__.py`` packages).
 """
 
 from __future__ import annotations
@@ -11,7 +14,15 @@ import sys
 from dataclasses import dataclass
 
 PARSER_NAME = "python-ast"
-PARSER_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}-stdlib"
+# Bump when extracted fields / QName rules change so re-indexes stamp a new version.
+PARSER_VERSION = f"4.1-{sys.version_info.major}.{sys.version_info.minor}-stdlib"
+
+
+@dataclass(frozen=True, slots=True)
+class ExtractedParameter:
+    name: str
+    annotation: str | None
+    kind: str  # positional | vararg | kwonly | kwarg | posonly
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,6 +33,11 @@ class ExtractedSymbol:
     start_line: int
     end_line: int
     signature: str | None
+    docstring: str | None = None
+    decorators: tuple[str, ...] = ()
+    parameters: tuple[ExtractedParameter, ...] = ()
+    return_annotation: str | None = None
+    is_async: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,48 +55,213 @@ def _end_lineno(node: ast.AST) -> int:
     return int(lineno) if isinstance(lineno, int) else 1
 
 
+def _unparse(node: ast.AST | None) -> str | None:
+    if node is None:
+        return None
+    try:
+        return ast.unparse(node)
+    except (TypeError, ValueError, RecursionError):
+        return None
+
+
+def module_qualified_name(relative_path: str) -> str:
+    """Map a repo-relative Python path to a dotted module name.
+
+    Examples:
+    - ``app/services/auth.py`` → ``app.services.auth``
+    - ``app/services/__init__.py`` → ``app.services``
+    - ``scripts/load_to_postgres.py`` → ``scripts.load_to_postgres``
+    """
+    cleaned = relative_path.replace("\\", "/").strip().lstrip("/")
+    if not cleaned:
+        return ""
+    if cleaned.endswith(".py"):
+        cleaned = cleaned[: -len(".py")]
+    parts = [p for p in cleaned.split("/") if p and p != "."]
+    if parts and parts[-1] == "__init__":
+        parts = parts[:-1]
+    return ".".join(parts)
+
+
+def qualify(module: str, *parts: str) -> str:
+    """Join module + symbol parts into a stable qualified name."""
+    chunks = [module] if module else []
+    chunks.extend(p for p in parts if p)
+    return ".".join(chunks)
+
+
+def _decorators(node: ast.AST) -> tuple[str, ...]:
+    decorator_list = getattr(node, "decorator_list", None)
+    if not decorator_list:
+        return ()
+    out: list[str] = []
+    for deco in decorator_list:
+        rendered = _unparse(deco)
+        if rendered:
+            out.append(rendered)
+    return tuple(out)
+
+
+def _extract_parameters(args: ast.arguments) -> tuple[ExtractedParameter, ...]:
+    params: list[ExtractedParameter] = []
+    for arg in args.posonlyargs:
+        params.append(
+            ExtractedParameter(
+                name=arg.arg,
+                annotation=_unparse(arg.annotation),
+                kind="posonly",
+            )
+        )
+    for arg in args.args:
+        params.append(
+            ExtractedParameter(
+                name=arg.arg,
+                annotation=_unparse(arg.annotation),
+                kind="positional",
+            )
+        )
+    if args.vararg is not None:
+        params.append(
+            ExtractedParameter(
+                name=args.vararg.arg,
+                annotation=_unparse(args.vararg.annotation),
+                kind="vararg",
+            )
+        )
+    for arg in args.kwonlyargs:
+        params.append(
+            ExtractedParameter(
+                name=arg.arg,
+                annotation=_unparse(arg.annotation),
+                kind="kwonly",
+            )
+        )
+    if args.kwarg is not None:
+        params.append(
+            ExtractedParameter(
+                name=args.kwarg.arg,
+                annotation=_unparse(args.kwarg.annotation),
+                kind="kwarg",
+            )
+        )
+    return tuple(params)
+
+
 def _format_args(args: ast.arguments) -> str:
     parts: list[str] = []
     for arg in args.posonlyargs:
-        parts.append(arg.arg)
+        ann = _unparse(arg.annotation)
+        parts.append(f"{arg.arg}: {ann}" if ann else arg.arg)
     if args.posonlyargs:
         parts.append("/")
     for arg in args.args:
-        parts.append(arg.arg)
+        ann = _unparse(arg.annotation)
+        parts.append(f"{arg.arg}: {ann}" if ann else arg.arg)
     if args.vararg is not None:
-        parts.append(f"*{args.vararg.arg}")
+        ann = _unparse(args.vararg.annotation)
+        rendered = f"*{args.vararg.arg}"
+        parts.append(f"{rendered}: {ann}" if ann else rendered)
     elif args.kwonlyargs:
         parts.append("*")
     for arg in args.kwonlyargs:
-        parts.append(arg.arg)
+        ann = _unparse(arg.annotation)
+        parts.append(f"{arg.arg}: {ann}" if ann else arg.arg)
     if args.kwarg is not None:
-        parts.append(f"**{args.kwarg.arg}")
+        ann = _unparse(args.kwarg.annotation)
+        rendered = f"**{args.kwarg.arg}"
+        parts.append(f"{rendered}: {ann}" if ann else rendered)
     return ", ".join(parts)
 
 
-def _function_signature(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
+def _function_signature(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    *,
+    return_annotation: str | None,
+) -> str:
     prefix = "async def" if isinstance(node, ast.AsyncFunctionDef) else "def"
-    return f"{prefix} {node.name}({_format_args(node.args)})"
+    sig = f"{prefix} {node.name}({_format_args(node.args)})"
+    if return_annotation:
+        sig = f"{sig} -> {return_annotation}"
+    return sig
 
 
-def _module_prefix(relative_path: str) -> str:
-    cleaned = relative_path.replace("\\", "/").removesuffix(".py")
-    return cleaned.replace("/", ".")
+def _class_signature(node: ast.ClassDef) -> str:
+    bases = [_unparse(base) for base in node.bases]
+    base_names = [b for b in bases if b]
+    if base_names:
+        return f"class {node.name}({', '.join(base_names)})"
+    return f"class {node.name}"
+
+
+def _append_function(
+    found: list[ExtractedSymbol],
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    *,
+    kind: str,
+    qname: str,
+) -> None:
+    return_ann = _unparse(node.returns)
+    found.append(
+        ExtractedSymbol(
+            kind=kind,
+            name=node.name,
+            qualified_name=qname,
+            start_line=node.lineno,
+            end_line=_end_lineno(node),
+            signature=_function_signature(node, return_annotation=return_ann),
+            docstring=ast.get_docstring(node),
+            decorators=_decorators(node),
+            parameters=_extract_parameters(node.args),
+            return_annotation=return_ann,
+            is_async=isinstance(node, ast.AsyncFunctionDef),
+        )
+    )
+
+
+def _walk_class_body(
+    found: list[ExtractedSymbol],
+    node: ast.ClassDef,
+    *,
+    class_qname: str,
+) -> None:
+    for child in node.body:
+        if isinstance(child, ast.ClassDef):
+            nested_q = qualify(class_qname, child.name)
+            found.append(
+                ExtractedSymbol(
+                    kind="class",
+                    name=child.name,
+                    qualified_name=nested_q,
+                    start_line=child.lineno,
+                    end_line=_end_lineno(child),
+                    signature=_class_signature(child),
+                    docstring=ast.get_docstring(child),
+                    decorators=_decorators(child),
+                )
+            )
+            _walk_class_body(found, child, class_qname=nested_q)
+        elif isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            _append_function(
+                found,
+                child,
+                kind="method",
+                qname=qualify(class_qname, child.name),
+            )
 
 
 def parse_python_source(source: str, *, relative_path: str) -> ParseResult:
-    """Extract classes, functions/methods, and imports from Python source text."""
+    """Extract classes, functions/methods, and imports with Day 1–2 metadata."""
     try:
         tree = ast.parse(source, filename=relative_path)
     except SyntaxError as exc:
         return ParseResult(ok=False, symbols=(), error=f"syntax_error:{exc.msg}")
 
-    module = _module_prefix(relative_path)
+    module = module_qualified_name(relative_path)
     found: list[ExtractedSymbol] = []
 
     for node in tree.body:
         if isinstance(node, ast.ClassDef):
-            qname = f"{module}.{node.name}" if module else node.name
+            qname = qualify(module, node.name)
             found.append(
                 ExtractedSymbol(
                     kind="class",
@@ -88,33 +269,18 @@ def parse_python_source(source: str, *, relative_path: str) -> ParseResult:
                     qualified_name=qname,
                     start_line=node.lineno,
                     end_line=_end_lineno(node),
-                    signature=f"class {node.name}",
+                    signature=_class_signature(node),
+                    docstring=ast.get_docstring(node),
+                    decorators=_decorators(node),
                 )
             )
-            for child in node.body:
-                if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    method_q = f"{qname}.{child.name}"
-                    found.append(
-                        ExtractedSymbol(
-                            kind="method",
-                            name=child.name,
-                            qualified_name=method_q,
-                            start_line=child.lineno,
-                            end_line=_end_lineno(child),
-                            signature=_function_signature(child),
-                        )
-                    )
+            _walk_class_body(found, node, class_qname=qname)
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            qname = f"{module}.{node.name}" if module else node.name
-            found.append(
-                ExtractedSymbol(
-                    kind="function",
-                    name=node.name,
-                    qualified_name=qname,
-                    start_line=node.lineno,
-                    end_line=_end_lineno(node),
-                    signature=_function_signature(node),
-                )
+            _append_function(
+                found,
+                node,
+                kind="function",
+                qname=qualify(module, node.name),
             )
         elif isinstance(node, ast.Import):
             for alias in node.names:

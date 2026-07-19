@@ -1,5 +1,11 @@
 export type SymbolKind = "class" | "function" | "method" | "import";
 
+export interface SymbolParameter {
+  name: string;
+  annotation: string | null;
+  kind: string;
+}
+
 export interface SymbolItem {
   id: string;
   snapshot_id: string;
@@ -12,6 +18,11 @@ export interface SymbolItem {
   start_line: number;
   end_line: number;
   signature: string | null;
+  docstring: string | null;
+  decorators: string[];
+  parameters: SymbolParameter[];
+  return_annotation: string | null;
+  is_async: boolean;
   created_at: string;
 }
 
