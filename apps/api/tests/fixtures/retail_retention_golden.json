@@ -1,0 +1,758 @@
+{
+  "fixture": "rmarathe-hub/retail-retention-revenue-intel",
+  "schema_version": 1,
+  "counts": {
+    "total": 105,
+    "deep": 69,
+    "generic": 29,
+    "skip": 7,
+    "truncated": false
+  },
+  "language_counts": {
+    "configuration": 3,
+    "documentation": 18,
+    "python": 69,
+    "sql": 8
+  },
+  "skip_reason_counts": {
+    "secret_path": 1,
+    "unsupported_ext": 6
+  },
+  "files": [
+    {
+      "path": ".env.example",
+      "language": null,
+      "support_level": "skip",
+      "skip_reason": "secret_path",
+      "is_test_file": false
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "language": "configuration",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": ".gitignore",
+      "language": null,
+      "support_level": "skip",
+      "skip_reason": "unsupported_ext",
+      "is_test_file": false
+    },
+    {
+      "path": "LICENSE",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "README.md",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "dashboard/README.md",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "dashboard/screenshots/.gitkeep",
+      "language": null,
+      "support_level": "skip",
+      "skip_reason": "unsupported_ext",
+      "is_test_file": false
+    },
+    {
+      "path": "dashboard/screenshots/README.md",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "data/marts/.gitkeep",
+      "language": null,
+      "support_level": "skip",
+      "skip_reason": "unsupported_ext",
+      "is_test_file": false
+    },
+    {
+      "path": "data/processed/.gitkeep",
+      "language": null,
+      "support_level": "skip",
+      "skip_reason": "unsupported_ext",
+      "is_test_file": false
+    },
+    {
+      "path": "data/raw/.gitkeep",
+      "language": null,
+      "support_level": "skip",
+      "skip_reason": "unsupported_ext",
+      "is_test_file": false
+    },
+    {
+      "path": "docker-compose.yml",
+      "language": "configuration",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "docs/business_problem.md",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "docs/ci.md",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "docs/cohort_analysis_notes.md",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "docs/data_dictionary.md",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "docs/data_quality_report.md",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "docs/metric_definitions.md",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "docs/portfolio_case_study.md",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "docs/postgres_setup.md",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "docs/powerbi_dashboard_guide.md",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "docs/product_market_notes.md",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "docs/recommendations.md",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "docs/revenue_at_risk_notes.md",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "docs/rfm_analysis_notes.md",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "pytest.ini",
+      "language": "configuration",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "requirements.txt",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "scripts/clean_online_retail.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "scripts/db_config.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "scripts/download_or_import_data.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "scripts/export_powerbi_marts.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "scripts/load_to_postgres.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "scripts/profile_raw_data.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "scripts/run_cohort_retention.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "scripts/run_kpi_marts.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "scripts/run_product_market_analysis.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "scripts/run_revenue_at_risk.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "scripts/run_rfm_segmentation.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "scripts/validate_data.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "sql/.gitkeep",
+      "language": null,
+      "support_level": "skip",
+      "skip_reason": "unsupported_ext",
+      "is_test_file": false
+    },
+    {
+      "path": "sql/01_schema.sql",
+      "language": "sql",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "sql/02_data_quality_checks.sql",
+      "language": "sql",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "sql/03_kpi_definitions.sql",
+      "language": "sql",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "sql/04_revenue_analysis.sql",
+      "language": "sql",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "sql/05_cohort_retention.sql",
+      "language": "sql",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "sql/06_rfm_segmentation.sql",
+      "language": "sql",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "sql/07_revenue_at_risk.sql",
+      "language": "sql",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "sql/08_product_market_analysis.sql",
+      "language": "sql",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "tests/__init__.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/conftest.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/helpers.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_clean_online_retail_script.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_cleaning_rules_extended.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_cohort_analysis_notes.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_day2_completion_contract.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_days12_completion_contract.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_days13_completion_contract.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_days14_completion_contract.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_days1_4_completion_contract.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_days5_completion_contract.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_days6_completion_contract.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_days7_completion_contract.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_days8_completion_contract.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_days9_completion_contract.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_db_config_extended.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_docker_compose.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_docs_data_dictionary.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_docs_data_quality_report.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_docs_postgres_and_readme_extended.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_download_import_script.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_gitignore_and_repo_hygiene.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_load_summary_contract.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_load_to_postgres.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_metric_definitions.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_no_premature_completion.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_powerbi_dashboard_guide.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_processed_data_contract.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_profile_raw_data_script.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_profile_summary_contract.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_project_structure.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_raw_data_contract.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_readme.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_requirements.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_requirements_and_docs_extended.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_revenue_at_risk_notes.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_rfm_analysis_notes.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_scripts_importable.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_secrets_hygiene.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_smoke_pipeline.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_sql_data_quality_checks.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_sql_schema.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_sql_schema_extended.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_validate_data_script.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_week1_completion_contract.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_week1_db_integration.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_week1_docs_consistency.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_week1_export_marts_contract.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_week1_idempotency.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_week1_port_and_hygiene.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_week1_processed_csv_extended.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_week1_processed_summaries_contract.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_week1_schema_columns.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_week1_script_safety.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_week1_smoke_extended.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    },
+    {
+      "path": "tests/test_week1_sql_marts_text.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    }
+  ]
+}

@@ -8,7 +8,9 @@ venv/
 .pytest_cache/
 .ruff_cache/
 .coverage
+coverage.xml
 htmlcov/
+mutants/
 dist/
 build/
 
@@ -33,3 +35,4 @@ apps/web/dist/
 data/
 tmp/
 *.db
+.cache/

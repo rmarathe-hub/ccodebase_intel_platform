@@ -22,6 +22,9 @@ def test_normalize_relative_path() -> None:
     assert normalize_relative_path("./src/main.py") == "src/main.py"
     assert normalize_relative_path("\\src\\main.py") == "src/main.py"
     assert normalize_relative_path("/abs/not") == "abs/not"
+    assert normalize_relative_path("a/./b/../c.py") == "a/c.py"
+    assert normalize_relative_path("../escape.py") == ""
+    assert normalize_relative_path("ok/../../outside.py") == ""
 
 
 def test_count_lines_variants() -> None:

@@ -47,8 +47,15 @@ similar package/cache folders.
 
 - Generic languages must never be reported as deep symbols.
 - SKIP files must carry `skip_reason`.
-- `parser_name` / `parser_version` remain null until a parser runs (Week 3 Day 3+ / Week 4).
+- `parser_name` / `parser_version` remain null until a parser runs (Week 4+).
+- Retail golden tests assert classification levels/paths, not content hashes (fixture docs may change).
 
-## Out of scope for Days 1–2
+## Fixture golden tests (Days 5–6)
 
-Worker persistence of `source_files`, Files API, and deep parsers ship after Day 2.
+- Offline shape: `apps/api/tests/fixtures/retail_shape/`
+- Full retail: cached under `.cache/retail-retention-revenue-intel` or `CODEINTEL_RETAIL_FIXTURE`
+- Perf smoke: discovery of thousands of tiny files stays under a generous wall-clock budget
+
+## Out of scope for Days 1–6
+
+Deep parsers / `symbols` table population (optional Day 6–7 stretch deferred).

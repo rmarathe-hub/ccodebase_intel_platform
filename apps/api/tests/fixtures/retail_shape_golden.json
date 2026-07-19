@@ -1,0 +1,142 @@
+{
+  "fixture": "retail_shape",
+  "schema_version": 1,
+  "counts": {
+    "total": 17,
+    "deep": 3,
+    "generic": 9,
+    "skip": 5,
+    "truncated": false
+  },
+  "language_counts": {
+    "configuration": 2,
+    "documentation": 5,
+    "python": 3,
+    "sql": 2
+  },
+  "skip_reason_counts": {
+    "secret_path": 1,
+    "unsupported_ext": 4
+  },
+  "files": [
+    {
+      "path": ".env.example",
+      "language": null,
+      "support_level": "skip",
+      "skip_reason": "secret_path",
+      "is_test_file": false
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "language": "configuration",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": ".gitignore",
+      "language": null,
+      "support_level": "skip",
+      "skip_reason": "unsupported_ext",
+      "is_test_file": false
+    },
+    {
+      "path": "LICENSE",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "README.md",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "dashboard/README.md",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "dashboard/screenshots/.gitkeep",
+      "language": null,
+      "support_level": "skip",
+      "skip_reason": "unsupported_ext",
+      "is_test_file": false
+    },
+    {
+      "path": "data/raw/.gitkeep",
+      "language": null,
+      "support_level": "skip",
+      "skip_reason": "unsupported_ext",
+      "is_test_file": false
+    },
+    {
+      "path": "docker-compose.yml",
+      "language": "configuration",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "docs/business_problem.md",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "requirements.txt",
+      "language": "documentation",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "scripts/clean_online_retail.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "scripts/load_to_postgres.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "sql/.gitkeep",
+      "language": null,
+      "support_level": "skip",
+      "skip_reason": "unsupported_ext",
+      "is_test_file": false
+    },
+    {
+      "path": "sql/01_schema.sql",
+      "language": "sql",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "sql/02_data_quality_checks.sql",
+      "language": "sql",
+      "support_level": "generic",
+      "skip_reason": null,
+      "is_test_file": false
+    },
+    {
+      "path": "tests/test_smoke.py",
+      "language": "python",
+      "support_level": "deep",
+      "skip_reason": null,
+      "is_test_file": true
+    }
+  ]
+}

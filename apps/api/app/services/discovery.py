@@ -64,12 +64,28 @@ class DiscoveryResult:
 
 
 def normalize_relative_path(path: str) -> str:
-    """Normalize to a POSIX relative path without leading ./ or /."""
+    """Normalize to a POSIX relative path without leading ./ or /.
+
+    ``..`` segments that would escape the logical root collapse to an empty
+    string (callers treat that as ``empty_name`` / unreadable).
+    """
     cleaned = path.replace("\\", "/").strip()
     while cleaned.startswith("./"):
         cleaned = cleaned[2:]
     cleaned = cleaned.lstrip("/")
-    return str(PurePosixPath(cleaned)) if cleaned else ""
+    if not cleaned:
+        return ""
+    parts: list[str] = []
+    for part in PurePosixPath(cleaned).parts:
+        if part in {"", "."}:
+            continue
+        if part == "..":
+            if not parts:
+                return ""
+            parts.pop()
+            continue
+        parts.append(part)
+    return "/".join(parts)
 
 
 def looks_like_test_path(relative_path: str) -> bool:
