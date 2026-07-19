@@ -1,7 +1,7 @@
-.PHONY: help dev stop test lint migrate reset-db api-install web-install
+.PHONY: help dev stop test lint migrate reset-db api-install web-install ci docker-build
 
 help:
-	@echo "Targets: dev stop test lint migrate reset-db api-install web-install"
+	@echo "Targets: dev stop test lint migrate reset-db api-install web-install ci docker-build"
 
 dev:
 	docker compose up --build
@@ -11,11 +11,11 @@ stop:
 
 test:
 	cd apps/api && .venv/bin/python -m pytest
-	cd apps/web && npm test --if-present
+	cd apps/web && npm test
 
 lint:
 	cd apps/api && .venv/bin/ruff check . && .venv/bin/mypy app
-	cd apps/web && npm run lint
+	cd apps/web && npm run lint && npm run typecheck
 
 migrate:
 	cd apps/api && .venv/bin/alembic upgrade head
@@ -35,3 +35,11 @@ api-install:
 
 web-install:
 	cd apps/web && npm install
+
+docker-build:
+	docker build -f apps/api/Dockerfile -t codeintel-api:local .
+	docker build -f apps/worker/Dockerfile -t codeintel-worker:local .
+	docker build -f apps/web/Dockerfile -t codeintel-web:local .
+
+ci: lint test docker-build
+	@echo "CI checks passed."

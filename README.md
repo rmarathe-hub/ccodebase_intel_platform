@@ -21,3 +21,13 @@ cd apps/web && npm run dev
 Docker Compose (`make dev`) wires postgres, api, worker, and web.
 
 Postgres is published on host port **5434** (avoids clashing with a local Postgres on 5432).
+
+## CI
+
+GitHub Actions runs on every push/PR to `main`:
+
+- Python: Ruff, MyPy, Pytest
+- Frontend: TypeScript, ESLint, Vitest, production build
+- Docker: builds api, worker, and web images
+
+Locally: `make ci`
