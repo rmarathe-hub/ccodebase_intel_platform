@@ -5,12 +5,10 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-import pytest
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import update
+from sqlalchemy.orm import Session
 
-from app.core.config import settings
-from app.models import Base, JobStatus, Repository
+from app.models import IndexingJob, JobStatus, Repository
 from app.services.job_queue import (
     claim_next_job,
     find_active_job_for_repository,
@@ -19,39 +17,22 @@ from app.services.job_queue import (
     schedule_retry,
 )
 from app.services.jobs import new_indexing_job
+from tests.conftest import requires_postgres
+
+pytestmark = requires_postgres
 
 
-def _postgres_available() -> bool:
-    engine = create_engine(settings.database_url, pool_pre_ping=True)
-    try:
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        return True
-    except Exception:
-        return False
-    finally:
-        engine.dispose()
-
-
-pytestmark = pytest.mark.skipif(
-    not _postgres_available(),
-    reason="PostgreSQL is required for FOR UPDATE SKIP LOCKED queue tests",
-)
-
-
-@pytest.fixture()
-def db_session() -> Session:
-    engine = create_engine(settings.database_url, pool_pre_ping=True)
-    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-    # Ensure schema exists (migrations may already have run).
-    Base.metadata.create_all(bind=engine)
-    session = SessionLocal()
-    try:
-        yield session
-        session.rollback()
-    finally:
-        session.close()
-        engine.dispose()
+def _clear_open_jobs(session: Session) -> None:
+    session.execute(
+        update(IndexingJob)
+        .where(IndexingJob.status.in_((JobStatus.QUEUED, JobStatus.RUNNING)))
+        .values(
+            status=JobStatus.CANCELLED,
+            locked_by=None,
+            locked_until=None,
+        )
+    )
+    session.commit()
 
 
 def _seed_repo(session: Session) -> Repository:
@@ -68,6 +49,7 @@ def _seed_repo(session: Session) -> Repository:
 
 
 def test_claim_next_job_skip_locked(db_session: Session) -> None:
+    _clear_open_jobs(db_session)
     repo = _seed_repo(db_session)
     job = new_indexing_job(repository_id=repo.id)
     db_session.add(job)
@@ -87,12 +69,12 @@ def test_claim_next_job_skip_locked(db_session: Session) -> None:
     assert claimed.attempt_count == 1
     assert claimed.stage == "cloning"
 
-    # Second claim should not take the same job.
     other = claim_next_job(db_session, worker_id="worker-b", lease_seconds=60)
     assert other is None or other.id != job.id
 
 
 def test_heartbeat_extends_lease(db_session: Session) -> None:
+    _clear_open_jobs(db_session)
     repo = _seed_repo(db_session)
     job = new_indexing_job(repository_id=repo.id)
     db_session.add(job)
@@ -116,6 +98,7 @@ def test_heartbeat_extends_lease(db_session: Session) -> None:
 
 
 def test_recover_expired_lease_requeues(db_session: Session) -> None:
+    _clear_open_jobs(db_session)
     repo = _seed_repo(db_session)
     job = new_indexing_job(repository_id=repo.id, max_attempts=3)
     job.status = JobStatus.RUNNING
@@ -142,8 +125,9 @@ def test_recover_expired_lease_requeues(db_session: Session) -> None:
 
 
 def test_schedule_retry_and_idempotent_active_lookup(db_session: Session) -> None:
+    _clear_open_jobs(db_session)
     repo = _seed_repo(db_session)
-    job = new_indexing_job(repository_id=repo.id, max_attempts=3)
+    job = new_indexing_job(repository_id=repo.id)
     db_session.add(job)
     db_session.commit()
 

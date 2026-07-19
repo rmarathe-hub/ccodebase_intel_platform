@@ -1,8 +1,10 @@
 from fastapi import APIRouter
 
+from app.api.v1 import router as v1_router
 from app.db.session import check_database
 
 router = APIRouter()
+router.include_router(v1_router)
 
 
 @router.get("/health")

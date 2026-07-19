@@ -4,11 +4,14 @@ from app.schemas.repositories import (
     RepositoryImportRequest,
     RepositoryRead,
 )
+from app.schemas.snapshots import RepositoryImportResponse, SnapshotRead
 
 __all__ = [
     "IndexingJobCreateDefaults",
     "IndexingJobRead",
     "ParsedRepositoryURL",
     "RepositoryImportRequest",
+    "RepositoryImportResponse",
     "RepositoryRead",
+    "SnapshotRead",
 ]

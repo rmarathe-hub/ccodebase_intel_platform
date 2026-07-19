@@ -1,4 +1,4 @@
-"""Background worker: claim jobs, securely clone, heartbeat, retry."""
+"""Background worker: claim jobs, securely clone, create snapshot, retry."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
-from app.models.entities import IndexingJob
+from app.models.entities import IndexingJob, SnapshotStatus
 from app.models.job_stages import JobStage
 from app.services.git_clone import GitCloneError, secure_clone
 from app.services.job_queue import (
@@ -22,6 +22,7 @@ from app.services.job_queue import (
     schedule_retry,
 )
 from app.services.jobs import mark_job_succeeded, set_job_stage
+from app.services.snapshots import count_files_excluding_git, create_or_update_snapshot
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -48,6 +49,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
         job_id = job.id
         repo = get_repository_for_job(session, job)
         clone_url = repo.clone_url
+        repository_id = repo.id
         repo_label = f"{repo.owner_name}/{repo.name}"
         set_job_stage(job, JobStage.CLONING)
         session.commit()
@@ -70,14 +72,25 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     lease_seconds=settings.job_lease_seconds,
                 )
                 set_job_stage(job, JobStage.DISCOVERING_FILES)
-                # Snapshot creation lands next; clone success completes this slice of work.
+                file_count = count_files_excluding_git(cloned.path)
+                snapshot = create_or_update_snapshot(
+                    session,
+                    repository_id=repository_id,
+                    branch=cloned.branch,
+                    commit_sha=cloned.commit_sha,
+                    file_count=file_count,
+                    status=SnapshotStatus.READY,
+                )
+                job.snapshot_id = snapshot.id
+                # Full indexing continues in later weeks; clone+snapshot completes Week 2.
                 mark_job_succeeded(job)
                 session.commit()
                 logger.info(
-                    "Cloned %s@%s (%s bytes) for job %s",
+                    "Snapshot %s for %s@%s files=%s job=%s",
+                    snapshot.id,
                     repo_label,
                     cloned.commit_sha[:12],
-                    cloned.bytes_on_disk,
+                    file_count,
                     job_id,
                 )
             return True
