@@ -1,0 +1,19 @@
+from fastapi.testclient import TestClient
+
+from app.main import create_app
+
+
+def test_health() -> None:
+    client = TestClient(create_app())
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+def test_ready_shape() -> None:
+    client = TestClient(create_app())
+    response = client.get("/ready")
+    assert response.status_code == 200
+    body = response.json()
+    assert "status" in body
+    assert "database" in body
