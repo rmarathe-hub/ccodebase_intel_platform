@@ -1,0 +1,77 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Codebase Intelligence Platform//Week 0 Reminders//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Codeintel Week 12 Cost Reminders
+BEGIN:VEVENT
+UID:codeintel-deploy-evening@codebase-intel-platform
+DTSTAMP:20260718T172100Z
+DTSTART:20261006T010000Z
+DTEND:20261006T013000Z
+SUMMARY:Codeintel — Deployment evening gate
+DESCRIPTION:Confirm resources only in rg-codeintel-demo\, min replicas 0\, max 1\, Supabase Free\, AI key capped. See docs/deployment/cost-policy.md
+STATUS:CONFIRMED
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:Codeintel deploy gate
+TRIGGER:-PT1H
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:codeintel-recording-evening@codebase-intel-platform
+DTSTAMP:20260718T172100Z
+DTSTART:20261009T010000Z
+DTEND:20261009T013000Z
+SUMMARY:Codeintel — Demo recording evening
+DESCRIPTION:Finish recording\, export screenshots/video\, then follow docs/deployment/shutdown-checklist.md tomorrow.
+STATUS:CONFIRMED
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:Codeintel recording wrap-up
+TRIGGER:-PT1H
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:codeintel-billing-24h@codebase-intel-platform
+DTSTAMP:20260718T172100Z
+DTSTART:20261011T170000Z
+DTEND:20261011T173000Z
+SUMMARY:Codeintel — Billing check (+24h after deletion)
+DESCRIPTION:Azure + Supabase billing check. Confirm RG deleted and AI key revoked. See docs/deployment/shutdown-checklist.md
+STATUS:CONFIRMED
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:Codeintel +24h billing check
+TRIGGER:-PT30M
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:codeintel-billing-7d@codebase-intel-platform
+DTSTAMP:20260718T172100Z
+DTSTART:20261017T170000Z
+DTEND:20261017T173000Z
+SUMMARY:Codeintel — Billing check (+7 days after deletion)
+DESCRIPTION:Second Azure + Supabase billing check. Investigate any unexpected charges.
+STATUS:CONFIRMED
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:Codeintel +7d billing check
+TRIGGER:-PT30M
+END:VALARM
+END:VEVENT
+BEGIN:VEVENT
+UID:codeintel-billing-cycle@codebase-intel-platform
+DTSTAMP:20260718T172100Z
+DTSTART:20261101T170000Z
+DTEND:20261101T173000Z
+SUMMARY:Codeintel — Next billing cycle verification
+DESCRIPTION:Final billing verification on the next Azure statement. Confirm $0 ongoing spend.
+STATUS:CONFIRMED
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:Codeintel final billing verification
+TRIGGER:-PT30M
+END:VALARM
+END:VEVENT
+END:VCALENDAR
