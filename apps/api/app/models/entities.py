@@ -111,6 +111,7 @@ class RepositorySnapshot(Base):
     jobs: Mapped[list[IndexingJob]] = relationship(back_populates="snapshot")
     source_files: Mapped[list[SourceFile]] = relationship(back_populates="snapshot")
     symbols: Mapped[list[Symbol]] = relationship(back_populates="snapshot")
+    symbol_calls: Mapped[list[SymbolCall]] = relationship(back_populates="snapshot")
 
 
 class SourceFile(Base):
@@ -201,6 +202,44 @@ class Symbol(Base):
 
     snapshot: Mapped[RepositorySnapshot] = relationship(back_populates="symbols")
     source_file: Mapped[SourceFile] = relationship(back_populates="symbols")
+
+
+class SymbolCall(Base):
+    """A call site extracted from deep Python analysis (Week 4 Day 5)."""
+
+    __tablename__ = "symbol_calls"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("repository_snapshots.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    source_file_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("source_files.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    caller_symbol_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("symbols.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    caller_qualified_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    raw_callee: Mapped[str] = mapped_column(Text, nullable=False)
+    qualified_expression: Mapped[str] = mapped_column(Text, nullable=False)
+    line: Mapped[int] = mapped_column(Integer, nullable=False)
+    candidate_qualified_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    confidence: Mapped[str] = mapped_column(String(32), nullable=False, default="unresolved")
+    language: Mapped[str] = mapped_column(String(64), nullable=False, default="python")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    snapshot: Mapped[RepositorySnapshot] = relationship(back_populates="symbol_calls")
 
 
 class IndexingJob(Base):

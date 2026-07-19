@@ -123,18 +123,31 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     lease_seconds=settings.job_lease_seconds,
                 )
 
-                parsed_files, symbol_count = replace_python_symbols_for_snapshot(
+                set_job_stage(job, JobStage.BUILDING_RELATIONSHIPS)
+                session.commit()
+
+                job = session.get(IndexingJob, job_id)
+                if job is None:
+                    raise RuntimeError(f"Job {job_id} disappeared during relationships")
+                heartbeat_job(
+                    session,
+                    job_id=job_id,
+                    worker_id=worker_id,
+                    lease_seconds=settings.job_lease_seconds,
+                )
+
+                parsed_files, symbol_count, call_count = replace_python_symbols_for_snapshot(
                     session,
                     snapshot_id=snapshot.id,
                     repo_root=cloned.path,
                 )
 
-                # Relationships / chunking / embeddings remain future work.
+                # Chunking / embeddings remain future work.
                 mark_job_succeeded(job)
                 session.commit()
                 logger.info(
                     "Indexed snapshot %s for %s@%s files=%s deep=%s parsed_py=%s "
-                    "symbols=%s truncated=%s job=%s",
+                    "symbols=%s calls=%s truncated=%s job=%s",
                     snapshot.id,
                     repo_label,
                     cloned.commit_sha[:12],
@@ -142,6 +155,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     discovery.deep_count,
                     parsed_files,
                     symbol_count,
+                    call_count,
                     discovery.truncated,
                     job_id,
                 )

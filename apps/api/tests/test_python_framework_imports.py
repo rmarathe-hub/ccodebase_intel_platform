@@ -70,7 +70,8 @@ def ping():
     assert result.ok
     by_name = {s.name: s for s in result.symbols}
     assert by_name["create_item"].framework_role == "fastapi_route"
-    assert by_name["create_item"].framework_detail and "POST" in by_name["create_item"].framework_detail
+    detail = by_name["create_item"].framework_detail
+    assert detail and "POST" in detail
     assert by_name["User"].framework_role == "pydantic_model"
     assert by_name["Row"].framework_role == "sqlalchemy_model"
     assert by_name["ping"].framework_role == "celery_task"

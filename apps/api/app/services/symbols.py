@@ -1,4 +1,4 @@
-"""Persist Python AST symbols for a snapshot and stamp parser metadata."""
+"""Persist Python AST symbols and call sites for a snapshot."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.language_contract import SupportLevel
-from app.models.entities import SourceFile, Symbol
+from app.models.entities import SourceFile, Symbol, SymbolCall
 from app.services.python_ast_parser import (
     PARSER_NAME,
     PARSER_VERSION,
@@ -18,6 +18,7 @@ from app.services.python_ast_parser import (
     module_qualified_name,
     parse_python_source,
 )
+from app.services.python_calls import SymbolRef, extract_calls, module_from_qname
 
 
 def _decorators_json(item: ExtractedSymbol) -> str | None:
@@ -42,13 +43,12 @@ def replace_python_symbols_for_snapshot(
     *,
     snapshot_id: UUID,
     repo_root: Path,
-) -> tuple[int, int]:
-    """Parse deep Python source_files under ``repo_root`` and replace symbols.
+) -> tuple[int, int, int]:
+    """Parse deep Python files; replace symbols and call sites.
 
-    Returns ``(parsed_file_count, symbol_count)``.
-    Non-Python deep files are left with ``parser_name=None`` (honest gap).
-    Syntax errors leave that file's parser fields unset and contribute no symbols.
+    Returns ``(parsed_file_count, symbol_count, call_count)``.
     """
+    session.execute(delete(SymbolCall).where(SymbolCall.snapshot_id == snapshot_id))
     session.execute(delete(Symbol).where(Symbol.snapshot_id == snapshot_id))
 
     deep_python = list(
@@ -71,6 +71,8 @@ def replace_python_symbols_for_snapshot(
 
     symbol_rows: list[Symbol] = []
     parsed_files = 0
+    file_sources: dict[UUID, tuple[str, str]] = {}  # file_id -> (path, text)
+    extracted_by_file: dict[UUID, tuple[ExtractedSymbol, ...]] = {}
 
     for file_row in deep_python:
         absolute = (repo_root / file_row.path).resolve()
@@ -96,6 +98,9 @@ def replace_python_symbols_for_snapshot(
         parsed_files += 1
         file_row.parser_name = PARSER_NAME
         file_row.parser_version = PARSER_VERSION
+        file_sources[file_row.id] = (file_row.path, text)
+        extracted_by_file[file_row.id] = result.symbols
+
         for item in result.symbols:
             symbol_rows.append(
                 Symbol(
@@ -124,4 +129,46 @@ def replace_python_symbols_for_snapshot(
 
     session.add_all(symbol_rows)
     session.flush()
-    return parsed_files, len(symbol_rows)
+
+    qname_to_id = {row.qualified_name: row.id for row in symbol_rows}
+
+    all_refs: list[SymbolRef] = []
+    for file_id, items in extracted_by_file.items():
+        path, _ = file_sources[file_id]
+        module = module_qualified_name(path)
+        for item in items:
+            all_refs.append(
+                SymbolRef(
+                    kind=item.kind,
+                    name=item.name,
+                    qualified_name=item.qualified_name,
+                    module=module_from_qname(item.qualified_name, item.kind, item.name)
+                    or module,
+                )
+            )
+
+    call_rows: list[SymbolCall] = []
+    for file_id, (path, text) in file_sources.items():
+        calls = extract_calls(text, relative_path=path, symbols=all_refs)
+        for call in calls:
+            caller_id = None
+            if call.caller_qualified_name:
+                caller_id = qname_to_id.get(call.caller_qualified_name)
+            call_rows.append(
+                SymbolCall(
+                    snapshot_id=snapshot_id,
+                    source_file_id=file_id,
+                    caller_symbol_id=caller_id,
+                    caller_qualified_name=call.caller_qualified_name,
+                    raw_callee=call.raw_callee,
+                    qualified_expression=call.qualified_expression,
+                    line=call.line,
+                    candidate_qualified_name=call.candidate_qualified_name,
+                    confidence=call.confidence,
+                    language="python",
+                )
+            )
+
+    session.add_all(call_rows)
+    session.flush()
+    return parsed_files, len(symbol_rows), len(call_rows)

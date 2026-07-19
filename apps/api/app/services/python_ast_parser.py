@@ -17,7 +17,7 @@ from app.services.python_framework import detect_framework_meta
 from app.services.python_imports import resolve_import_statement
 
 PARSER_NAME = "python-ast"
-PARSER_VERSION = f"4.2-{sys.version_info.major}.{sys.version_info.minor}-stdlib"
+PARSER_VERSION = f"4.3-{sys.version_info.major}.{sys.version_info.minor}-stdlib"
 
 
 @dataclass(frozen=True, slots=True)

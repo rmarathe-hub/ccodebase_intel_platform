@@ -6,11 +6,13 @@ from sqlalchemy.orm import Session
 
 from app.db.deps import get_db
 from app.models.entities import IndexingJob, Repository
+from app.schemas.calls import SymbolCallListResponse, SymbolCallRead
 from app.schemas.files import RepositoryListItem, SourceFileListResponse, SourceFileRead
 from app.schemas.jobs import IndexingJobRead
 from app.schemas.repositories import RepositoryImportRequest, RepositoryRead
 from app.schemas.snapshots import RepositoryImportResponse
 from app.schemas.symbols import SymbolListResponse, SymbolRead
+from app.services.calls_query import list_symbol_calls
 from app.services.files_query import (
     latest_ready_snapshot,
     list_repositories,
@@ -232,6 +234,87 @@ def get_repository_symbols(
         limit=limit,
         offset=offset,
         symbols=symbols,
+    )
+
+
+@router.get(
+    "/repositories/{repository_id}/calls",
+    response_model=SymbolCallListResponse,
+)
+def get_repository_calls(
+    repository_id: UUID,
+    confidence: str | None = Query(default=None),
+    caller_contains: str | None = Query(default=None),
+    path_prefix: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+) -> SymbolCallListResponse:
+    repo = db.get(Repository, repository_id)
+    if repo is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Repository not found",
+        )
+
+    if confidence is not None and confidence.lower() not in {
+        "resolved",
+        "ambiguous",
+        "unresolved",
+    }:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "invalid_confidence",
+                "message": "confidence must be resolved, ambiguous, or unresolved",
+            },
+        )
+
+    snapshot = latest_ready_snapshot(db, repository_id)
+    if snapshot is None:
+        return SymbolCallListResponse(
+            repository_id=repository_id,
+            snapshot_id=None,
+            total=0,
+            limit=limit,
+            offset=offset,
+            calls=[],
+        )
+
+    rows, total = list_symbol_calls(
+        db,
+        snapshot_id=snapshot.id,
+        confidence=confidence,
+        caller_contains=caller_contains,
+        path_prefix=path_prefix,
+        limit=limit,
+        offset=offset,
+    )
+    calls = [
+        SymbolCallRead(
+            id=call.id,
+            snapshot_id=call.snapshot_id,
+            source_file_id=call.source_file_id,
+            path=path,
+            caller_symbol_id=call.caller_symbol_id,
+            caller_qualified_name=call.caller_qualified_name,
+            raw_callee=call.raw_callee,
+            qualified_expression=call.qualified_expression,
+            line=call.line,
+            candidate_qualified_name=call.candidate_qualified_name,
+            confidence=call.confidence,
+            language=call.language,
+            created_at=call.created_at,
+        )
+        for call, path in rows
+    ]
+    return SymbolCallListResponse(
+        repository_id=repository_id,
+        snapshot_id=snapshot.id,
+        total=total,
+        limit=limit,
+        offset=offset,
+        calls=calls,
     )
 
 

@@ -29,6 +29,7 @@ _POSTGRES_NODE_HINTS = (
     "test_files_api",
     "test_symbols_persist",
     "test_symbols_api",
+    "test_calls_api",
 )
 
 

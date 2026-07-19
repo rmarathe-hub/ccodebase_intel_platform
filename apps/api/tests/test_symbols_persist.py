@@ -8,7 +8,7 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Repository, SnapshotStatus, SourceFile, Symbol
+from app.models import Repository, SnapshotStatus, SourceFile, Symbol, SymbolCall
 from app.services.discovery import discover_repository
 from app.services.python_ast_parser import PARSER_NAME
 from app.services.snapshots import create_or_update_snapshot
@@ -23,8 +23,10 @@ def test_replace_python_symbols_for_snapshot(db_session: Session, tmp_path: Path
     (tmp_path / "app.py").write_text(
         "class App:\n"
         "    def run(self):\n"
+        "        return self.helper()\n\n"
+        "    def helper(self) -> int:\n"
         "        return 1\n\n"
-        "def helper(x: int) -> int:\n"
+        "def top(x: int) -> int:\n"
         "    return x\n",
         encoding="utf-8",
     )
@@ -56,7 +58,7 @@ def test_replace_python_symbols_for_snapshot(db_session: Session, tmp_path: Path
     )
     db_session.flush()
 
-    parsed, count = replace_python_symbols_for_snapshot(
+    parsed, count, call_count = replace_python_symbols_for_snapshot(
         db_session,
         snapshot_id=snapshot.id,
         repo_root=tmp_path,
@@ -65,6 +67,7 @@ def test_replace_python_symbols_for_snapshot(db_session: Session, tmp_path: Path
 
     assert parsed == 1  # broken.py fails syntax
     assert count >= 3
+    assert call_count >= 1
 
     files = {
         row.path: row
@@ -74,7 +77,7 @@ def test_replace_python_symbols_for_snapshot(db_session: Session, tmp_path: Path
     }
     assert files["app.py"].parser_name == PARSER_NAME
     assert files["app.py"].parser_version is not None
-    assert files["app.py"].parser_version.startswith("4.2-")
+    assert files["app.py"].parser_version.startswith("4.3-")
     assert files["broken.py"].parser_name is None
     assert files["notes.md"].parser_name is None
 
@@ -85,14 +88,21 @@ def test_replace_python_symbols_for_snapshot(db_session: Session, tmp_path: Path
     assert "class" in kinds
     assert "method" in kinds
     assert "function" in kinds
-    helper = next(s for s in symbols if s.name == "helper")
-    assert helper.qualified_name.endswith(".helper")
-    assert helper.parameters_json is not None
+    top = next(s for s in symbols if s.name == "top")
+    assert top.qualified_name.endswith(".top")
+    assert top.parameters_json is not None
     run = next(s for s in symbols if s.name == "run")
     assert "App.run" in run.qualified_name
     assert run.kind == "method"
-    # Idempotent replace
-    parsed2, count2 = replace_python_symbols_for_snapshot(
+
+    calls = list(
+        db_session.scalars(
+            select(SymbolCall).where(SymbolCall.snapshot_id == snapshot.id)
+        ).all()
+    )
+    assert any(c.confidence == "resolved" for c in calls)
+
+    parsed2, count2, call_count2 = replace_python_symbols_for_snapshot(
         db_session,
         snapshot_id=snapshot.id,
         repo_root=tmp_path,
@@ -100,6 +110,7 @@ def test_replace_python_symbols_for_snapshot(db_session: Session, tmp_path: Path
     db_session.commit()
     assert parsed2 == parsed
     assert count2 == count
+    assert call_count2 == call_count
     remaining = list(
         db_session.scalars(select(Symbol).where(Symbol.snapshot_id == snapshot.id)).all()
     )

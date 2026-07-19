@@ -1,3 +1,9 @@
+"""Snapshot helpers: file counting and idempotent upsert."""
+
+from __future__ import annotations
+
+import os
+import stat
 from pathlib import Path
 from uuid import uuid4
 
@@ -6,6 +12,21 @@ from sqlalchemy.orm import Session
 from app.models import Repository, SnapshotStatus
 from app.services.snapshots import count_files_excluding_git, create_or_update_snapshot
 from tests.conftest import requires_postgres
+
+
+def _make_writable_tree(root: Path) -> None:
+    """Ensure pytest can delete nested dirs (macOS can lock .git-like trees)."""
+    for dirpath, dirnames, filenames in os.walk(root, topdown=False):
+        for name in filenames + dirnames:
+            path = Path(dirpath) / name
+            try:
+                os.chmod(path, stat.S_IRWXU)
+            except OSError:
+                pass
+        try:
+            os.chmod(dirpath, stat.S_IRWXU)
+        except OSError:
+            pass
 
 
 def test_count_files_excluding_git(tmp_path: Path) -> None:
@@ -20,6 +41,7 @@ def test_count_files_excluding_git(tmp_path: Path) -> None:
     (git_dir / "objects" / "pack").write_text("x", encoding="utf-8")
 
     assert count_files_excluding_git(tmp_path) == 2
+    _make_writable_tree(git_dir)
 
 
 @requires_postgres

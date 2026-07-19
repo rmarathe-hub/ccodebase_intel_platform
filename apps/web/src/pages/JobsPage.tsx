@@ -64,7 +64,7 @@ export function JobsPage() {
     <div className="space-y-4">
       <PageShell
         title="Jobs"
-        description="Track indexing through clone, file discovery, and Python AST parsing. Relationships, chunking, and embedding stages are reserved for later work; a successful job today means files were classified and Python deep files were parsed into verified symbols."
+        description="Track indexing through clone, discovery, Python AST parsing, and call extraction. Chunking and embedding remain later work; a successful job today means files were classified, Python symbols parsed, and call sites recorded with resolution confidence."
       />
 
       <section className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-6">
