@@ -1,36 +1,41 @@
-# Known Gaps — Week 0–2 Test Scope
+# Known Gaps — Week 0–4
 
-Honest deferrals. Do not treat these as failing tests; they are **not yet product features**.
+Honest deferrals and remaining test/engineering gaps **after** Weeks 0–4 implementation.
 
-## Week 3+ product gaps (no tests claiming behavior)
+> Historical Week 0–2 gap list claimed discovery/parsers/graphs were absent. Those product features now exist; this file is the current source of truth.
 
-1. **File discovery / ignore / vendor / binary / size policies** — only extension→support-level constants exist today.
-2. **Deep parsers** for Python, Java, TypeScript, JavaScript (AST/Tree-sitter, symbols, ranges).
-3. **Generic searchable extraction** for C/C++/C#/Go/Rust/Ruby/PHP/Kotlin/Swift/Scala/Shell/SQL/HTML/CSS/config/docs beyond classification constants.
-4. **Structural graphs** (calls, inheritance, imports as edges).
-5. **Chunking / embedding / validation stages** — UI labels exist; worker does not execute them yet.
-6. **Search API** (filename, path, symbol, text, filters, pagination, snippets, citations).
-7. **Hybrid retrieval / AI answers** / citation validation.
-8. **Real GitHub network failures** (rate limit, private repo, redirects) end-to-end — covered via mocks/validation only; live clone of retail fixture is optional manual.
-9. **Worker process integration test** as a separate process (in-process services covered).
-10. **Alembic downgrade / upgrade-after-downgrade** cycle automation (upgrade/head + schema inspect covered).
-11. **Browser E2E** (Playwright/Cypress) for Jobs import UX — component tests only.
-12. **Isolated ephemeral Postgres per test run** — suite uses shared Compose DB with cleanup; CI should prefer disposable DB when available.
+## Product features not implemented (do not test as complete)
 
-## Test engineering gaps
+1. Chunking / embedding / validating job stages (labels exist; worker skips work)
+2. Search API and functional Search UI
+3. Ask API / LLM answers / citation validation
+4. Deep parsers for Java, TypeScript, JavaScript (classified DEEP; no parser stamp/symbols)
+5. Generic heuristic section extraction
+6. Interactive graph visualization (Graph page is a call-site table)
+7. Authentication / multi-tenancy
+8. Private repository import / non-GitHub hosts
+9. Incremental indexing
+10. packages/parser-core deep pipeline (Python logic lives under `apps/api/app/services`)
 
-| Gap | Mitigation |
+## Test / engineering gaps
+
+| Gap | Notes |
 | --- | --- |
-| xdist flaky on shared jobs table | Serial default in scripts; document in report |
-| mutmut mutates entire `app` with focused tests → many “no tests” | Report score among killed+survived; narrow later |
-| `db/deps.py` low coverage | Expected with TestClient override |
-| Live network clone not in every run | Mocked clone; retail URL used as identity fixture |
+| `python_calls.py` branch coverage ~72% | Ambiguous path covered; more attr/import-alias branches remain |
+| Alembic upgrade→downgrade→upgrade automation | Head + chain file checks + live schema; full ephemeral DB cycle still light |
+| Real `git` clone against local bare repo | Most clone tests mock `_run_git` |
+| Browser E2E (Playwright) | Component tests only |
+| Mutation suite runtime | Config expanded; run `run-mutation.sh` and record score |
+| Shared developer Postgres residue | Worker tests quarantine QUEUED/RUNNING jobs; prefer disposable DB in CI (now provided) |
+| Frontend page coverage | Graph + stubs + api client added; Jobs/Files/Symbols pages still mostly untested as components |
+| Coverage `fail_under` | Still `0` — intentional until gate agreed |
 
-## Decision-needed (ambiguous contracts)
+## Decision-needed
 
-- Whether route-level `GitHubURLValidationError` → 400 should remain given Pydantic already returns 422.
-- Whether vendor/`node_modules`/`dist` skip rules belong in language_contract now or only in Week 3 discovery.
+- Whether bare class bases `Base` / `Model` should keep `sqlalchemy_model` without a `sqlalchemy` path hint (current behavior; tested as documented heuristic).
+- Whether GitHub URL trailing whitespace beyond `strip()` should be rejected (newlines currently stripped then accepted).
+- Whether CI should enforce coverage fail_under (suggested 80–85% once stable).
 
 ## Azure / cost
 
-Resource group `rg-codeintel-demo` must remain unused. Suite does not create cloud resources or call paid APIs.
+Resource group `rg-codeintel-demo` must remain unused. Suite does not create cloud resources or call paid APIs. CI workflow does not reference Azure.

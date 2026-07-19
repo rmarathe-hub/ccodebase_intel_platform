@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Integration suite: Postgres-backed API/job/import/migration tests.
+# Integration suite: Postgres-backed API/job/import/migration/worker tests.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT/apps/api"
@@ -9,12 +9,21 @@ export PYTHONPATH=.
 pytest -q \
   tests/test_import_api.py \
   tests/test_api_contract_matrix.py \
+  tests/test_api_filters_week04.py \
   tests/test_job_queue.py \
   tests/test_job_queue_edges.py \
   tests/test_concurrency_queue.py \
   tests/test_db_constraints.py \
   tests/test_import_service.py \
   tests/test_migrations_smoke.py \
+  tests/test_migrations_week04.py \
   tests/test_models.py \
   tests/test_cors_and_errors.py \
+  tests/test_worker_pipeline.py \
+  tests/test_files_api.py \
+  tests/test_symbols_api.py \
+  tests/test_calls_api.py \
+  tests/test_symbol_neighbors_api.py \
+  tests/test_source_files_persist.py \
+  tests/test_symbols_persist.py \
   "$@"

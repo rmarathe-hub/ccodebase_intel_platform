@@ -31,6 +31,9 @@ _POSTGRES_NODE_HINTS = (
     "test_symbols_api",
     "test_calls_api",
     "test_symbol_neighbors_api",
+    "test_api_filters_week04",
+    "test_worker_pipeline",
+    "test_migrations_week04",
 )
 
 

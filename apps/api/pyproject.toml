@@ -89,6 +89,9 @@ debug = false
 pytest_add_cli_args_test_selection = [
   "tests/test_github_url.py",
   "tests/test_github_url_matrix.py",
+  "tests/test_github_url_security_extended.py",
   "tests/test_language_contract.py",
+  "tests/test_python_framework_matrix.py",
+  "tests/test_python_calls_matrix.py",
 ]
 

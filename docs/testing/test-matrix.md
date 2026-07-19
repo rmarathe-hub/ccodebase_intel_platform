@@ -1,41 +1,36 @@
-# Week 0–2 Test Matrix
+# Test Matrix — Week 0–4
 
-Maps required coverage areas to what is implemented and how it is tested.
+Maps product areas to current implementation and primary tests.
 
 | Area | Implemented? | Primary tests | Strategy |
 | --- | --- | --- | --- |
-| A. Repository import | Yes (URL + queue job) | `test_github_url*`, `test_import_*`, `test_api_contract_matrix`, `test_security_boundaries` | Param matrix + Hypothesis + API |
-| B. File discovery / filtering | **Constants only** | `test_language_contract`, `test_classification_matrix` | Extension → DEEP/GENERIC/SKIP honesty |
-| C. Parsing / structural analysis | No (Week 3+) | — | Deferred; see known-gaps |
-| D. Indexing pipeline / jobs | Partial (queue through clone/snapshot → SUCCEEDED) | `test_job_*`, `test_concurrency_queue`, `test_coverage_edges` | State helpers + DB + race smoke |
-| E. Database / migrations | Yes (initial schema) | `test_models`, `test_db_constraints`, `test_migrations_smoke`, `test_snapshots` | Constraints + live inspect |
-| F. API | Yes (import/jobs/health) | `test_import_api`, `test_api_contract_matrix`, `test_cors_and_errors`, `test_health` | Status/schema/error matrix |
-| G. Search / retrieval | No | — | Deferred |
-| H. Frontend | Partial (Jobs/Dashboard) | `JobProgress*.test.tsx`, `jobs.test.ts`, `PageShell.test.tsx` | Component + helper unit |
-| I. Configuration | Yes | `test_settings`, `test_config_matrix` | Defaults + CORS parsing |
-| J. Security | Yes (URL/clone boundaries) | `test_security_boundaries`, URL injection matrix | Local mocks only |
-| K. Cost / deployment policy | Docs | `test_policy_docs` | Artifact presence + banned deps |
-| L. Reliability / observability | Partial | Error response tests; clone cleanup | Safe public errors |
-| M. Performance smoke | Yes | `test_performance_smoke` (`slow`) | Generous thresholds |
-
-## Parameterization highlights
-
-- Valid / invalid / injection-like GitHub URLs
-- DEEP vs GENERIC vs SKIP extensions (case variants, nested paths)
-- Job stages labels/progress monotonicity
-- Import payload wrong types / malformed JSON
-- Job ID invalid UUID / path-like segments
+| A. GitHub URL validation | Yes | `test_github_url*`, `test_github_url_security_extended` | Param matrix + Hypothesis |
+| B. Repository import | Yes | `test_import_*`, API contract | Idempotency + HTTP |
+| C. Job queue | Yes | `test_job_queue*`, `test_concurrency_queue` | Claim/lease/retry/race |
+| D. Secure clone | Yes (mocked + flags) | `test_git_clone`, `test_security_boundaries` | Subprocess mocks |
+| E. Discovery | Yes | `test_discovery*`, `test_discovery_extended`, retail goldens | FS matrix + caps |
+| F. Language classification | Yes | `test_language_contract`, `test_classification_matrix` | Extension honesty |
+| G. Source files persist | Yes | `test_source_files_persist`, `test_files_api` | Replace + filters |
+| H. Snapshots | Yes | `test_snapshots` | Upsert + `.git` exclude |
+| I. Python AST | Yes | `test_python_ast_*` | Fixtures + Hypothesis ids |
+| J. QNames | Yes | AST matrix + deep fixtures | Package/`__init__` |
+| K. Framework roles | Yes | `test_python_framework_*` | Positives + weak evidence |
+| L. Import analysis | Yes | `test_python_framework_imports` | Local/stdlib/relative |
+| M. Call extraction | Yes | `test_python_calls*` | resolved/ambiguous/unresolved |
+| N. Symbol/call persist | Yes | `test_symbols_persist`, worker pipeline | Replace + stamps |
+| O. Migrations 0001–0006 | Yes | `test_migrations_*` | File chain + live inspect |
+| P. API routes Week 2–4 | Yes | `test_*_api*`, `test_api_filters_week04` | Filters + OpenAPI honesty |
+| Q. Worker pipeline | Yes | `test_worker_pipeline` | Mocked clone e2e |
+| R. Retail goldens | Yes (offline always) | `test_retail_discovery_golden` | Shape + optional full |
+| S. Frontend wired UI | Partial | JobProgress, GraphPage, api, stubs | Component + client |
+| T. Security | Yes | security_* + URL extended + injection filters | Local only |
+| U. Cost / local-first | Docs + automated | `test_doc_contracts_week04`, `test_policy_docs` | Compose/CI/SDK bans |
+| V. Doc contracts | Yes | `test_doc_contracts_week04` | Port, stages, parser stamp |
+| W. Property-based | Partial | Hypothesis on URL/ids/classification | Deterministic profiles |
+| X. Concurrency | Partial | `test_concurrency_queue` | Claim race |
+| Y. Performance smoke | Yes | `test_*_perf`, `test_performance_smoke` | `@slow` generous budgets |
+| Z. Search / Ask / embed | **No** | OpenAPI asserts routes absent | Honesty |
 
 ## Scripts
 
-| Script | Scope |
-| --- | --- |
-| `scripts/testing/run-fast-unit.sh` | No Postgres |
-| `scripts/testing/run-integration.sh` | Postgres modules |
-| `scripts/testing/run-slow.sh` | Performance |
-| `scripts/testing/run-coverage.sh` | Full API + branch cov |
-| `scripts/testing/run-full.sh` | API serial + web (set `FULL_PARALLEL=1` only with care) |
-| `scripts/testing/run-mutation.sh` | mutmut subset |
-| `scripts/testing/run-frontend.sh` | Vitest |
-
-**Parallel note:** Shared developer Postgres makes xdist flaky for job-queue tests. Prefer serial for CI and local confidence.
+See [`scripts/testing/README.md`](../../scripts/testing/README.md).
