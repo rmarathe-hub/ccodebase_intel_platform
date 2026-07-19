@@ -1,4 +1,4 @@
-/** Intentionally unparsed deep Java (Week 6). */
+/** Deep Java sample for mixed-repo indexing. */
 public class Main {
   public static void main(String[] args) {}
 }

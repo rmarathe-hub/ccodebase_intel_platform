@@ -120,7 +120,9 @@ def test_worker_pipeline_succeeds_with_python_fixture(
     )
     assert any(s.name == "helper" for s in symbols)
     assert any(s.name == "main" for s in symbols)
-    assert all(s.language == "python" for s in symbols)
+    assert any(s.language == "python" for s in symbols)
+    # Java file in the same clone is also deep-parsed.
+    assert any(s.language == "java" and s.name == "Main" for s in symbols)
 
     calls = (
         db_session.query(SymbolCall)

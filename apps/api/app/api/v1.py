@@ -212,6 +212,12 @@ def get_repository_symbols(
         "export",
         "interface",
         "type_alias",
+        "package",
+        "enum",
+        "enum_constant",
+        "record",
+        "field",
+        "constructor",
     }:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -219,7 +225,8 @@ def get_repository_symbols(
                 "code": "invalid_symbol_kind",
                 "message": (
                     "kind must be class, function, method, import, export, "
-                    "interface, or type_alias"
+                    "interface, type_alias, package, enum, enum_constant, "
+                    "record, field, or constructor"
                 ),
             },
         )

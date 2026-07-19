@@ -21,6 +21,7 @@ from app.models import (
     SymbolCall,
 )
 from app.services.discovery import discover_repository
+from app.services.java_symbols import replace_java_symbols_for_snapshot
 from app.services.js_ts_symbols import replace_js_ts_symbols_for_snapshot
 from app.services.snapshots import create_or_update_snapshot
 from app.services.source_files import replace_source_files_for_snapshot
@@ -45,7 +46,7 @@ def client(db_session: Session) -> TestClient:
 
 def _index_fixture(
     db_session: Session,
-) -> tuple[Repository, RepositorySnapshot, tuple[int, int, int, int, int, int]]:
+) -> tuple[Repository, RepositorySnapshot, tuple[int, int, int, int, int, int, int, int]]:
     repo = Repository(
         host="github.com",
         owner_name="rmarathe-hub",
@@ -75,8 +76,15 @@ def _index_fixture(
     js_files, js_syms, js_calls = replace_js_ts_symbols_for_snapshot(
         db_session, snapshot_id=snapshot.id, repo_root=FIXTURE_ROOT
     )
+    java_files, java_syms = replace_java_symbols_for_snapshot(
+        db_session, snapshot_id=snapshot.id, repo_root=FIXTURE_ROOT
+    )
     db_session.commit()
-    return repo, snapshot, (py_files, py_syms, py_calls, js_files, js_syms, js_calls)
+    return (
+        repo,
+        snapshot,
+        (py_files, py_syms, py_calls, js_files, js_syms, js_calls, java_files, java_syms),
+    )
 
 
 def test_mixed_fixture_discovery_shape() -> None:
@@ -95,12 +103,16 @@ def test_mixed_frontend_backend_index_and_api(
     client: TestClient, db_session: Session
 ) -> None:
     repo, snapshot, counts = _index_fixture(db_session)
-    py_files, py_syms, py_calls, js_files, js_syms, js_calls = counts
+    py_files, py_syms, py_calls, js_files, js_syms, js_calls, java_files_n, java_syms = (
+        counts
+    )
 
     assert py_files >= 3
     assert js_files >= 2
+    assert java_files_n >= 1
     assert py_syms >= 4
     assert js_syms >= 4
+    assert java_syms >= 1
     assert py_calls >= 1
     assert js_calls >= 1
 
@@ -110,6 +122,7 @@ def test_mixed_frontend_backend_index_and_api(
     langs = {s.language for s in symbols}
     assert "python" in langs
     assert "typescript" in langs
+    assert "java" in langs
     assert any(s.framework_role == "fastapi_route" and s.name == "get_item" for s in symbols)
     assert any(s.framework_role == "pydantic_model" and s.name == "Item" for s in symbols)
     assert any(s.framework_role == "react_component" and s.name == "Badge" for s in symbols)
@@ -129,7 +142,7 @@ def test_mixed_frontend_backend_index_and_api(
         c.raw_callee == "formatTitle" and c.confidence == "resolved" for c in calls
     )
 
-    # Java stays DEEP-classified but unparsed.
+    # Java is DEEP and stamped when parse succeeds.
     java_files = list(
         db_session.scalars(
             select(SourceFile).where(
@@ -139,7 +152,8 @@ def test_mixed_frontend_backend_index_and_api(
         ).all()
     )
     assert java_files
-    assert all(f.parser_name is None for f in java_files)
+    assert any(f.parser_name == "java-treesitter" for f in java_files)
+    assert any(s.language == "java" and s.name == "Main" for s in symbols)
 
     # API surfaces both stacks.
     all_syms = client.get(f"/api/v1/repositories/{repo.id}/symbols", params={"limit": 200})
@@ -149,6 +163,7 @@ def test_mixed_frontend_backend_index_and_api(
     api_langs = {s["language"] for s in body["symbols"]}
     assert "python" in api_langs
     assert "typescript" in api_langs
+    assert "java" in api_langs
 
     fastapi = client.get(
         f"/api/v1/repositories/{repo.id}/symbols",

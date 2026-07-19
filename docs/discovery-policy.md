@@ -51,8 +51,9 @@ similar package/cache folders.
   `parser_name=python-ast` and populate `symbols`.
 - After Week 5 Days 1–2, successfully parsed deep **TypeScript / JavaScript**
   (including TSX/JSX) files set `parser_name` to the matching `*-treesitter`
-  stamp and populate symbols. Java remains eligible but unparsed until its
-  parser ships.
+  stamp and populate symbols.
+- After Week 6 Days 1–2, successfully parsed deep **Java** files set
+  `parser_name=java-treesitter` and populate symbols.
 - Retail golden tests assert classification levels/paths, not content hashes (fixture docs may change).
 
 ## Fixture golden tests (Days 5–6)

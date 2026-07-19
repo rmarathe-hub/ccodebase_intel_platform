@@ -26,6 +26,7 @@ from app.services.jobs import mark_job_succeeded, set_job_stage
 from app.services.source_files import replace_source_files_for_snapshot
 from app.services.snapshots import create_or_update_snapshot
 from app.services.js_ts_symbols import replace_js_ts_symbols_for_snapshot
+from app.services.java_symbols import replace_java_symbols_for_snapshot
 from app.services.symbols import replace_python_symbols_for_snapshot
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -147,13 +148,19 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     snapshot_id=snapshot.id,
                     repo_root=cloned.path,
                 )
+                parsed_java, java_symbols = replace_java_symbols_for_snapshot(
+                    session,
+                    snapshot_id=snapshot.id,
+                    repo_root=cloned.path,
+                )
 
                 # Chunking / embeddings remain future work.
                 mark_job_succeeded(job)
                 session.commit()
                 logger.info(
                     "Indexed snapshot %s for %s@%s files=%s deep=%s parsed_py=%s "
-                    "parsed_js_ts=%s symbols=%s calls=%s truncated=%s job=%s",
+                    "parsed_js_ts=%s parsed_java=%s symbols=%s calls=%s truncated=%s "
+                    "job=%s",
                     snapshot.id,
                     repo_label,
                     cloned.commit_sha[:12],
@@ -161,7 +168,8 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     discovery.deep_count,
                     parsed_py,
                     parsed_js,
-                    py_symbols + js_symbols,
+                    parsed_java,
+                    py_symbols + js_symbols + java_symbols,
                     py_calls + js_calls,
                     discovery.truncated,
                     job_id,

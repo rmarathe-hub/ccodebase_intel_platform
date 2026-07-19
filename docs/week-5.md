@@ -22,7 +22,7 @@
 - `apps/api/app/services/js_ts_calls.py` — call sites with `resolved` / `ambiguous` / `unresolved`
 - `apps/api/app/services/js_ts_symbols.py` — persist symbols + calls (language-scoped)
 - `apps/api/tests/fixtures/js_ts_deep/` — React, Express, Next.js, async arrows, interfaces, duplicates
-- `apps/api/tests/fixtures/mixed_frontend_backend/` — React UI + FastAPI API (+ unparsed Java)
+- `apps/api/tests/fixtures/mixed_frontend_backend/` — React UI + FastAPI API (+ Java)
 - `apps/api/tests/test_mixed_frontend_backend.py` — discovery, persist, API, non-clobber
 - Worker coverage: `test_worker_pipeline_succeeds_with_mixed_frontend_backend`
 
@@ -37,7 +37,7 @@ Resolution is name / import / this heuristic — not a type checker.
 
 ### Mixed repo (Day 7)
 
-One fixture indexes Python FastAPI routes/models/calls and TypeScript React components/calls in the same snapshot. Language-scoped replace keeps stacks isolated. Java remains DEEP but unparsed.
+One fixture indexes Python FastAPI routes/models/calls and TypeScript React components/calls in the same snapshot. Language-scoped replace keeps stacks isolated. Java is also deep-parsed when present (see Week 6).
 
 ## Honesty
 
@@ -45,7 +45,6 @@ One fixture indexes Python FastAPI routes/models/calls and TypeScript React comp
 - Alias resolution is tsconfig `paths` only — not full Node resolution.
 - Framework roles are heuristic (decorators, Express call sites, Next path layout).
 - Call confidence is heuristic; chained receivers beyond simple identifiers are `unresolved`.
-- Java remains DEEP-classified but unparsed.
 
 ## Git policy
 

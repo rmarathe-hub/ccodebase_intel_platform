@@ -33,6 +33,11 @@ const KIND_FILTERS: Array<{ id: "all" | SymbolKind; label: string }> = [
   { id: "method", label: "Methods" },
   { id: "interface", label: "Interfaces" },
   { id: "type_alias", label: "Type aliases" },
+  { id: "package", label: "Packages" },
+  { id: "enum", label: "Enums" },
+  { id: "record", label: "Records" },
+  { id: "field", label: "Fields" },
+  { id: "constructor", label: "Constructors" },
   { id: "import", label: "Imports" },
   { id: "export", label: "Exports" },
 ];

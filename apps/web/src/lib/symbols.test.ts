@@ -10,6 +10,11 @@ describe("symbolKindLabel", () => {
     expect(symbolKindLabel("export")).toBe("Export");
     expect(symbolKindLabel("interface")).toBe("Interface");
     expect(symbolKindLabel("type_alias")).toBe("Type alias");
+    expect(symbolKindLabel("package")).toBe("Package");
+    expect(symbolKindLabel("enum")).toBe("Enum");
+    expect(symbolKindLabel("field")).toBe("Field");
+    expect(symbolKindLabel("constructor")).toBe("Constructor");
+    expect(symbolKindLabel("record")).toBe("Record");
   });
 });
 

@@ -5,7 +5,13 @@ export type SymbolKind =
   | "import"
   | "export"
   | "interface"
-  | "type_alias";
+  | "type_alias"
+  | "package"
+  | "enum"
+  | "enum_constant"
+  | "record"
+  | "field"
+  | "constructor";
 
 export type FrameworkRole =
   | "fastapi_route"
@@ -79,6 +85,18 @@ export function symbolKindLabel(kind: string): string {
       return "Interface";
     case "type_alias":
       return "Type alias";
+    case "package":
+      return "Package";
+    case "enum":
+      return "Enum";
+    case "enum_constant":
+      return "Enum constant";
+    case "record":
+      return "Record";
+    case "field":
+      return "Field";
+    case "constructor":
+      return "Constructor";
     default:
       return kind;
   }

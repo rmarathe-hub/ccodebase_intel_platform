@@ -18,4 +18,5 @@ pytest -q \
   tests/test_js_ts_module_framework.py \
   tests/test_js_ts_calls.py \
   tests/test_js_ts_deep_fixtures.py \
+  tests/test_java_parser.py \
   "$@"
