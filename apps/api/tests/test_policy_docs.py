@@ -22,6 +22,7 @@ REQUIRED_DOCS = [
     "docs/deployment/reminders.ics",
     "docs/language-support.md",
     "docs/week-0.md",
+    "docs/week-7.md",
     "docs/product-requirements.md",
     "docs/system-architecture.md",
     "docs/security-model.md",
@@ -49,8 +50,19 @@ def test_cost_policy_hard_limits() -> None:
         "Kubernetes",
         "rg-codeintel-demo",
         "$0",
+        "LLM_ENRICHMENT_ENABLED",
+        "opt-in",
     ):
         assert needle in text
+
+
+def test_language_support_forbids_regex_structure() -> None:
+    text = (ROOT / "docs/language-support.md").read_text(encoding="utf-8")
+    assert "Forbidden" in text or "forbidden" in text.lower()
+    assert "regex" in text.lower()
+    assert "verified_deep" in text
+    assert "generic_structure" in text
+    assert "symbol-aware" in text.lower()
 
 
 def test_shutdown_checklist_items() -> None:
@@ -82,9 +94,19 @@ def test_compose_has_no_redis_or_k8s() -> None:
 
 
 def test_pyproject_has_no_paid_cloud_sdks() -> None:
+    """Cloud infra SDKs stay out of main deps; LLM SDKs only as optional extras."""
     text = (ROOT / "apps/api/pyproject.toml").read_text(encoding="utf-8")
-    for banned in ("boto3", "azure-", "google-cloud", "openai", "anthropic"):
-        assert banned not in text
+    # Split main project table from optional-dependencies if present.
+    main = text
+    optional = ""
+    if "[project.optional-dependencies]" in text:
+        main, optional = text.split("[project.optional-dependencies]", 1)
+    for banned in ("boto3", "azure-", "google-cloud"):
+        assert banned not in main
+        assert banned not in optional
+    # openai / anthropic must not be required runtime deps; optional extras OK later.
+    for llm in ("openai", "anthropic"):
+        assert llm not in main
 
 
 def test_gitignore_excludes_env_secrets() -> None:

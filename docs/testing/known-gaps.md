@@ -1,21 +1,36 @@
-# Known Gaps — Week 0–4
+# Known Gaps — current
 
-Honest deferrals and remaining test/engineering gaps **after** Weeks 0–4 implementation.
-
-> Historical Week 0–2 gap list claimed discovery/parsers/graphs were absent. Those product features now exist; this file is the current source of truth.
+Honest deferrals after Weeks 0–6. Update as Week 7+ lands.
 
 ## Product features not implemented (do not test as complete)
 
-1. Chunking / embedding / validating job stages (labels exist; worker skips work)
-2. Search API and functional Search UI
-3. Ask API / LLM answers / citation validation
-4. Deep parsers for Java, TypeScript, JavaScript (classified DEEP; no parser stamp/symbols)
-5. Generic heuristic section extraction
-6. Interactive graph visualization (Graph page is a call-site table)
-7. Authentication / multi-tenancy
-8. Private repository import / non-GitHub hosts
-9. Incremental indexing
-10. packages/parser-core deep pipeline (Python logic lives under `apps/api/app/services`)
+1. Chunking / embedding / validating job stages (labels exist; worker still skips chunk work)
+2. Exact chunk search API and functional Search UI
+3. Ask API / citation-validated answers
+4. Generic parser-derived structural chunks (Tree-sitter / format-native) — planned Week 7
+5. Optional validated LLM enrichment (opt-in, budgeted) — planned Week 7
+6. Deterministic repository summaries API — planned Week 7
+7. Interactive graph visualization (Graph page is still a call-site table)
+8. Authentication / multi-tenancy
+9. Private repository import / non-GitHub hosts
+10. Incremental indexing
+11. `packages/parser-core` deep pipeline (Python / JS-TS / Java logic lives under `apps/api/app/services`)
+
+## Implemented and no longer gaps
+
+- Deep parsers + symbols for Python, Java, TypeScript, JavaScript
+- Call extraction (Python / JS-TS / Java) with confidence
+- Java inheritance / Spring architecture roles
+- Mixed frontend/backend and Spring fixture matrices
+
+## Architecture decisions locked for Week 7+
+
+- Parser-authority + optional LLM enrichment (no regex structural extraction)
+- Deep languages chunk from existing verified symbols only
+- Generic languages stay `support_level=generic`, `verified_deep=false`
+- Paid LLM enrichment opt-in; CI mocks providers; exact search works offline
+- First-cut generic languages: Go, Rust, C/C++, C#, Ruby, Shell, SQL + JSON/YAML/TOML/XML/Dockerfile/Markdown
+- Remaining generic languages share the same parser interface later
 
 ## Test / engineering gaps
 
@@ -38,4 +53,6 @@ Honest deferrals and remaining test/engineering gaps **after** Weeks 0–4 imple
 
 ## Azure / cost
 
-Resource group `rg-codeintel-demo` must remain unused. Suite does not create cloud resources or call paid APIs. CI workflow does not reference Azure.
+Resource group `rg-codeintel-demo` must remain unused unless explicitly instructed.
+CI must not call paid APIs. Optional local enrichment follows
+[deployment/cost-policy.md](../deployment/cost-policy.md).

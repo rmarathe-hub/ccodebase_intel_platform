@@ -98,12 +98,15 @@ Language detection (extension / filename)
     ▼
 ProcessingStrategy: DEEP | GENERIC | SKIP
     │
-    ├─ DEEP → AST / Tree-sitter → symbols + relationships + symbol chunks
-    ├─ GENERIC → heuristic sections + line/config/docs chunks
+    ├─ DEEP → existing AST / Tree-sitter → symbols + relationships + symbol-aware chunks
+    ├─ GENERIC → Tree-sitter / format-native parsers → generic_structure chunks
+    │            (+ optional validated LLM enrichment; never verified Symbol rows)
     └─ SKIP → ignored with reason
 ```
 
-Deep parsers live under `packages/parser-core` with fixtures in `packages/parser-fixtures`.
+Deep parsers for Python / Java / JS / TS live under `apps/api/app/services`
+(not a separate generic Tree-sitter path). Regex must not define structural
+boundaries — see [language-support.md](./language-support.md).
 
 ## Retrieval architecture
 
@@ -129,15 +132,17 @@ User question
 
 Providers:
 
-- `OllamaProvider` (default, local)
-- `OptionalHostedProvider` (Week 12 recording only, revoked after)
+- Optional `LLMProvider` abstraction for enrichment / Ask (OpenAI, Azure OpenAI,
+  Anthropic, or another configured provider)
+- Local Ollama when configured
+- Enrichment and Ask remain opt-in / capped; deterministic index never depends on them
 
 ## Local vs temporary cloud
 
 | Phase | Topology |
 | --- | --- |
-| Weeks 1–11 | Docker Compose: web, api, worker, postgres (+ local Ollama/embeddings) |
-| Week 12 | Azure Container Apps + ACR + static frontend + Supabase Free, all under `rg-codeintel-demo`, then deleted |
+| Weeks 1–11 | Docker Compose: web, api, worker, postgres; LLM enrichment opt-in |
+| Week 12 | Temporary Azure Container Apps + ACR + static frontend + Supabase Free + capped AI key, all under `rg-codeintel-demo`, then deleted |
 
 Cost and teardown rules: [deployment/cost-policy.md](./deployment/cost-policy.md).
 

@@ -4,7 +4,7 @@ export function SearchPage() {
   return (
     <PageShell
       title="Search"
-      description="Hybrid, semantic, symbol, exact, configuration, and documentation search across indexed snapshots."
+      description="Exact chunk search ships first (LLM-independent). Hybrid, semantic, symbol, configuration, and documentation tabs follow as retrieval layers land."
     />
   );
 }

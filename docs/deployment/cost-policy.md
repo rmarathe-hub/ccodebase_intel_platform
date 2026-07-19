@@ -1,7 +1,7 @@
 # Cost Policy
 
-Hard rules for the Codebase Intelligence Platform temporary cloud deployment.
-These limits are non-negotiable for Weeks 1–12.
+Hard rules for the Codebase Intelligence Platform temporary cloud deployment
+and for optional paid LLM enrichment during local development.
 
 ## Hard limits
 
@@ -17,21 +17,48 @@ These limits are non-negotiable for Weeks 1–12.
 | Virtual machines | prohibited |
 | Kubernetes | prohibited |
 | Unrestricted public imports | prohibited |
-| Unrestricted public AI calls | prohibited |
+| Unrestricted / uncapped public AI calls | prohibited |
 
 ## Local-first default (Weeks 1–11)
 
-Everything runs locally at expected platform cost **$0**:
+Deterministic indexing (clone, discover, parse, chunk, exact search) runs locally
+at expected platform cost **$0** when LLM enrichment is disabled:
 
 - Docker Compose
 - PostgreSQL with pgvector
 - FastAPI
 - React
 - Background worker
-- Local embeddings
-- Ollama
 
-No cloud resources may be created for development, indexing experiments, or CI.
+No Azure resources may be created for development, indexing experiments, or CI.
+CI must never require a paid API call.
+
+## Optional paid LLM enrichment (local / demo)
+
+Paid provider APIs (OpenAI, Azure OpenAI, Anthropic, or another configured
+provider) are **permitted only when explicitly enabled** for semantic enrichment
+of parser-derived chunks and summaries.
+
+Rules:
+
+| Rule | Requirement |
+| --- | --- |
+| Default | Enrichment **disabled** (`LLM_ENRICHMENT_ENABLED=false`) |
+| CI | Enrichment **disabled**; providers mocked |
+| Deterministic path | Must succeed with enrichment off |
+| Exact search | Must not depend on LLM |
+| Opt-in | Environment / settings flag only (opt-in; never default-on) |
+| Caps | Max requests, tokens, and estimated cost **per indexing job** |
+| Daily budget | Configurable project daily spend ceiling |
+| Kill switch | Immediate disable without deleting deterministic index |
+| Caching | Cache by content hash + parser version + prompt version + model |
+| Over budget | Keep parser-derived chunks; skip enrichment only |
+| Keys | Never hardcoded; never logged; never committed |
+
+Uncapped bulk enrichment and unrestricted public Ask endpoints remain prohibited.
+
+Local Ollama (or similar) may be used when configured; it does not replace the
+requirement that hosted keys stay capped and revocable.
 
 ## Temporary cloud window (Week 12 only)
 

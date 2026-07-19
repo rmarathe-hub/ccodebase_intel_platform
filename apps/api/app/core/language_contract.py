@@ -1,7 +1,8 @@
-"""Language-support honesty contract + discovery policy constants (Week 3).
+"""Language-support honesty contract + discovery policy constants.
 
 Discovery and routing must honor these lists. Deep analysis may be claimed
-only for DEEP languages.
+only for DEEP languages. Generic languages use parser-derived structure
+without verified-deep claims (see docs/language-support.md).
 """
 
 from __future__ import annotations

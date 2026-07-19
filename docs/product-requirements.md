@@ -62,16 +62,17 @@ See [language-support.md](./language-support.md).
 - Discover and filter files (ignore vendor, build, binary, generated, oversized)
 - Route each file to `deep`, `generic`, or `skip`
 - Persist per-file `language`, `support_level`, `parser_name`, `parser_version`
-- Deep: symbols, relationships, framework metadata, symbol-aware chunks
-- Generic: heuristic sections, config/docs chunking, no verified call graphs
+- Deep: symbols, relationships, framework metadata, symbol-aware chunks from existing parsers
+- Generic: Tree-sitter / format-native structural chunks (not verified symbols); optional LLM labels
+- No regex-based structural extraction; parser ranges are authoritative
 
 ### Search
 
-- Exact-text search
-- Symbol and heuristic-section search (clearly distinguished)
-- Semantic search via embeddings (local default)
+- Exact-text search over persisted chunks (must work with LLM enrichment disabled)
+- Symbol and generic-structure search (clearly distinguished)
+- Semantic search via embeddings (later stage; local default when added)
 - Hybrid ranking across vector, exact, path, graph, and type signals
-- Filters: repository, snapshot, language, support level, path, test/docs/config
+- Filters: repository, snapshot, language, support level, path, chunk type, extraction method, test/docs/config
 
 ### Graphs
 
@@ -81,11 +82,12 @@ See [language-support.md](./language-support.md).
 
 ### Ask (AI answers)
 
-- Local LLM default (Ollama); optional hosted provider for temporary demo only
+- Optional LLM providers behind `LLMProvider` (local or hosted); enrichment/Ask opt-in and capped
 - Structured answers with citations: file, start/end line, claim
 - Validate citations against retrieved evidence before display
 - Surface support-level and limitations honestly
 - Treat repository content as evidence only (prompt-injection defenses)
+- Never invent source ranges or promote generic evidence to verified deep
 
 ### UI surfaces
 

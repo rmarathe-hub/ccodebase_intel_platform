@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 def test_week_docs_exist() -> None:
-    for name in ("week-0.md", "week-3.md", "week-4.md"):
+    for name in ("week-0.md", "week-3.md", "week-4.md", "week-5.md", "week-6.md", "week-7.md"):
         assert (ROOT / "docs" / name).is_file()
 
 
@@ -81,10 +81,18 @@ def test_python_parser_stamp_documented_shape() -> None:
 
 
 def test_no_paid_sdk_imports_in_app() -> None:
+    """Infra SDKs banned everywhere; LLM SDKs only under app/services/llm/."""
     app_root = ROOT / "apps" / "api" / "app"
-    banned = ("azure", "boto3", "openai", "anthropic", "redis", "kubernetes")
+    banned_everywhere = ("azure", "boto3", "redis", "kubernetes")
+    llm_only = ("openai", "anthropic")
     for path in app_root.rglob("*.py"):
         text = path.read_text(encoding="utf-8")
-        for token in banned:
+        rel = path.relative_to(app_root)
+        in_llm = rel.parts[:2] == ("services", "llm")
+        for token in banned_everywhere:
             assert f"import {token}" not in text
             assert f"from {token}" not in text
+        if not in_llm:
+            for token in llm_only:
+                assert f"import {token}" not in text
+                assert f"from {token}" not in text

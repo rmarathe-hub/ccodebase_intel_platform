@@ -68,6 +68,9 @@ similar package/cache folders.
 - Kinds: `class`, `function`, `method`, `import`
 - Relationships / callers / callees are out of scope for Week 3
 
-## Out of scope after Week 3
+## Historical note (Week 3)
 
-Deep parsers for Java / TypeScript / JavaScript, relationship graphs, chunking, embeddings.
+At the end of Week 3, deep parsers for Java / TypeScript / JavaScript, relationship
+graphs, chunking, and embeddings were still future work. Those deep parsers shipped
+in Weeks 5–6. Chunking / enrichment / exact search follow the Week 7+ contracts in
+[language-support.md](./language-support.md) and [indexing-pipeline.md](./indexing-pipeline.md).

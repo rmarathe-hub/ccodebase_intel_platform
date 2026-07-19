@@ -39,6 +39,24 @@ def test_defaults_are_local_first() -> None:
     assert settings.git_clone_timeout_seconds > 0
     assert settings.git_clone_max_bytes > 0
     assert "azure" not in settings.database_url.lower()
+    assert settings.llm_enrichment_enabled is False
+    assert settings.llm_provider == "none"
+    assert settings.llm_enrichment_active is False
+    assert settings.llm_temperature == 0.0
+    assert settings.llm_kill_switch is False
+
+
+def test_llm_enrichment_active_requires_opt_in() -> None:
+    off = Settings(llm_enrichment_enabled=True, llm_provider="none")
+    assert off.llm_enrichment_active is False
+    killed = Settings(
+        llm_enrichment_enabled=True,
+        llm_provider="openai",
+        llm_kill_switch=True,
+    )
+    assert killed.llm_enrichment_active is False
+    on = Settings(llm_enrichment_enabled=True, llm_provider="openai")
+    assert on.llm_enrichment_active is True
 
 
 @pytest.mark.parametrize(

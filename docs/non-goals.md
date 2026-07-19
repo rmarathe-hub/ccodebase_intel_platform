@@ -1,7 +1,8 @@
 # Non-Goals
 
 This document lists what the flagship build will **not** attempt in the 12-week scope.
-Saying no preserves depth for Python, Java, TypeScript, and JavaScript and keeps cost at zero until a short demo window.
+Saying no preserves depth for Python, Java, TypeScript, and JavaScript and keeps
+deterministic local indexing at **$0** when LLM enrichment is disabled.
 
 ## Language and analysis
 
@@ -12,8 +13,11 @@ Saying no preserves depth for Python, Java, TypeScript, and JavaScript and keeps
 - Inheritance graphs as a promise for Python/TS (best-effort only; Java is the inheritance flagship)
 - Framework-complete support (detect common patterns only: FastAPI, Express, Spring, React, etc.)
 - Deep parsers for C, C++, C#, Go, Rust, Ruby, PHP, Kotlin, Swift, Scala in v1
+  (generic Tree-sitter / format parsers only; never promoted to verified deep)
+- Regex-based structural extraction for chunks, sections, config, or Markdown
 - Binary, media, or proprietary format intelligence
 - Guaranteed correctness on obfuscated, generated, or minified code
+- Indiscriminate LLM enrichment of every chunk without prioritization or budgets
 
 ## Repository import
 
@@ -47,9 +51,10 @@ Saying no preserves depth for Python, Java, TypeScript, and JavaScript and keeps
 ## AI claims we will not make
 
 - “Hallucination-free” answers without citations
-- Treating heuristic sections as verified symbols
+- Treating parser-derived generic sections or LLM labels as verified deep symbols
 - Claiming deep intelligence for generic languages in marketing copy
-- Unrestricted public AI Q&A without auth or caps
+- Unrestricted / uncapped public AI Q&A without auth or caps
+- Allowing LLM output to invent or override parser-derived source ranges
 
 ## Cost non-goals
 

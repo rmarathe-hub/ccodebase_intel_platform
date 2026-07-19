@@ -66,19 +66,23 @@ Never return or include in model context / responses:
 
 ## AI provider controls
 
-- Local Ollama is the default (no cloud AI cost)
-- Hosted AI keys (if used in Week 12) must be:
+- Deterministic indexing and exact search must work with enrichment **disabled**
+- Optional paid LLM enrichment is opt-in, budget-capped, cached, and CI-mocked
+  (see [deployment/cost-policy.md](./deployment/cost-policy.md))
+- Local Ollama (or similar) may be configured for Ask / enrichment when desired
+- Hosted AI keys (local enrichment or Week 12) must be:
   - Project-specific
   - Usage-capped
-  - Revoked immediately after recording
-  - Removed from Azure and GitHub secrets
+  - Never hardcoded or logged
+  - Revoked immediately after the temporary demo recording
+  - Removed from Azure and GitHub secrets after teardown
 
 ## API and abuse limits (product policy)
 
 - Unrestricted public imports: **prohibited**
-- Unrestricted public AI calls: **prohibited**
+- Unrestricted / uncapped public AI calls: **prohibited**
 - Demo deployments should require authentication or private access during the short live window
-- Rate limits and repository size caps apply to import and Ask
+- Rate limits and repository size caps apply to import, enrichment, and Ask
 
 ## Job and worker isolation
 

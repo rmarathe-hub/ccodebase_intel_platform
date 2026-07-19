@@ -98,9 +98,10 @@ Every file stores:
 
 **Generic:**
 
-- Heuristic sections via regex/simple tokens
-- Labeled `heuristic section`, never verified symbols
-- Config/doc structure for chunking
+- Tree-sitter or format-native parsers extract structural candidates
+- Labeled `generic_structure` / `heuristic_section`, never verified `Symbol` rows
+- Optional LLM enrichment after parsing (labels/summaries only; ranges stay parser-owned)
+- No regex-based structural extraction — see [language-support.md](./language-support.md)
 
 ### 7. Build relationships
 
@@ -119,18 +120,23 @@ Generic graphs emphasize directories and marked inferred edges.
 
 | Support | Chunking |
 | --- | --- |
-| Deep | Symbol-aware chunks preferred |
-| Generic source | Blank lines, indentation, braces, comments, max tokens, overlap if needed |
-| Configuration | Top-level keys, services, deps, stages, jobs |
-| Documentation | Headings and README/architecture sections |
+| Deep | Symbol-aware chunks from existing deep parsers (Python / Java / JS / TS) |
+| Generic source | Syntax-tree node boundaries (Tree-sitter); token limits only after AST split |
+| Configuration | Format-native parsers (JSON, YAML, TOML, XML, Dockerfile, …) |
+| Documentation | Markdown / document AST heading hierarchy |
 
-Chunk metadata includes file path, language, start/end line, chunk type, content hash.
+Chunk metadata includes file path, language, support level, start/end line, chunk type,
+content hash, extraction method, parser provenance, and optional LLM provenance.
 
-### 9. Build embeddings
+Oversized nodes split by child syntax nodes first; deterministic line windows only as
+a labeled final fallback (`extraction_method` records the fallback).
 
-- Local embedding provider by default
-- Optional hosted provider for temporary demo only
-- Store model name, vector dimension, content hash, pipeline version in pgvector-backed tables
+### 9. Optional LLM enrichment + embeddings
+
+- Parser ranges are authoritative; LLM never alters boundaries or creates verified symbols
+- Enrichment is opt-in, budget-capped, cached, and skipped when disabled / over budget
+- Exact search must work with enrichment off
+- Embeddings / hybrid retrieval remain a later stage (Week 9+); local embedding provider default
 
 ### 10. Validate
 
@@ -138,7 +144,7 @@ Chunk metadata includes file path, language, start/end line, chunk type, content
 - No duplicate index for same commit + pipeline version (idempotency)
 - Remove stale files/symbols/sections/edges/chunks/embeddings on re-index
 - Citation path readiness: every chunk/symbol addressable by file + lines
-
+- LLM structured output validated against schema + source ranges before persist
 ## Incremental indexing (Week 11)
 
 Compare:
@@ -161,10 +167,12 @@ Full re-index remains the correct fallback.
 
 ## Safety invariants
 
-1. Never execute cloned repository code
+1. Never execute cloned repository code, install its deps, or run its build tools
 2. Never claim deep accuracy for generic files
 3. Never emit AI answers without validated citations for factual code claims
 4. Always isolate evidence to the selected repository snapshot
+5. Never use regex for structural extraction (chunk / section / config / heading boundaries)
+6. Never let LLM output override parser-derived ranges
 
 ## Related docs
 

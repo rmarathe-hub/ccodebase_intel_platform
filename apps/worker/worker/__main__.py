@@ -156,7 +156,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     )
                 )
 
-                # Chunking / embeddings remain future work.
+                # Chunking / optional LLM enrichment / embeddings: Week 7+ (not yet wired).
                 mark_job_succeeded(job)
                 session.commit()
                 logger.info(
