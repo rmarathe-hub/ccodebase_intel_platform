@@ -33,6 +33,9 @@ apps/web/dist/
 
 # Local data
 data/
+# Keep discovery fixtures that intentionally mirror a repo with data/
+!apps/api/tests/fixtures/retail_shape/data/
+!apps/api/tests/fixtures/retail_shape/data/**
 tmp/
 *.db
 .cache/
