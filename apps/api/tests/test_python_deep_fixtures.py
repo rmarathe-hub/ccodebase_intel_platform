@@ -67,7 +67,7 @@ def test_python_deep_fixture_calls() -> None:
         helpers, relative_path="pkg/sub/helpers.py", known_modules=known
     )
     refs: list[SymbolRef] = []
-    for path, result in (
+    for _path, result in (
         ("pkg/service.py", parsed_service),
         ("pkg/sub/helpers.py", parsed_helpers),
     ):
