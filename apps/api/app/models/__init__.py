@@ -9,10 +9,14 @@ from app.models.entities import (
     SnapshotStatus,
     User,
 )
+from app.models.job_stages import JOB_STAGE_LABELS, JOB_STAGE_PROGRESS, JobStage
 
 __all__ = [
     "Base",
     "IndexingJob",
+    "JOB_STAGE_LABELS",
+    "JOB_STAGE_PROGRESS",
+    "JobStage",
     "JobStatus",
     "Repository",
     "RepositorySnapshot",

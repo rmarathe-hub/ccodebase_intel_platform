@@ -1,3 +1,15 @@
-# Parser fixtures
+# Demo and evaluation fixture repositories
 
-Sample repositories and source files used to validate deep and generic parsers.
+## Primary (Python deep + SQL generic)
+
+```text
+https://github.com/rmarathe-hub/retail-retention-revenue-intel
+```
+
+Use this repository for:
+
+- Week 2 import / job pipeline tests
+- Week 4 Python deep analysis
+- Citation-backed Ask demos
+
+Public, small, Python + SQL, with docs/tests/config.
