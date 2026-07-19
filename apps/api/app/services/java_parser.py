@@ -5,7 +5,8 @@ Honesty:
 - Day 1–2: symbols + package-qualified names.
 - Day 3: annotation capture + Spring stereotype / mapping heuristics.
 - Day 4: EXTENDS / IMPLEMENTS edges (resolution during persist).
-- Call graphs are Day 6+.
+- Day 5: Spring architecture classification (naming + implements pairing).
+- Day 6: call graphs (heuristic).
 - Parse failures leave ``parser_name`` unset (fail closed).
 """
 
@@ -20,7 +21,7 @@ from app.services.java_framework import detect_java_framework_meta
 from app.services.java_inheritance import ExtractedRelation
 
 PARSER_NAME = "java-treesitter"
-PARSER_VERSION = "6.4-treesitter"
+PARSER_VERSION = "6.6-treesitter"
 
 
 @dataclass(frozen=True, slots=True)

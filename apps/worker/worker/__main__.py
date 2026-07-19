@@ -148,10 +148,12 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     snapshot_id=snapshot.id,
                     repo_root=cloned.path,
                 )
-                parsed_java, java_symbols, java_relations = replace_java_symbols_for_snapshot(
-                    session,
-                    snapshot_id=snapshot.id,
-                    repo_root=cloned.path,
+                parsed_java, java_symbols, java_relations, java_calls = (
+                    replace_java_symbols_for_snapshot(
+                        session,
+                        snapshot_id=snapshot.id,
+                        repo_root=cloned.path,
+                    )
                 )
 
                 # Chunking / embeddings remain future work.
@@ -170,7 +172,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     parsed_js,
                     parsed_java,
                     py_symbols + js_symbols + java_symbols,
-                    py_calls + js_calls,
+                    py_calls + js_calls + java_calls,
                     java_relations,
                     discovery.truncated,
                     job_id,

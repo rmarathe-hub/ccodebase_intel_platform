@@ -1,4 +1,4 @@
-"""Persist Java tree-sitter symbols and inheritance edges (Week 6)."""
+"""Persist Java tree-sitter symbols, inheritance edges, and calls (Week 6)."""
 
 from __future__ import annotations
 
@@ -10,7 +10,9 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.language_contract import SupportLevel
-from app.models.entities import SourceFile, Symbol, SymbolRelation
+from app.models.entities import SourceFile, Symbol, SymbolCall, SymbolRelation
+from app.services.java_calls import SymbolRef, extract_java_calls, module_from_qname
+from app.services.java_framework import ArchitectureSymbol, classify_spring_architecture
 from app.services.java_inheritance import (
     ExtractedRelation,
     TypeRef,
@@ -47,11 +49,17 @@ def replace_java_symbols_for_snapshot(
     *,
     snapshot_id: UUID,
     repo_root: Path,
-) -> tuple[int, int, int]:
-    """Parse deep Java files; replace java symbols and inheritance edges.
+) -> tuple[int, int, int, int]:
+    """Parse deep Java files; replace symbols, relations, and call sites.
 
-    Returns ``(parsed_file_count, symbol_count, relation_count)``.
+    Returns ``(parsed_file_count, symbol_count, relation_count, call_count)``.
     """
+    session.execute(
+        delete(SymbolCall).where(
+            SymbolCall.snapshot_id == snapshot_id,
+            SymbolCall.language == "java",
+        )
+    )
     session.execute(
         delete(SymbolRelation).where(
             SymbolRelation.snapshot_id == snapshot_id,
@@ -79,13 +87,17 @@ def replace_java_symbols_for_snapshot(
         row.parser_name = None
         row.parser_version = None
 
-    symbol_rows: list[Symbol] = []
     parsed_files = 0
     raw_edges: list[ExtractedRelation] = []
-    # from_qname / package → import leaf map
     imports_by_key: dict[str, dict[str, str]] = {}
     type_refs: list[TypeRef] = []
     edge_file_ids: list[tuple[ExtractedRelation, UUID]] = []
+    extracted_by_file: dict[UUID, tuple[ExtractedSymbol, ...]] = {}
+    file_sources: dict[UUID, tuple[str, str, dict[str, str]]] = {}
+    # file_id -> (path, text, import_map)
+
+    pending_symbols: list[ExtractedSymbol] = []
+    pending_file_ids: list[UUID] = []
 
     for file_row in deep_files:
         absolute = (repo_root / file_row.path).resolve()
@@ -107,33 +119,13 @@ def replace_java_symbols_for_snapshot(
         parsed_files += 1
         file_row.parser_name = PARSER_NAME
         file_row.parser_version = PARSER_VERSION
-
         import_map = dict(result.import_map)
+        extracted_by_file[file_row.id] = result.symbols
+        file_sources[file_row.id] = (file_row.path, text, import_map)
+
         for item in result.symbols:
-            symbol_rows.append(
-                Symbol(
-                    snapshot_id=snapshot_id,
-                    source_file_id=file_row.id,
-                    kind=item.kind,
-                    name=item.name,
-                    qualified_name=item.qualified_name,
-                    language="java",
-                    start_line=item.start_line,
-                    end_line=item.end_line,
-                    signature=item.signature,
-                    docstring=item.docstring,
-                    decorators_json=_decorators_json(item),
-                    parameters_json=_parameters_json(item),
-                    return_annotation=item.return_annotation,
-                    is_async=item.is_async,
-                    framework_role=item.framework_role,
-                    framework_detail=item.framework_detail,
-                    resolved_module=item.resolved_module,
-                    import_style=item.import_style,
-                    is_local_import=item.is_local_import,
-                    import_alias=item.import_alias,
-                )
-            )
+            pending_symbols.append(item)
+            pending_file_ids.append(file_row.id)
             if item.kind in {"class", "interface", "enum", "record"}:
                 type_refs.append(
                     TypeRef(
@@ -152,15 +144,67 @@ def replace_java_symbols_for_snapshot(
             raw_edges.append(edge)
             edge_file_ids.append((edge, file_row.id))
 
+    resolved = resolve_relations(
+        raw_edges, types=type_refs, imports_by_from=imports_by_key
+    )
+    implements_edges = [
+        (e.from_qualified_name, e.candidate_qualified_name)
+        for e in resolved
+        if e.relation_kind == "implements"
+        and e.confidence == "resolved"
+        and e.candidate_qualified_name
+    ]
+    arch_updates = classify_spring_architecture(
+        [
+            ArchitectureSymbol(
+                kind=s.kind,
+                name=s.name,
+                qualified_name=s.qualified_name,
+                framework_role=s.framework_role,
+                framework_detail=s.framework_detail,
+            )
+            for s in pending_symbols
+        ],
+        implements_edges=implements_edges,
+    )
+
+    symbol_rows: list[Symbol] = []
+    for item, file_id in zip(pending_symbols, pending_file_ids, strict=True):
+        role = item.framework_role
+        detail = item.framework_detail
+        update = arch_updates.get(item.qualified_name)
+        if update is not None:
+            role = update.role
+            detail = update.detail
+        symbol_rows.append(
+            Symbol(
+                snapshot_id=snapshot_id,
+                source_file_id=file_id,
+                kind=item.kind,
+                name=item.name,
+                qualified_name=item.qualified_name,
+                language="java",
+                start_line=item.start_line,
+                end_line=item.end_line,
+                signature=item.signature,
+                docstring=item.docstring,
+                decorators_json=_decorators_json(item),
+                parameters_json=_parameters_json(item),
+                return_annotation=item.return_annotation,
+                is_async=item.is_async,
+                framework_role=role,
+                framework_detail=detail,
+                resolved_module=item.resolved_module,
+                import_style=item.import_style,
+                is_local_import=item.is_local_import,
+                import_alias=item.import_alias,
+            )
+        )
+
     session.add_all(symbol_rows)
     session.flush()
 
     qname_to_id = {row.qualified_name: row.id for row in symbol_rows}
-    resolved = resolve_relations(
-        raw_edges, types=type_refs, imports_by_from=imports_by_key
-    )
-    # Preserve source_file_id by matching edges in order after resolve sort —
-    # re-map via (from, kind, raw, line).
     file_lookup = {
         (e.from_qualified_name, e.relation_kind, e.raw_target, e.line): fid
         for e, fid in edge_file_ids
@@ -169,16 +213,18 @@ def replace_java_symbols_for_snapshot(
     relation_rows: list[SymbolRelation] = []
     for edge in resolved:
         key = (edge.from_qualified_name, edge.relation_kind, edge.raw_target, edge.line)
-        file_id = file_lookup.get(key)
-        if file_id is None:
+        source_file_id = file_lookup.get(key)
+        if source_file_id is None:
             continue
-        to_id = None
-        if edge.candidate_qualified_name:
-            to_id = qname_to_id.get(edge.candidate_qualified_name)
+        to_id = (
+            qname_to_id.get(edge.candidate_qualified_name)
+            if edge.candidate_qualified_name
+            else None
+        )
         relation_rows.append(
             SymbolRelation(
                 snapshot_id=snapshot_id,
-                source_file_id=file_id,
+                source_file_id=source_file_id,
                 from_symbol_id=qname_to_id.get(edge.from_qualified_name),
                 from_qualified_name=edge.from_qualified_name,
                 relation_kind=edge.relation_kind,
@@ -193,4 +239,55 @@ def replace_java_symbols_for_snapshot(
 
     session.add_all(relation_rows)
     session.flush()
-    return parsed_files, len(symbol_rows), len(relation_rows)
+
+    interface_impls: dict[str, list[str]] = {}
+    for from_q, to_q in implements_edges:
+        interface_impls.setdefault(to_q, []).append(from_q)
+
+    all_refs: list[SymbolRef] = []
+    for file_id, items in extracted_by_file.items():
+        path, _text, _imap = file_sources[file_id]
+        for item in items:
+            all_refs.append(
+                SymbolRef(
+                    kind=item.kind,
+                    name=item.name,
+                    qualified_name=item.qualified_name,
+                    module=module_from_qname(item.qualified_name, item.kind, item.name)
+                    or package_of_qname(item.qualified_name),
+                    resolved_module=item.resolved_module,
+                    return_annotation=item.return_annotation,
+                )
+            )
+
+    call_rows: list[SymbolCall] = []
+    for file_id, (path, text, import_map) in file_sources.items():
+        calls = extract_java_calls(
+            text,
+            relative_path=path,
+            symbols=all_refs,
+            import_map=import_map,
+            interface_impls=interface_impls,
+        )
+        for call in calls:
+            caller_id = None
+            if call.caller_qualified_name:
+                caller_id = qname_to_id.get(call.caller_qualified_name)
+            call_rows.append(
+                SymbolCall(
+                    snapshot_id=snapshot_id,
+                    source_file_id=file_id,
+                    caller_symbol_id=caller_id,
+                    caller_qualified_name=call.caller_qualified_name,
+                    raw_callee=call.raw_callee,
+                    qualified_expression=call.qualified_expression,
+                    line=call.line,
+                    candidate_qualified_name=call.candidate_qualified_name,
+                    confidence=call.confidence,
+                    language="java",
+                )
+            )
+
+    session.add_all(call_rows)
+    session.flush()
+    return parsed_files, len(symbol_rows), len(relation_rows), len(call_rows)

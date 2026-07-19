@@ -1,5 +1,5 @@
 package com.example.users.api;
 
 public interface UserApi {
-  // marker
+  String find(String id);
 }

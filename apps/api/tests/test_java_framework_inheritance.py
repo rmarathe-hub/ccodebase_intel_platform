@@ -17,7 +17,7 @@ FIXTURE = Path(__file__).resolve().parent / "fixtures" / "java_deep"
 
 
 def test_parser_version_day34() -> None:
-    assert PARSER_VERSION == "6.4-treesitter"
+    assert PARSER_VERSION == "6.6-treesitter"
 
 
 def test_annotation_leaf_and_class_roles() -> None:

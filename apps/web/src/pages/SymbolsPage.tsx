@@ -63,6 +63,8 @@ const ROLE_FILTERS: Array<{ id: "all" | FrameworkRole; label: string }> = [
   { id: "spring_repository", label: "Spring repository" },
   { id: "spring_entity", label: "Spring entity" },
   { id: "spring_route", label: "Spring route" },
+  { id: "spring_interface", label: "Spring interface" },
+  { id: "spring_implementation", label: "Spring implementation" },
 ];
 
 function presetParams(preset: ViewPreset): {

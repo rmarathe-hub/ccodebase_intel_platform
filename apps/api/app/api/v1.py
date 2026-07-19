@@ -255,6 +255,8 @@ def get_repository_symbols(
         "spring_configuration",
         "spring_entity",
         "spring_route",
+        "spring_interface",
+        "spring_implementation",
     }
     if framework_role is not None and framework_role not in allowed_roles:
         raise HTTPException(

@@ -17,7 +17,7 @@ FIXTURE = Path(__file__).resolve().parent / "fixtures" / "java_deep"
 
 def test_parser_stamps() -> None:
     assert PARSER_NAME == "java-treesitter"
-    assert PARSER_VERSION == "6.4-treesitter"
+    assert PARSER_VERSION == "6.6-treesitter"
 
 
 def test_qualify_and_path_fallback() -> None:

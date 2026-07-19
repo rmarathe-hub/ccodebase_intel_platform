@@ -20,4 +20,5 @@ pytest -q \
   tests/test_js_ts_deep_fixtures.py \
   tests/test_java_parser.py \
   tests/test_java_framework_inheritance.py \
+  tests/test_java_architecture_calls.py \
   "$@"

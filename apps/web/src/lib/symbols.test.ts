@@ -30,6 +30,7 @@ describe("frameworkRoleLabel", () => {
       "Spring REST controller",
     );
     expect(frameworkRoleLabel("spring_service")).toBe("Spring service");
+    expect(frameworkRoleLabel("spring_interface")).toBe("Spring interface");
     expect(frameworkRoleLabel(null)).toBe("");
   });
 });

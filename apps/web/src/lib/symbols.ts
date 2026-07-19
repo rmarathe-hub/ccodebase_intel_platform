@@ -34,7 +34,9 @@ export type FrameworkRole =
   | "spring_component"
   | "spring_configuration"
   | "spring_entity"
-  | "spring_route";
+  | "spring_route"
+  | "spring_interface"
+  | "spring_implementation";
 
 export interface SymbolParameter {
   name: string;
@@ -155,6 +157,10 @@ export function frameworkRoleLabel(role: string | null | undefined): string {
       return "Spring entity";
     case "spring_route":
       return "Spring route";
+    case "spring_interface":
+      return "Spring interface";
+    case "spring_implementation":
+      return "Spring implementation";
     default:
       return role;
   }
