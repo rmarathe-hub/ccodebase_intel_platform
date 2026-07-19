@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.deps import get_db
-from app.models.entities import IndexingJob, Repository, SymbolCall
+from app.models.entities import IndexingJob, Repository, Symbol, SymbolCall
 from app.schemas.calls import (
     SymbolCallListResponse,
     SymbolCallRead,
@@ -53,6 +53,37 @@ def _call_read(call: SymbolCall, path: str) -> SymbolCallRead:
         confidence=call.confidence,
         language=call.language,
         created_at=call.created_at,
+    )
+
+
+def _symbol_read(sym: Symbol, path: str) -> SymbolRead:
+    """Build SymbolRead, letting validators parse JSON metadata columns."""
+    return SymbolRead.model_validate(
+        {
+            "id": sym.id,
+            "snapshot_id": sym.snapshot_id,
+            "source_file_id": sym.source_file_id,
+            "path": path,
+            "kind": sym.kind,
+            "name": sym.name,
+            "qualified_name": sym.qualified_name,
+            "language": sym.language,
+            "start_line": sym.start_line,
+            "end_line": sym.end_line,
+            "signature": sym.signature,
+            "docstring": sym.docstring,
+            "decorators": sym.decorators_json,
+            "parameters": sym.parameters_json,
+            "return_annotation": sym.return_annotation,
+            "is_async": sym.is_async,
+            "framework_role": sym.framework_role,
+            "framework_detail": sym.framework_detail,
+            "resolved_module": sym.resolved_module,
+            "import_style": sym.import_style,
+            "is_local_import": sym.is_local_import,
+            "import_alias": sym.import_alias,
+            "created_at": sym.created_at,
+        }
     )
 
 
@@ -226,34 +257,7 @@ def get_repository_symbols(
         limit=limit,
         offset=offset,
     )
-    symbols = [
-        SymbolRead(
-            id=sym.id,
-            snapshot_id=sym.snapshot_id,
-            source_file_id=sym.source_file_id,
-            path=path,
-            kind=sym.kind,
-            name=sym.name,
-            qualified_name=sym.qualified_name,
-            language=sym.language,
-            start_line=sym.start_line,
-            end_line=sym.end_line,
-            signature=sym.signature,
-            docstring=sym.docstring,
-            decorators=sym.decorators_json,
-            parameters=sym.parameters_json,
-            return_annotation=sym.return_annotation,
-            is_async=sym.is_async,
-            framework_role=sym.framework_role,
-            framework_detail=sym.framework_detail,
-            resolved_module=sym.resolved_module,
-            import_style=sym.import_style,
-            is_local_import=sym.is_local_import,
-            import_alias=sym.import_alias,
-            created_at=sym.created_at,
-        )
-        for sym, path in rows
-    ]
+    symbols = [_symbol_read(sym, path) for sym, path in rows]
     return SymbolListResponse(
         repository_id=repository_id,
         snapshot_id=snapshot.id,
