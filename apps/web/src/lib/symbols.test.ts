@@ -18,6 +18,9 @@ describe("frameworkRoleLabel", () => {
     expect(frameworkRoleLabel("fastapi_route")).toBe("FastAPI route");
     expect(frameworkRoleLabel("pydantic_model")).toBe("Pydantic model");
     expect(frameworkRoleLabel("react_component")).toBe("React component");
+    expect(frameworkRoleLabel("express_route")).toBe("Express route");
+    expect(frameworkRoleLabel("nestjs_controller")).toBe("NestJS controller");
+    expect(frameworkRoleLabel("nextjs_route")).toBe("Next.js route");
     expect(frameworkRoleLabel(null)).toBe("");
   });
 });

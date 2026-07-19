@@ -158,7 +158,7 @@ def test_symbols_filter_matrix(client: TestClient, db_session: Session, tmp_path
 
     bad_role = client.get(
         f"/api/v1/repositories/{repo.id}/symbols",
-        params={"framework_role": "express_route"},
+        params={"framework_role": "angular_component"},
     )
     assert bad_role.status_code == 422
 

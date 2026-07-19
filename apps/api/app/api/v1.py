@@ -232,6 +232,12 @@ def get_repository_symbols(
         "celery_task",
         "pydantic_model",
         "react_component",
+        "express_route",
+        "nestjs_controller",
+        "nestjs_service",
+        "nestjs_route",
+        "nextjs_page",
+        "nextjs_route",
     }
     if framework_role is not None and framework_role not in allowed_roles:
         raise HTTPException(

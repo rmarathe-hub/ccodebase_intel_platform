@@ -46,6 +46,12 @@ const ROLE_FILTERS: Array<{ id: "all" | FrameworkRole; label: string }> = [
   { id: "pydantic_model", label: "Pydantic" },
   { id: "celery_task", label: "Celery" },
   { id: "react_component", label: "React" },
+  { id: "express_route", label: "Express" },
+  { id: "nestjs_controller", label: "Nest controller" },
+  { id: "nestjs_service", label: "Nest service" },
+  { id: "nestjs_route", label: "Nest route" },
+  { id: "nextjs_page", label: "Next page" },
+  { id: "nextjs_route", label: "Next route" },
 ];
 
 function presetParams(preset: ViewPreset): {

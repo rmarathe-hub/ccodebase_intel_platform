@@ -14,7 +14,13 @@ export type FrameworkRole =
   | "sqlalchemy_model"
   | "celery_task"
   | "pydantic_model"
-  | "react_component";
+  | "react_component"
+  | "express_route"
+  | "nestjs_controller"
+  | "nestjs_service"
+  | "nestjs_route"
+  | "nextjs_page"
+  | "nextjs_route";
 
 export interface SymbolParameter {
   name: string;
@@ -95,6 +101,18 @@ export function frameworkRoleLabel(role: string | null | undefined): string {
       return "Pydantic model";
     case "react_component":
       return "React component";
+    case "express_route":
+      return "Express route";
+    case "nestjs_controller":
+      return "NestJS controller";
+    case "nestjs_service":
+      return "NestJS service";
+    case "nestjs_route":
+      return "NestJS route";
+    case "nextjs_page":
+      return "Next.js page";
+    case "nextjs_route":
+      return "Next.js route";
     default:
       return role;
   }

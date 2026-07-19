@@ -1,4 +1,4 @@
-"""Persist JavaScript / TypeScript tree-sitter symbols for a snapshot (Week 5 Days 1–2)."""
+"""Persist JavaScript / TypeScript tree-sitter symbols for a snapshot (Week 5)."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.language_contract import SupportLevel
 from app.models.entities import SourceFile, Symbol
+from app.services.js_ts_imports import load_tsconfig_paths, path_to_module
 from app.services.js_ts_parser import (
     PARSER_VERSION,
     ExtractedSymbol,
@@ -45,7 +46,8 @@ def replace_js_ts_symbols_for_snapshot(
 ) -> tuple[int, int]:
     """Parse deep JS/TS files; replace only javascript/typescript symbols.
 
-    Does not extract call sites yet (Week 5 Day 5).
+    Day 3: resolves imports against known modules + tsconfig paths.
+    Day 4: attaches framework roles.
     Returns ``(parsed_file_count, symbol_count)``.
     """
     session.execute(
@@ -66,10 +68,12 @@ def replace_js_ts_symbols_for_snapshot(
     )
 
     for row in deep_files:
-        # Clear prior stamps for these files; successful parse re-sets them.
         if row.language in _JS_TS_LANGUAGES:
             row.parser_name = None
             row.parser_version = None
+
+    known_modules = frozenset(path_to_module(row.path) for row in deep_files if row.path)
+    path_aliases = load_tsconfig_paths(repo_root)
 
     symbol_rows: list[Symbol] = []
     parsed_files = 0
@@ -87,7 +91,12 @@ def replace_js_ts_symbols_for_snapshot(
         except (OSError, UnicodeDecodeError):
             continue
 
-        result = parse_js_ts_source(text, relative_path=file_row.path)
+        result = parse_js_ts_source(
+            text,
+            relative_path=file_row.path,
+            known_modules=known_modules,
+            path_aliases=path_aliases,
+        )
         if not result.ok or not result.parser_name or not result.language:
             continue
 
