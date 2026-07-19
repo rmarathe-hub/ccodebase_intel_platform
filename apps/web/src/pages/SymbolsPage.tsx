@@ -2,7 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { PageShell } from "../components/PageShell";
 import { fetchRepositories, fetchRepositorySymbols } from "../lib/api";
-import { symbolKindLabel, type SymbolKind } from "../lib/symbols";
+import {
+  frameworkRoleLabel,
+  symbolKindLabel,
+  type FrameworkRole,
+  type SymbolKind,
+} from "../lib/symbols";
 
 const KIND_FILTERS: Array<{ id: "all" | SymbolKind; label: string }> = [
   { id: "all", label: "All" },
@@ -12,9 +17,21 @@ const KIND_FILTERS: Array<{ id: "all" | SymbolKind; label: string }> = [
   { id: "import", label: "Imports" },
 ];
 
+const ROLE_FILTERS: Array<{ id: "all" | FrameworkRole; label: string }> = [
+  { id: "all", label: "Any role" },
+  { id: "fastapi_route", label: "FastAPI" },
+  { id: "flask_route", label: "Flask" },
+  { id: "django_view", label: "Django" },
+  { id: "sqlalchemy_model", label: "SQLAlchemy" },
+  { id: "pydantic_model", label: "Pydantic" },
+  { id: "celery_task", label: "Celery" },
+];
+
 export function SymbolsPage() {
   const [repositoryId, setRepositoryId] = useState<string>("");
   const [kind, setKind] = useState<"all" | SymbolKind>("all");
+  const [role, setRole] = useState<"all" | FrameworkRole>("all");
+  const [localOnly, setLocalOnly] = useState(false);
   const [nameContains, setNameContains] = useState("");
   const [pathPrefix, setPathPrefix] = useState("");
 
@@ -26,10 +43,12 @@ export function SymbolsPage() {
   const selectedId = repositoryId || reposQuery.data?.[0]?.id || "";
 
   const symbolsQuery = useQuery({
-    queryKey: ["repository-symbols", selectedId, kind, nameContains, pathPrefix],
+    queryKey: ["repository-symbols", selectedId, kind, role, localOnly, nameContains, pathPrefix],
     queryFn: () =>
       fetchRepositorySymbols(selectedId, {
         kind: kind === "all" ? undefined : kind,
+        framework_role: role === "all" ? undefined : role,
+        is_local_import: localOnly ? true : undefined,
         name_contains: nameContains.trim() || undefined,
         path_prefix: pathPrefix.trim() || undefined,
         limit: 200,
@@ -47,7 +66,7 @@ export function SymbolsPage() {
     <div className="space-y-4">
       <PageShell
         title="Symbols"
-        description="Browse verified Python symbols with qualified names, signatures, decorators, and docstrings from python-ast. Framework detection, import/call graphs, and Java/TS parsers are not shipped yet."
+        description="Browse verified Python symbols with qualified names, common framework roles, and local vs external imports. Call graphs and non-Python deep parsers are not shipped yet."
       />
 
       <section className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-6">
@@ -92,6 +111,15 @@ export function SymbolsPage() {
               aria-label="Path prefix"
             />
           </label>
+
+          <label className="flex items-center gap-2 text-sm text-[var(--muted)]">
+            <input
+              type="checkbox"
+              checked={localOnly}
+              onChange={(event) => setLocalOnly(event.target.checked)}
+            />
+            Local imports only
+          </label>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
@@ -106,6 +134,24 @@ export function SymbolsPage() {
                   : "border-[var(--border)]",
               ].join(" ")}
               onClick={() => setKind(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          {ROLE_FILTERS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={[
+                "rounded-md border px-3 py-1.5 text-sm",
+                role === item.id
+                  ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
+                  : "border-[var(--border)]",
+              ].join(" ")}
+              onClick={() => setRole(item.id)}
             >
               {item.label}
             </button>
@@ -137,13 +183,13 @@ export function SymbolsPage() {
               {symbolsQuery.data.total} symbol{symbolsQuery.data.total === 1 ? "" : "s"}
             </p>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-sm">
+              <table className="w-full min-w-[720px] text-left text-sm">
                 <thead className="text-[var(--muted)]">
                   <tr className="border-b border-[var(--border)]">
                     <th className="py-2 pr-3 font-medium">Kind</th>
                     <th className="py-2 pr-3 font-medium">Qualified name</th>
+                    <th className="py-2 pr-3 font-medium">Framework / import</th>
                     <th className="py-2 pr-3 font-medium">Path</th>
-                    <th className="py-2 pr-3 font-medium">Lines</th>
                     <th className="py-2 font-medium">Details</th>
                   </tr>
                 </thead>
@@ -157,10 +203,26 @@ export function SymbolsPage() {
                         ) : null}
                       </td>
                       <td className="py-2 pr-3 font-mono text-xs">{sym.qualified_name}</td>
-                      <td className="py-2 pr-3 font-mono text-xs">{sym.path}</td>
-                      <td className="py-2 pr-3 tabular-nums">
-                        {sym.start_line}–{sym.end_line}
+                      <td className="py-2 pr-3 text-xs text-[var(--muted)]">
+                        {sym.framework_role ? (
+                          <div>
+                            {frameworkRoleLabel(sym.framework_role)}
+                            {sym.framework_detail ? ` · ${sym.framework_detail}` : ""}
+                          </div>
+                        ) : null}
+                        {sym.kind === "import" && (
+                          <div>
+                            {sym.import_style ?? "import"}
+                            {sym.is_local_import === true
+                              ? " · local"
+                              : sym.is_local_import === false
+                                ? " · external"
+                                : ""}
+                          </div>
+                        )}
+                        {!sym.framework_role && sym.kind !== "import" ? "—" : null}
                       </td>
+                      <td className="py-2 pr-3 font-mono text-xs">{sym.path}</td>
                       <td className="py-2 text-xs text-[var(--muted)]">
                         <div className="font-mono">{sym.signature ?? "—"}</div>
                         {sym.decorators.length > 0 && (

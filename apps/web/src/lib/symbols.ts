@@ -1,5 +1,13 @@
 export type SymbolKind = "class" | "function" | "method" | "import";
 
+export type FrameworkRole =
+  | "fastapi_route"
+  | "flask_route"
+  | "django_view"
+  | "sqlalchemy_model"
+  | "celery_task"
+  | "pydantic_model";
+
 export interface SymbolParameter {
   name: string;
   annotation: string | null;
@@ -23,6 +31,12 @@ export interface SymbolItem {
   parameters: SymbolParameter[];
   return_annotation: string | null;
   is_async: boolean;
+  framework_role: FrameworkRole | string | null;
+  framework_detail: string | null;
+  resolved_module: string | null;
+  import_style: string | null;
+  is_local_import: boolean | null;
+  import_alias: string | null;
   created_at: string;
 }
 
@@ -47,5 +61,25 @@ export function symbolKindLabel(kind: string): string {
       return "Import";
     default:
       return kind;
+  }
+}
+
+export function frameworkRoleLabel(role: string | null | undefined): string {
+  if (!role) return "";
+  switch (role) {
+    case "fastapi_route":
+      return "FastAPI route";
+    case "flask_route":
+      return "Flask route";
+    case "django_view":
+      return "Django view";
+    case "sqlalchemy_model":
+      return "SQLAlchemy model";
+    case "celery_task":
+      return "Celery task";
+    case "pydantic_model":
+      return "Pydantic model";
+    default:
+      return role;
   }
 }

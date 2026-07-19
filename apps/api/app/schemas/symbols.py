@@ -35,6 +35,12 @@ class SymbolRead(BaseModel):
     parameters: list[SymbolParameterRead] = Field(default_factory=list)
     return_annotation: str | None = None
     is_async: bool = False
+    framework_role: str | None = None
+    framework_detail: str | None = None
+    resolved_module: str | None = None
+    import_style: str | None = None
+    is_local_import: bool | None = None
+    import_alias: str | None = None
     created_at: datetime
 
     @field_validator("decorators", mode="before")

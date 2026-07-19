@@ -189,6 +189,12 @@ class Symbol(Base):
     parameters_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     return_annotation: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_async: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    framework_role: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    framework_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    resolved_module: Mapped[str | None] = mapped_column(Text, nullable=True)
+    import_style: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    is_local_import: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    import_alias: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

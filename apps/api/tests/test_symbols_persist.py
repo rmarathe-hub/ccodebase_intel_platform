@@ -74,7 +74,7 @@ def test_replace_python_symbols_for_snapshot(db_session: Session, tmp_path: Path
     }
     assert files["app.py"].parser_name == PARSER_NAME
     assert files["app.py"].parser_version is not None
-    assert files["app.py"].parser_version.startswith("4.1-")
+    assert files["app.py"].parser_version.startswith("4.2-")
     assert files["broken.py"].parser_name is None
     assert files["notes.md"].parser_name is None
 

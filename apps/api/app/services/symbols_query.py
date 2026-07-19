@@ -17,6 +17,8 @@ def list_symbols(
     kind: str | None = None,
     path_prefix: str | None = None,
     name_contains: str | None = None,
+    framework_role: str | None = None,
+    is_local_import: bool | None = None,
     limit: int = 100,
     offset: int = 0,
 ) -> tuple[list[tuple[Symbol, str]], int]:
@@ -29,6 +31,10 @@ def list_symbols(
         filters.append(Symbol.kind == kind.lower())
     if name_contains:
         filters.append(Symbol.name.ilike(f"%{name_contains}%"))
+    if framework_role:
+        filters.append(Symbol.framework_role == framework_role)
+    if is_local_import is not None:
+        filters.append(Symbol.is_local_import.is_(is_local_import))
 
     stmt = (
         select(Symbol, SourceFile.path)

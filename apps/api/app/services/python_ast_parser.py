@@ -1,10 +1,10 @@
-"""Python stdlib AST deep parser (Week 4 Days 1–2).
+"""Python stdlib AST deep parser (Week 4 Days 1–4).
 
 Honesty: only Python. No code execution — ``ast.parse`` only. Syntax errors
 yield an empty result with ``ok=False`` so callers leave ``parser_name`` unset.
 
-Day 1 adds decorators, parameters, return annotations, and docstrings.
-Day 2 tightens module/nested qualified names (including ``__init__.py`` packages).
+Day 3: common-pattern framework metadata.
+Day 4: import resolution (absolute/relative, local vs external).
 """
 
 from __future__ import annotations
@@ -13,9 +13,11 @@ import ast
 import sys
 from dataclasses import dataclass
 
+from app.services.python_framework import detect_framework_meta
+from app.services.python_imports import resolve_import_statement
+
 PARSER_NAME = "python-ast"
-# Bump when extracted fields / QName rules change so re-indexes stamp a new version.
-PARSER_VERSION = f"4.1-{sys.version_info.major}.{sys.version_info.minor}-stdlib"
+PARSER_VERSION = f"4.2-{sys.version_info.major}.{sys.version_info.minor}-stdlib"
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +40,12 @@ class ExtractedSymbol:
     parameters: tuple[ExtractedParameter, ...] = ()
     return_annotation: str | None = None
     is_async: bool = False
+    framework_role: str | None = None
+    framework_detail: str | None = None
+    resolved_module: str | None = None
+    import_style: str | None = None
+    is_local_import: bool | None = None
+    import_alias: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,13 +73,7 @@ def _unparse(node: ast.AST | None) -> str | None:
 
 
 def module_qualified_name(relative_path: str) -> str:
-    """Map a repo-relative Python path to a dotted module name.
-
-    Examples:
-    - ``app/services/auth.py`` → ``app.services.auth``
-    - ``app/services/__init__.py`` → ``app.services``
-    - ``scripts/load_to_postgres.py`` → ``scripts.load_to_postgres``
-    """
+    """Map a repo-relative Python path to a dotted module name."""
     cleaned = relative_path.replace("\\", "/").strip().lstrip("/")
     if not cleaned:
         return ""
@@ -97,6 +99,15 @@ def _decorators(node: ast.AST) -> tuple[str, ...]:
     out: list[str] = []
     for deco in decorator_list:
         rendered = _unparse(deco)
+        if rendered:
+            out.append(rendered)
+    return tuple(out)
+
+
+def _bases(node: ast.ClassDef) -> tuple[str, ...]:
+    out: list[str] = []
+    for base in node.bases:
+        rendered = _unparse(base)
         if rendered:
             out.append(rendered)
     return tuple(out)
@@ -193,6 +204,39 @@ def _class_signature(node: ast.ClassDef) -> str:
     return f"class {node.name}"
 
 
+def _with_framework(
+    symbol: ExtractedSymbol,
+    *,
+    bases: tuple[str, ...] = (),
+) -> ExtractedSymbol:
+    meta = detect_framework_meta(
+        kind=symbol.kind,
+        decorators=symbol.decorators,
+        bases=bases,
+    )
+    if meta is None:
+        return symbol
+    return ExtractedSymbol(
+        kind=symbol.kind,
+        name=symbol.name,
+        qualified_name=symbol.qualified_name,
+        start_line=symbol.start_line,
+        end_line=symbol.end_line,
+        signature=symbol.signature,
+        docstring=symbol.docstring,
+        decorators=symbol.decorators,
+        parameters=symbol.parameters,
+        return_annotation=symbol.return_annotation,
+        is_async=symbol.is_async,
+        framework_role=meta.role,
+        framework_detail=meta.detail,
+        resolved_module=symbol.resolved_module,
+        import_style=symbol.import_style,
+        is_local_import=symbol.is_local_import,
+        import_alias=symbol.import_alias,
+    )
+
+
 def _append_function(
     found: list[ExtractedSymbol],
     node: ast.FunctionDef | ast.AsyncFunctionDef,
@@ -201,21 +245,20 @@ def _append_function(
     qname: str,
 ) -> None:
     return_ann = _unparse(node.returns)
-    found.append(
-        ExtractedSymbol(
-            kind=kind,
-            name=node.name,
-            qualified_name=qname,
-            start_line=node.lineno,
-            end_line=_end_lineno(node),
-            signature=_function_signature(node, return_annotation=return_ann),
-            docstring=ast.get_docstring(node),
-            decorators=_decorators(node),
-            parameters=_extract_parameters(node.args),
-            return_annotation=return_ann,
-            is_async=isinstance(node, ast.AsyncFunctionDef),
-        )
+    symbol = ExtractedSymbol(
+        kind=kind,
+        name=node.name,
+        qualified_name=qname,
+        start_line=node.lineno,
+        end_line=_end_lineno(node),
+        signature=_function_signature(node, return_annotation=return_ann),
+        docstring=ast.get_docstring(node),
+        decorators=_decorators(node),
+        parameters=_extract_parameters(node.args),
+        return_annotation=return_ann,
+        is_async=isinstance(node, ast.AsyncFunctionDef),
     )
+    found.append(_with_framework(symbol))
 
 
 def _walk_class_body(
@@ -227,18 +270,18 @@ def _walk_class_body(
     for child in node.body:
         if isinstance(child, ast.ClassDef):
             nested_q = qualify(class_qname, child.name)
-            found.append(
-                ExtractedSymbol(
-                    kind="class",
-                    name=child.name,
-                    qualified_name=nested_q,
-                    start_line=child.lineno,
-                    end_line=_end_lineno(child),
-                    signature=_class_signature(child),
-                    docstring=ast.get_docstring(child),
-                    decorators=_decorators(child),
-                )
+            bases = _bases(child)
+            symbol = ExtractedSymbol(
+                kind="class",
+                name=child.name,
+                qualified_name=nested_q,
+                start_line=child.lineno,
+                end_line=_end_lineno(child),
+                signature=_class_signature(child),
+                docstring=ast.get_docstring(child),
+                decorators=_decorators(child),
             )
+            found.append(_with_framework(symbol, bases=bases))
             _walk_class_body(found, child, class_qname=nested_q)
         elif isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
             _append_function(
@@ -249,31 +292,37 @@ def _walk_class_body(
             )
 
 
-def parse_python_source(source: str, *, relative_path: str) -> ParseResult:
-    """Extract classes, functions/methods, and imports with Day 1–2 metadata."""
+def parse_python_source(
+    source: str,
+    *,
+    relative_path: str,
+    known_modules: frozenset[str] | None = None,
+) -> ParseResult:
+    """Extract symbols with Days 1–4 metadata (framework + import resolution)."""
     try:
         tree = ast.parse(source, filename=relative_path)
     except SyntaxError as exc:
         return ParseResult(ok=False, symbols=(), error=f"syntax_error:{exc.msg}")
 
     module = module_qualified_name(relative_path)
+    known = known_modules if known_modules is not None else frozenset()
     found: list[ExtractedSymbol] = []
 
     for node in tree.body:
         if isinstance(node, ast.ClassDef):
             qname = qualify(module, node.name)
-            found.append(
-                ExtractedSymbol(
-                    kind="class",
-                    name=node.name,
-                    qualified_name=qname,
-                    start_line=node.lineno,
-                    end_line=_end_lineno(node),
-                    signature=_class_signature(node),
-                    docstring=ast.get_docstring(node),
-                    decorators=_decorators(node),
-                )
+            bases = _bases(node)
+            symbol = ExtractedSymbol(
+                kind="class",
+                name=node.name,
+                qualified_name=qname,
+                start_line=node.lineno,
+                end_line=_end_lineno(node),
+                signature=_class_signature(node),
+                docstring=ast.get_docstring(node),
+                decorators=_decorators(node),
             )
+            found.append(_with_framework(symbol, bases=bases))
             _walk_class_body(found, node, class_qname=qname)
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             _append_function(
@@ -284,34 +333,66 @@ def parse_python_source(source: str, *, relative_path: str) -> ParseResult:
             )
         elif isinstance(node, ast.Import):
             for alias in node.names:
-                name = alias.asname or alias.name
+                binding = alias.asname or alias.name
+                resolved = resolve_import_statement(
+                    current_module=module,
+                    imported_name=alias.name,
+                    binding_name=binding,
+                    alias=alias.asname,
+                    module=None,
+                    level=0,
+                    known_modules=known,
+                    is_from_import=False,
+                )
                 found.append(
                     ExtractedSymbol(
                         kind="import",
-                        name=name,
-                        qualified_name=alias.name,
+                        name=binding,
+                        qualified_name=resolved.resolved_module,
                         start_line=node.lineno,
                         end_line=_end_lineno(node),
-                        signature=f"import {alias.name}",
+                        signature=f"import {alias.name}"
+                        + (f" as {alias.asname}" if alias.asname else ""),
+                        resolved_module=resolved.resolved_module,
+                        import_style=resolved.style,
+                        is_local_import=resolved.is_local,
+                        import_alias=resolved.alias,
                     )
                 )
         elif isinstance(node, ast.ImportFrom):
-            mod = node.module or ""
             for alias in node.names:
-                name = alias.asname or alias.name
-                qname = f"{mod}.{alias.name}" if mod else alias.name
+                binding = alias.asname or alias.name
+                resolved = resolve_import_statement(
+                    current_module=module,
+                    imported_name=alias.name,
+                    binding_name=binding,
+                    alias=alias.asname,
+                    module=node.module,
+                    level=node.level,
+                    known_modules=known,
+                    is_from_import=True,
+                )
+                dots = "." * node.level
+                mod = node.module or ""
+                sig = (
+                    f"from {dots}{mod} import {alias.name}"
+                    if node.level
+                    else f"from {mod} import {alias.name}"
+                )
+                if alias.asname:
+                    sig = f"{sig} as {alias.asname}"
                 found.append(
                     ExtractedSymbol(
                         kind="import",
-                        name=name,
-                        qualified_name=qname,
+                        name=binding,
+                        qualified_name=resolved.resolved_module,
                         start_line=node.lineno,
                         end_line=_end_lineno(node),
-                        signature=(
-                            f"from {'.' * node.level}{mod} import {alias.name}"
-                            if node.level
-                            else f"from {mod} import {alias.name}"
-                        ),
+                        signature=sig,
+                        resolved_module=resolved.resolved_module,
+                        import_style=resolved.style,
+                        is_local_import=resolved.is_local,
+                        import_alias=resolved.alias,
                     )
                 )
 

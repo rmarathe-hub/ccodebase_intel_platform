@@ -131,6 +131,8 @@ def get_repository_symbols(
     kind: str | None = Query(default=None),
     path_prefix: str | None = Query(default=None),
     name_contains: str | None = Query(default=None),
+    framework_role: str | None = Query(default=None),
+    is_local_import: bool | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
@@ -156,6 +158,23 @@ def get_repository_symbols(
             },
         )
 
+    allowed_roles = {
+        "fastapi_route",
+        "flask_route",
+        "django_view",
+        "sqlalchemy_model",
+        "celery_task",
+        "pydantic_model",
+    }
+    if framework_role is not None and framework_role not in allowed_roles:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "invalid_framework_role",
+                "message": f"framework_role must be one of: {', '.join(sorted(allowed_roles))}",
+            },
+        )
+
     snapshot = latest_ready_snapshot(db, repository_id)
     if snapshot is None:
         return SymbolListResponse(
@@ -173,6 +192,8 @@ def get_repository_symbols(
         kind=kind,
         path_prefix=path_prefix,
         name_contains=name_contains,
+        framework_role=framework_role,
+        is_local_import=is_local_import,
         limit=limit,
         offset=offset,
     )
@@ -194,6 +215,12 @@ def get_repository_symbols(
             parameters=sym.parameters_json,
             return_annotation=sym.return_annotation,
             is_async=sym.is_async,
+            framework_role=sym.framework_role,
+            framework_detail=sym.framework_detail,
+            resolved_module=sym.resolved_module,
+            import_style=sym.import_style,
+            is_local_import=sym.is_local_import,
+            import_alias=sym.import_alias,
             created_at=sym.created_at,
         )
         for sym, path in rows

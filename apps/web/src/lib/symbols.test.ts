@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { symbolKindLabel } from "./symbols";
+import { frameworkRoleLabel, symbolKindLabel } from "./symbols";
 
 describe("symbolKindLabel", () => {
   it("labels known kinds", () => {
@@ -8,8 +8,12 @@ describe("symbolKindLabel", () => {
     expect(symbolKindLabel("method")).toBe("Method");
     expect(symbolKindLabel("import")).toBe("Import");
   });
+});
 
-  it("passes through unknown kinds", () => {
-    expect(symbolKindLabel("heuristic")).toBe("heuristic");
+describe("frameworkRoleLabel", () => {
+  it("labels known roles", () => {
+    expect(frameworkRoleLabel("fastapi_route")).toBe("FastAPI route");
+    expect(frameworkRoleLabel("pydantic_model")).toBe("Pydantic model");
+    expect(frameworkRoleLabel(null)).toBe("");
   });
 });

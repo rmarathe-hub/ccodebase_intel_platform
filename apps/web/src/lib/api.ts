@@ -70,6 +70,8 @@ export function fetchRepositorySymbols(
     kind?: string;
     path_prefix?: string;
     name_contains?: string;
+    framework_role?: string;
+    is_local_import?: boolean;
     limit?: number;
     offset?: number;
   } = {},
@@ -78,6 +80,10 @@ export function fetchRepositorySymbols(
   if (params.kind) query.set("kind", params.kind);
   if (params.path_prefix) query.set("path_prefix", params.path_prefix);
   if (params.name_contains) query.set("name_contains", params.name_contains);
+  if (params.framework_role) query.set("framework_role", params.framework_role);
+  if (params.is_local_import != null) {
+    query.set("is_local_import", String(params.is_local_import));
+  }
   if (params.limit != null) query.set("limit", String(params.limit));
   if (params.offset != null) query.set("offset", String(params.offset));
   const suffix = query.toString() ? `?${query.toString()}` : "";

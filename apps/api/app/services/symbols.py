@@ -15,6 +15,7 @@ from app.services.python_ast_parser import (
     PARSER_NAME,
     PARSER_VERSION,
     ExtractedSymbol,
+    module_qualified_name,
     parse_python_source,
 )
 
@@ -60,7 +61,10 @@ def replace_python_symbols_for_snapshot(
         ).all()
     )
 
-    # Clear prior parser stamps for this snapshot's Python deep files.
+    known_modules = frozenset(
+        module_qualified_name(row.path) for row in deep_python if row.path
+    )
+
     for row in deep_python:
         row.parser_name = None
         row.parser_version = None
@@ -81,7 +85,11 @@ def replace_python_symbols_for_snapshot(
         except (OSError, UnicodeDecodeError):
             continue
 
-        result = parse_python_source(text, relative_path=file_row.path)
+        result = parse_python_source(
+            text,
+            relative_path=file_row.path,
+            known_modules=known_modules,
+        )
         if not result.ok:
             continue
 
@@ -105,6 +113,12 @@ def replace_python_symbols_for_snapshot(
                     parameters_json=_parameters_json(item),
                     return_annotation=item.return_annotation,
                     is_async=item.is_async,
+                    framework_role=item.framework_role,
+                    framework_detail=item.framework_detail,
+                    resolved_module=item.resolved_module,
+                    import_style=item.import_style,
+                    is_local_import=item.is_local_import,
+                    import_alias=item.import_alias,
                 )
             )
 
