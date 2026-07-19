@@ -30,6 +30,7 @@ _POSTGRES_NODE_HINTS = (
     "test_symbols_persist",
     "test_symbols_api",
     "test_calls_api",
+    "test_symbol_neighbors_api",
 )
 
 

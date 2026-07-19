@@ -33,3 +33,15 @@ class SymbolCallListResponse(BaseModel):
     limit: int
     offset: int
     calls: list[SymbolCallRead]
+
+
+class SymbolNeighborsResponse(BaseModel):
+    """Callers or callees for one symbol (Week 4 Day 7)."""
+
+    repository_id: UUID
+    snapshot_id: UUID
+    symbol_id: UUID
+    symbol_qualified_name: str
+    direction: str  # callers | callees
+    total: int
+    calls: list[SymbolCallRead]

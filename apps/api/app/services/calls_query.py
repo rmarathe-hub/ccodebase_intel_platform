@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.models.entities import SourceFile, SymbolCall
+from app.models.entities import SourceFile, Symbol, SymbolCall
 
 
 def list_symbol_calls(
@@ -55,3 +55,75 @@ def list_symbol_calls(
         ).all()
     )
     return [(call, path) for call, path in rows], total
+
+
+def get_symbol_in_snapshot(
+    session: Session,
+    *,
+    snapshot_id: UUID,
+    symbol_id: UUID,
+) -> Symbol | None:
+    return session.scalars(
+        select(Symbol).where(
+            Symbol.id == symbol_id,
+            Symbol.snapshot_id == snapshot_id,
+        )
+    ).first()
+
+
+def list_callees_for_symbol(
+    session: Session,
+    *,
+    snapshot_id: UUID,
+    symbol_id: UUID,
+    limit: int = 100,
+) -> list[tuple[SymbolCall, str]]:
+    """Calls made *by* this symbol (outgoing)."""
+    capped = max(1, min(limit, 500))
+    rows = list(
+        session.execute(
+            select(SymbolCall, SourceFile.path)
+            .join(SourceFile, SourceFile.id == SymbolCall.source_file_id)
+            .where(
+                SymbolCall.snapshot_id == snapshot_id,
+                SymbolCall.caller_symbol_id == symbol_id,
+            )
+            .order_by(SymbolCall.line.asc())
+            .limit(capped)
+        ).all()
+    )
+    return [(call, path) for call, path in rows]
+
+
+def list_callers_for_symbol(
+    session: Session,
+    *,
+    snapshot_id: UUID,
+    symbol: Symbol,
+    limit: int = 100,
+) -> list[tuple[SymbolCall, str]]:
+    """Calls that target this symbol (incoming), best-effort via candidate QName."""
+    capped = max(1, min(limit, 500))
+    qname = symbol.qualified_name
+    rows = list(
+        session.execute(
+            select(SymbolCall, SourceFile.path)
+            .join(SourceFile, SourceFile.id == SymbolCall.source_file_id)
+            .where(
+                SymbolCall.snapshot_id == snapshot_id,
+                or_(
+                    SymbolCall.candidate_qualified_name == qname,
+                    SymbolCall.raw_callee == symbol.name,
+                ),
+            )
+            .order_by(SymbolCall.line.asc())
+            .limit(capped)
+        ).all()
+    )
+    filtered: list[tuple[SymbolCall, str]] = []
+    for call, path in rows:
+        if call.candidate_qualified_name == qname:
+            filtered.append((call, path))
+        elif call.candidate_qualified_name is None and call.raw_callee == symbol.name:
+            filtered.append((call, path))
+    return filtered

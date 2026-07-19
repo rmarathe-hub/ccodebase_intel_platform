@@ -5,14 +5,23 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.deps import get_db
-from app.models.entities import IndexingJob, Repository
-from app.schemas.calls import SymbolCallListResponse, SymbolCallRead
+from app.models.entities import IndexingJob, Repository, SymbolCall
+from app.schemas.calls import (
+    SymbolCallListResponse,
+    SymbolCallRead,
+    SymbolNeighborsResponse,
+)
 from app.schemas.files import RepositoryListItem, SourceFileListResponse, SourceFileRead
 from app.schemas.jobs import IndexingJobRead
 from app.schemas.repositories import RepositoryImportRequest, RepositoryRead
 from app.schemas.snapshots import RepositoryImportResponse
 from app.schemas.symbols import SymbolListResponse, SymbolRead
-from app.services.calls_query import list_symbol_calls
+from app.services.calls_query import (
+    get_symbol_in_snapshot,
+    list_callees_for_symbol,
+    list_callers_for_symbol,
+    list_symbol_calls,
+)
 from app.services.files_query import (
     latest_ready_snapshot,
     list_repositories,
@@ -27,6 +36,24 @@ from app.services.import_repository import (
 from app.services.symbols_query import list_symbols
 
 router = APIRouter(prefix="/api/v1")
+
+
+def _call_read(call: SymbolCall, path: str) -> SymbolCallRead:
+    return SymbolCallRead(
+        id=call.id,
+        snapshot_id=call.snapshot_id,
+        source_file_id=call.source_file_id,
+        path=path,
+        caller_symbol_id=call.caller_symbol_id,
+        caller_qualified_name=call.caller_qualified_name,
+        raw_callee=call.raw_callee,
+        qualified_expression=call.qualified_expression,
+        line=call.line,
+        candidate_qualified_name=call.candidate_qualified_name,
+        confidence=call.confidence,
+        language=call.language,
+        created_at=call.created_at,
+    )
 
 
 @router.post(
@@ -290,30 +317,81 @@ def get_repository_calls(
         limit=limit,
         offset=offset,
     )
-    calls = [
-        SymbolCallRead(
-            id=call.id,
-            snapshot_id=call.snapshot_id,
-            source_file_id=call.source_file_id,
-            path=path,
-            caller_symbol_id=call.caller_symbol_id,
-            caller_qualified_name=call.caller_qualified_name,
-            raw_callee=call.raw_callee,
-            qualified_expression=call.qualified_expression,
-            line=call.line,
-            candidate_qualified_name=call.candidate_qualified_name,
-            confidence=call.confidence,
-            language=call.language,
-            created_at=call.created_at,
-        )
-        for call, path in rows
-    ]
+    calls = [_call_read(call, path) for call, path in rows]
     return SymbolCallListResponse(
         repository_id=repository_id,
         snapshot_id=snapshot.id,
         total=total,
         limit=limit,
         offset=offset,
+        calls=calls,
+    )
+
+
+@router.get(
+    "/repositories/{repository_id}/symbols/{symbol_id}/callers",
+    response_model=SymbolNeighborsResponse,
+)
+def get_symbol_callers(
+    repository_id: UUID,
+    symbol_id: UUID,
+    limit: int = Query(default=100, ge=1, le=500),
+    db: Session = Depends(get_db),
+) -> SymbolNeighborsResponse:
+    repo = db.get(Repository, repository_id)
+    if repo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+    snapshot = latest_ready_snapshot(db, repository_id)
+    if snapshot is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No ready snapshot")
+    symbol = get_symbol_in_snapshot(db, snapshot_id=snapshot.id, symbol_id=symbol_id)
+    if symbol is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Symbol not found")
+    rows = list_callers_for_symbol(
+        db, snapshot_id=snapshot.id, symbol=symbol, limit=limit
+    )
+    calls = [_call_read(call, path) for call, path in rows]
+    return SymbolNeighborsResponse(
+        repository_id=repository_id,
+        snapshot_id=snapshot.id,
+        symbol_id=symbol.id,
+        symbol_qualified_name=symbol.qualified_name,
+        direction="callers",
+        total=len(calls),
+        calls=calls,
+    )
+
+
+@router.get(
+    "/repositories/{repository_id}/symbols/{symbol_id}/callees",
+    response_model=SymbolNeighborsResponse,
+)
+def get_symbol_callees(
+    repository_id: UUID,
+    symbol_id: UUID,
+    limit: int = Query(default=100, ge=1, le=500),
+    db: Session = Depends(get_db),
+) -> SymbolNeighborsResponse:
+    repo = db.get(Repository, repository_id)
+    if repo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+    snapshot = latest_ready_snapshot(db, repository_id)
+    if snapshot is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No ready snapshot")
+    symbol = get_symbol_in_snapshot(db, snapshot_id=snapshot.id, symbol_id=symbol_id)
+    if symbol is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Symbol not found")
+    rows = list_callees_for_symbol(
+        db, snapshot_id=snapshot.id, symbol_id=symbol.id, limit=limit
+    )
+    calls = [_call_read(call, path) for call, path in rows]
+    return SymbolNeighborsResponse(
+        repository_id=repository_id,
+        snapshot_id=snapshot.id,
+        symbol_id=symbol.id,
+        symbol_qualified_name=symbol.qualified_name,
+        direction="callees",
+        total=len(calls),
         calls=calls,
     )
 

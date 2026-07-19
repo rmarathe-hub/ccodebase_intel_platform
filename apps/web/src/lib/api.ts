@@ -91,3 +91,37 @@ export function fetchRepositorySymbols(
     `/api/v1/repositories/${repositoryId}/symbols${suffix}`,
   );
 }
+
+export function fetchRepositoryCalls(
+  repositoryId: string,
+  params: {
+    confidence?: string;
+    caller_contains?: string;
+    path_prefix?: string;
+    limit?: number;
+    offset?: number;
+  } = {},
+) {
+  const query = new URLSearchParams();
+  if (params.confidence) query.set("confidence", params.confidence);
+  if (params.caller_contains) query.set("caller_contains", params.caller_contains);
+  if (params.path_prefix) query.set("path_prefix", params.path_prefix);
+  if (params.limit != null) query.set("limit", String(params.limit));
+  if (params.offset != null) query.set("offset", String(params.offset));
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return request<import("./calls").SymbolCallListResponse>(
+    `/api/v1/repositories/${repositoryId}/calls${suffix}`,
+  );
+}
+
+export function fetchSymbolCallers(repositoryId: string, symbolId: string, limit = 100) {
+  return request<import("./calls").SymbolNeighborsResponse>(
+    `/api/v1/repositories/${repositoryId}/symbols/${symbolId}/callers?limit=${limit}`,
+  );
+}
+
+export function fetchSymbolCallees(repositoryId: string, symbolId: string, limit = 100) {
+  return request<import("./calls").SymbolNeighborsResponse>(
+    `/api/v1/repositories/${repositoryId}/symbols/${symbolId}/callees?limit=${limit}`,
+  );
+}

@@ -8,24 +8,22 @@
 | 2 | Qualified names (`module.Class.method`, `__init__.py` packages) | Done |
 | 3 | Framework metadata (FastAPI/Flask/Django/SQLAlchemy/Celery/Pydantic) | Done |
 | 4 | Import resolution (absolute/relative, local vs external) | Done |
-| 5 | Call extraction + confidence | Done (local) |
-| 6 | Python fixtures matrix | Done (local) |
-| 7 | UI verification (routes/models/callers/callees) | Not started |
+| 5 | Call extraction + confidence | Done |
+| 6 | Python fixtures matrix | Done |
+| 7 | UI verification (routes/models/callers/callees) | Done (local) |
 
-## Day 5–6 artifacts
+## Day 7 artifacts
 
-- `apps/api/app/services/python_calls.py` — call extraction + heuristic resolution
-- `apps/api/alembic/versions/0006_symbol_calls.py` — `symbol_calls` table
-- Worker stage `building_relationships` persists call sites after parsing
-- `GET /api/v1/repositories/{id}/calls` with confidence filter
-- Offline fixture: `apps/api/tests/fixtures/python_deep/`
-- `parser_version` stamped as `4.3-{py}-stdlib`
+- `GET /repositories/{id}/symbols/{symbol_id}/callers`
+- `GET /repositories/{id}/symbols/{symbol_id}/callees`
+- Symbols page presets: All / Functions / Classes / Routes / Models
+- Click a symbol → callers + callees panels
+- Graph page: call-site list with confidence filters
 
 ## Honesty
 
-- Call resolution is name/import based (`resolved` / `ambiguous` / `unresolved`), not a type checker.
-- Framework roles remain pattern-only.
-- Callers/callees UI is Day 7.
+- Call resolution remains heuristic (`resolved` / `ambiguous` / `unresolved`).
+- Graph is a verification table, not a full interactive diagram yet.
 
 ## Git policy
 
