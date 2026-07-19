@@ -10,7 +10,7 @@
 | 4 | Inheritance (`EXTENDS` / `IMPLEMENTS`) | Done |
 | 5 | Spring architecture classification | Done |
 | 6 | Java call resolution | Done |
-| 7 | Spring fixture repository | Not started |
+| 7 | Spring fixture repository | Done |
 
 ## Artifacts
 
@@ -22,12 +22,18 @@
 - `apps/api/app/services/java_calls.py` — call sites with confidence
 - `apps/api/app/services/java_symbols.py` — symbols + relations + calls
 - `symbol_relations` table + `GET /api/v1/repositories/{id}/relations`
+- `apps/api/tests/fixtures/spring_fixture/` — full Spring stack fixture
+  - `Application`, `SecurityConfig`, `UserController`, `UserService`,
+    `UserServiceImpl`, `UserRepository`, `UserEntity`
+- `apps/api/tests/test_spring_fixture.py` — discovery / roles / relations / calls / API
 
 ### Framework roles
 
 Annotation / naming: `spring_rest_controller`, `spring_controller`, `spring_service`,
 `spring_repository`, `spring_component`, `spring_configuration`, `spring_entity`,
 `spring_route`, `spring_interface`, `spring_implementation`
+
+`@SpringBootApplication` maps to `spring_configuration` (same family as `@Configuration`).
 
 ### Inheritance (Day 4)
 
@@ -41,12 +47,18 @@ Cross-file pass pairs IMPLEMENTS edges, tags interfaces / implementations, namin
 
 `helper()`, `this.helper()`, `repo.findById()`, `Type.method()` with field-type injection heuristics.
 
+### Spring fixture (Day 7)
+
+End-to-end matrix over a realistic Spring Boot slice: REST controller → service
+interface → `@Service` impl → `@Repository` → `@Entity`, plus `@Configuration`
+and `@SpringBootApplication`. Worker pipeline indexes the same fixture.
+
 ## Honesty
 
 - Syntax errors fail closed (no `parser_name` stamp).
 - No classpath / Maven / Gradle resolution.
 - Annotation / architecture / call resolution are heuristics — not javac.
-- Day 7 ships a fuller Spring fixture repository.
+- Fixture is illustrative Spring shape, not a runnable Maven project.
 
 ## Git policy
 

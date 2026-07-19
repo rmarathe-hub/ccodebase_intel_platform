@@ -12,7 +12,7 @@ import pytest
 from sqlalchemy import update
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.models import IndexingJob, JobStatus, Repository, Symbol, SymbolCall
+from app.models import IndexingJob, JobStatus, Repository, Symbol, SymbolCall, SymbolRelation
 from app.models.job_stages import JobStage
 from app.services.git_clone import CloneResult, GitCloneError
 from app.services.jobs import new_indexing_job
@@ -185,6 +185,67 @@ def test_worker_pipeline_succeeds_with_mixed_frontend_backend(
     assert "python" in call_langs
     assert "typescript" in call_langs
     assert any(c.confidence == "resolved" for c in calls)
+
+
+def test_worker_pipeline_succeeds_with_spring_fixture(
+    db_session: Session,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Worker indexes Spring controller/service/impl stack in one snapshot."""
+    fixture = Path(__file__).resolve().parent / "fixtures" / "spring_fixture"
+    spring = tmp_path / "spring"
+    shutil.copytree(fixture, spring)
+
+    _repo, job = _enqueue_repo(db_session)
+
+    @contextmanager
+    def fake_clone(*_args, **_kwargs):  # type: ignore[no-untyped-def]
+        yield CloneResult(
+            path=spring,
+            branch="main",
+            commit_sha="spring123456789",
+            bytes_on_disk=512,
+        )
+
+    monkeypatch.setattr("worker.__main__.secure_clone", fake_clone)
+
+    factory = _session_factory(db_session)
+    assert process_one(factory, worker_id="test-worker-spring") is True
+
+    db_session.expire_all()
+    refreshed = db_session.get(IndexingJob, job.id)
+    assert refreshed is not None
+    assert refreshed.status == JobStatus.SUCCEEDED
+    assert refreshed.snapshot_id is not None
+
+    symbols = (
+        db_session.query(Symbol)
+        .filter(Symbol.snapshot_id == refreshed.snapshot_id)
+        .all()
+    )
+    assert any(s.language == "java" for s in symbols)
+    assert any(s.framework_role == "spring_rest_controller" for s in symbols)
+    assert any(s.framework_role == "spring_service" for s in symbols)
+    assert any(s.framework_role == "spring_repository" for s in symbols)
+    assert any(s.framework_role == "spring_entity" for s in symbols)
+    assert any(s.framework_role == "spring_interface" for s in symbols)
+
+    relations = (
+        db_session.query(SymbolRelation)
+        .filter(SymbolRelation.snapshot_id == refreshed.snapshot_id)
+        .all()
+    )
+    assert any(
+        r.relation_kind == "implements" and r.confidence == "resolved" for r in relations
+    )
+
+    calls = (
+        db_session.query(SymbolCall)
+        .filter(SymbolCall.snapshot_id == refreshed.snapshot_id)
+        .all()
+    )
+    assert any(c.language == "java" and c.confidence == "resolved" for c in calls)
 
 
 def test_worker_clone_failure_schedules_retry(

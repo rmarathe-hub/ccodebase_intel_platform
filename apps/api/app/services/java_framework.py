@@ -17,6 +17,7 @@ _CLASS_ROLES: dict[str, str] = {
     "Repository": "spring_repository",
     "Component": "spring_component",
     "Configuration": "spring_configuration",
+    "SpringBootApplication": "spring_configuration",
     "Entity": "spring_entity",
 }
 
