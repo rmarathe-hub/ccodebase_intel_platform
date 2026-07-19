@@ -76,7 +76,7 @@ def _index_fixture(
     js_files, js_syms, js_calls = replace_js_ts_symbols_for_snapshot(
         db_session, snapshot_id=snapshot.id, repo_root=FIXTURE_ROOT
     )
-    java_files, java_syms = replace_java_symbols_for_snapshot(
+    java_files, java_syms, _java_rels = replace_java_symbols_for_snapshot(
         db_session, snapshot_id=snapshot.id, repo_root=FIXTURE_ROOT
     )
     db_session.commit()

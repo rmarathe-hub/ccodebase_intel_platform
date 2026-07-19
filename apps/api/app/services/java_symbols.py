@@ -1,4 +1,4 @@
-"""Persist Java tree-sitter symbols for a snapshot (Week 6 Days 1–2)."""
+"""Persist Java tree-sitter symbols and inheritance edges (Week 6)."""
 
 from __future__ import annotations
 
@@ -10,7 +10,13 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.language_contract import SupportLevel
-from app.models.entities import SourceFile, Symbol
+from app.models.entities import SourceFile, Symbol, SymbolRelation
+from app.services.java_inheritance import (
+    ExtractedRelation,
+    TypeRef,
+    package_of_qname,
+    resolve_relations,
+)
 from app.services.java_parser import (
     PARSER_NAME,
     PARSER_VERSION,
@@ -41,12 +47,17 @@ def replace_java_symbols_for_snapshot(
     *,
     snapshot_id: UUID,
     repo_root: Path,
-) -> tuple[int, int]:
-    """Parse deep Java files; replace only java symbols.
+) -> tuple[int, int, int]:
+    """Parse deep Java files; replace java symbols and inheritance edges.
 
-    Returns ``(parsed_file_count, symbol_count)``.
-    Call sites arrive in Day 6.
+    Returns ``(parsed_file_count, symbol_count, relation_count)``.
     """
+    session.execute(
+        delete(SymbolRelation).where(
+            SymbolRelation.snapshot_id == snapshot_id,
+            SymbolRelation.language == "java",
+        )
+    )
     session.execute(
         delete(Symbol).where(
             Symbol.snapshot_id == snapshot_id,
@@ -70,6 +81,11 @@ def replace_java_symbols_for_snapshot(
 
     symbol_rows: list[Symbol] = []
     parsed_files = 0
+    raw_edges: list[ExtractedRelation] = []
+    # from_qname / package → import leaf map
+    imports_by_key: dict[str, dict[str, str]] = {}
+    type_refs: list[TypeRef] = []
+    edge_file_ids: list[tuple[ExtractedRelation, UUID]] = []
 
     for file_row in deep_files:
         absolute = (repo_root / file_row.path).resolve()
@@ -92,6 +108,7 @@ def replace_java_symbols_for_snapshot(
         file_row.parser_name = PARSER_NAME
         file_row.parser_version = PARSER_VERSION
 
+        import_map = dict(result.import_map)
         for item in result.symbols:
             symbol_rows.append(
                 Symbol(
@@ -117,7 +134,63 @@ def replace_java_symbols_for_snapshot(
                     import_alias=item.import_alias,
                 )
             )
+            if item.kind in {"class", "interface", "enum", "record"}:
+                type_refs.append(
+                    TypeRef(
+                        kind=item.kind,
+                        name=item.name,
+                        qualified_name=item.qualified_name,
+                        package=package_of_qname(item.qualified_name),
+                    )
+                )
+                imports_by_key[item.qualified_name] = import_map
+                pkg = package_of_qname(item.qualified_name)
+                if pkg:
+                    imports_by_key.setdefault(pkg, {}).update(import_map)
+
+        for edge in result.relations:
+            raw_edges.append(edge)
+            edge_file_ids.append((edge, file_row.id))
 
     session.add_all(symbol_rows)
     session.flush()
-    return parsed_files, len(symbol_rows)
+
+    qname_to_id = {row.qualified_name: row.id for row in symbol_rows}
+    resolved = resolve_relations(
+        raw_edges, types=type_refs, imports_by_from=imports_by_key
+    )
+    # Preserve source_file_id by matching edges in order after resolve sort —
+    # re-map via (from, kind, raw, line).
+    file_lookup = {
+        (e.from_qualified_name, e.relation_kind, e.raw_target, e.line): fid
+        for e, fid in edge_file_ids
+    }
+
+    relation_rows: list[SymbolRelation] = []
+    for edge in resolved:
+        key = (edge.from_qualified_name, edge.relation_kind, edge.raw_target, edge.line)
+        file_id = file_lookup.get(key)
+        if file_id is None:
+            continue
+        to_id = None
+        if edge.candidate_qualified_name:
+            to_id = qname_to_id.get(edge.candidate_qualified_name)
+        relation_rows.append(
+            SymbolRelation(
+                snapshot_id=snapshot_id,
+                source_file_id=file_id,
+                from_symbol_id=qname_to_id.get(edge.from_qualified_name),
+                from_qualified_name=edge.from_qualified_name,
+                relation_kind=edge.relation_kind,
+                raw_target=edge.raw_target,
+                line=edge.line,
+                candidate_qualified_name=edge.candidate_qualified_name,
+                to_symbol_id=to_id,
+                confidence=edge.confidence,
+                language="java",
+            )
+        )
+
+    session.add_all(relation_rows)
+    session.flush()
+    return parsed_files, len(symbol_rows), len(relation_rows)

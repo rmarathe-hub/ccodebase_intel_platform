@@ -8,7 +8,7 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Repository, SnapshotStatus, SourceFile, Symbol
+from app.models import Repository, SnapshotStatus, SourceFile, Symbol, SymbolRelation
 from app.services.discovery import discover_repository
 from app.services.java_parser import PARSER_NAME, PARSER_VERSION
 from app.services.java_symbols import replace_java_symbols_for_snapshot
@@ -47,13 +47,14 @@ def test_replace_java_symbols_for_snapshot(db_session: Session) -> None:
     )
     db_session.flush()
 
-    parsed, count = replace_java_symbols_for_snapshot(
+    parsed, count, rel_count = replace_java_symbols_for_snapshot(
         db_session, snapshot_id=snapshot.id, repo_root=FIXTURE
     )
     db_session.commit()
 
     assert parsed >= 4  # broken file fails closed
     assert count >= 8
+    assert rel_count >= 2
 
     rows = list(
         db_session.scalars(select(Symbol).where(Symbol.snapshot_id == snapshot.id)).all()
@@ -64,6 +65,29 @@ def test_replace_java_symbols_for_snapshot(db_session: Session) -> None:
     )
     assert any(r.kind == "package" and r.qualified_name == "com.example.auth" for r in rows)
     assert any(r.kind == "record" and r.name == "Point" for r in rows)
+    assert any(
+        r.name == "UserController" and r.framework_role == "spring_rest_controller"
+        for r in rows
+    )
+
+    relations = list(
+        db_session.scalars(
+            select(SymbolRelation).where(SymbolRelation.snapshot_id == snapshot.id)
+        ).all()
+    )
+    assert relations
+    assert any(
+        r.relation_kind == "extends"
+        and r.confidence == "resolved"
+        and r.candidate_qualified_name == "com.example.common.BaseController"
+        for r in relations
+    )
+    assert any(
+        r.relation_kind == "implements"
+        and r.confidence == "resolved"
+        and r.candidate_qualified_name == "com.example.users.api.UserApi"
+        for r in relations
+    )
 
     stamped = list(
         db_session.scalars(
@@ -130,7 +154,7 @@ def test_java_coexists_with_python_and_js(db_session: Session, tmp_path: Path) -
     replace_js_ts_symbols_for_snapshot(
         db_session, snapshot_id=snapshot.id, repo_root=tmp_path
     )
-    java_files, java_syms = replace_java_symbols_for_snapshot(
+    java_files, java_syms, _rels = replace_java_symbols_for_snapshot(
         db_session, snapshot_id=snapshot.id, repo_root=tmp_path
     )
     db_session.commit()

@@ -10,6 +10,7 @@ from app.models.entities import (
     SourceFile,
     Symbol,
     SymbolCall,
+    SymbolRelation,
     User,
 )
 from app.models.job_stages import JOB_STAGE_LABELS, JOB_STAGE_PROGRESS, JobStage
@@ -27,5 +28,6 @@ __all__ = [
     "SourceFile",
     "Symbol",
     "SymbolCall",
+    "SymbolRelation",
     "User",
 ]

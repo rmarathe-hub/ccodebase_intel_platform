@@ -22,6 +22,7 @@ EXPECTED_REVISIONS = (
     "0004_symbol_metadata.py",
     "0005_framework_imports.py",
     "0006_symbol_calls.py",
+    "0007_symbol_relations.py",
 )
 
 
@@ -46,6 +47,9 @@ def test_migration_chain_revision_ids() -> None:
     assert 'down_revision: str | None = "0005_framework_imports"' in texts[
         "0006_symbol_calls.py"
     ]
+    assert 'down_revision: str | None = "0006_symbol_calls"' in texts[
+        "0007_symbol_relations.py"
+    ]
 
 
 def test_live_schema_has_week3_and_week4_tables() -> None:
@@ -62,6 +66,7 @@ def test_live_schema_has_week3_and_week4_tables() -> None:
         "source_files",
         "symbols",
         "symbol_calls",
+        "symbol_relations",
     ):
         assert table in tables
 
@@ -114,17 +119,31 @@ def test_live_schema_has_week3_and_week4_tables() -> None:
     ):
         assert required in call_cols
 
+    relation_cols = {c["name"] for c in insp.get_columns("symbol_relations")}
+    for required in (
+        "from_symbol_id",
+        "from_qualified_name",
+        "relation_kind",
+        "raw_target",
+        "line",
+        "candidate_qualified_name",
+        "to_symbol_id",
+        "confidence",
+        "language",
+    ):
+        assert required in relation_cols
+
     with engine.connect() as conn:
         head = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-    assert head == "0006_symbol_calls"
+    assert head == "0007_symbol_relations"
     engine.dispose()
 
 
-def test_alembic_heads_cli_matches_0006() -> None:
+def test_alembic_heads_cli_matches_0007() -> None:
     from alembic.config import Config
     from alembic.script import ScriptDirectory
 
     cfg = Config(str(ROOT / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
     heads = script.get_heads()
-    assert heads == ["0006_symbol_calls"]
+    assert heads == ["0007_symbol_relations"]

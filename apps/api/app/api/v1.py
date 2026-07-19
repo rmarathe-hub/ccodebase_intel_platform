@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.deps import get_db
-from app.models.entities import IndexingJob, Repository, Symbol, SymbolCall
+from app.models.entities import IndexingJob, Repository, Symbol, SymbolCall, SymbolRelation
 from app.schemas.calls import (
     SymbolCallListResponse,
     SymbolCallRead,
@@ -13,6 +13,7 @@ from app.schemas.calls import (
 )
 from app.schemas.files import RepositoryListItem, SourceFileListResponse, SourceFileRead
 from app.schemas.jobs import IndexingJobRead
+from app.schemas.relations import SymbolRelationListResponse, SymbolRelationRead
 from app.schemas.repositories import RepositoryImportRequest, RepositoryRead
 from app.schemas.snapshots import RepositoryImportResponse
 from app.schemas.symbols import SymbolListResponse, SymbolRead
@@ -33,6 +34,7 @@ from app.services.import_repository import (
     import_repository,
     retry_indexing_job,
 )
+from app.services.relations_query import list_symbol_relations
 from app.services.symbols_query import list_symbols
 
 router = APIRouter(prefix="/api/v1")
@@ -245,6 +247,14 @@ def get_repository_symbols(
         "nestjs_route",
         "nextjs_page",
         "nextjs_route",
+        "spring_rest_controller",
+        "spring_controller",
+        "spring_service",
+        "spring_repository",
+        "spring_component",
+        "spring_configuration",
+        "spring_entity",
+        "spring_route",
     }
     if framework_role is not None and framework_role not in allowed_roles:
         raise HTTPException(
@@ -285,6 +295,101 @@ def get_repository_symbols(
         limit=limit,
         offset=offset,
         symbols=symbols,
+    )
+
+
+def _relation_read(rel: SymbolRelation, path: str) -> SymbolRelationRead:
+    return SymbolRelationRead(
+        id=rel.id,
+        snapshot_id=rel.snapshot_id,
+        source_file_id=rel.source_file_id,
+        path=path,
+        from_symbol_id=rel.from_symbol_id,
+        from_qualified_name=rel.from_qualified_name,
+        relation_kind=rel.relation_kind,
+        raw_target=rel.raw_target,
+        line=rel.line,
+        candidate_qualified_name=rel.candidate_qualified_name,
+        to_symbol_id=rel.to_symbol_id,
+        confidence=rel.confidence,
+        language=rel.language,
+        created_at=rel.created_at,
+    )
+
+
+@router.get(
+    "/repositories/{repository_id}/relations",
+    response_model=SymbolRelationListResponse,
+)
+def get_repository_relations(
+    repository_id: UUID,
+    relation_kind: str | None = Query(default=None),
+    confidence: str | None = Query(default=None),
+    path_prefix: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+) -> SymbolRelationListResponse:
+    repo = db.get(Repository, repository_id)
+    if repo is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Repository not found",
+        )
+
+    if relation_kind is not None and relation_kind.lower() not in {
+        "extends",
+        "implements",
+    }:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "invalid_relation_kind",
+                "message": "relation_kind must be extends or implements",
+            },
+        )
+
+    if confidence is not None and confidence.lower() not in {
+        "resolved",
+        "ambiguous",
+        "unresolved",
+    }:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "invalid_confidence",
+                "message": "confidence must be resolved, ambiguous, or unresolved",
+            },
+        )
+
+    snapshot = latest_ready_snapshot(db, repository_id)
+    if snapshot is None:
+        return SymbolRelationListResponse(
+            repository_id=repository_id,
+            snapshot_id=None,
+            total=0,
+            limit=limit,
+            offset=offset,
+            relations=[],
+        )
+
+    rows, total = list_symbol_relations(
+        db,
+        snapshot_id=snapshot.id,
+        relation_kind=relation_kind,
+        confidence=confidence,
+        path_prefix=path_prefix,
+        limit=limit,
+        offset=offset,
+    )
+    relations = [_relation_read(rel, path) for rel, path in rows]
+    return SymbolRelationListResponse(
+        repository_id=repository_id,
+        snapshot_id=snapshot.id,
+        total=total,
+        limit=limit,
+        offset=offset,
+        relations=relations,
     )
 
 

@@ -26,7 +26,15 @@ export type FrameworkRole =
   | "nestjs_service"
   | "nestjs_route"
   | "nextjs_page"
-  | "nextjs_route";
+  | "nextjs_route"
+  | "spring_rest_controller"
+  | "spring_controller"
+  | "spring_service"
+  | "spring_repository"
+  | "spring_component"
+  | "spring_configuration"
+  | "spring_entity"
+  | "spring_route";
 
 export interface SymbolParameter {
   name: string;
@@ -131,6 +139,22 @@ export function frameworkRoleLabel(role: string | null | undefined): string {
       return "Next.js page";
     case "nextjs_route":
       return "Next.js route";
+    case "spring_rest_controller":
+      return "Spring REST controller";
+    case "spring_controller":
+      return "Spring controller";
+    case "spring_service":
+      return "Spring service";
+    case "spring_repository":
+      return "Spring repository";
+    case "spring_component":
+      return "Spring component";
+    case "spring_configuration":
+      return "Spring configuration";
+    case "spring_entity":
+      return "Spring entity";
+    case "spring_route":
+      return "Spring route";
     default:
       return role;
   }

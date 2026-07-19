@@ -1,22 +1,26 @@
-"""Tree-sitter deep parser for Java (Week 6 Days 1–2).
+"""Tree-sitter deep parser for Java (Week 6 Days 1–4).
 
 Honesty:
 - Structural extraction only — no code execution, no classpath resolution.
-- Day 1: parser interface + symbol extraction.
-- Day 2: package-qualified names (``com.example.AuthService.login``).
-- Annotations / inheritance / Spring / calls are Day 3+.
+- Day 1–2: symbols + package-qualified names.
+- Day 3: annotation capture + Spring stereotype / mapping heuristics.
+- Day 4: EXTENDS / IMPLEMENTS edges (resolution during persist).
+- Call graphs are Day 6+.
 - Parse failures leave ``parser_name`` unset (fail closed).
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import tree_sitter_java as ts_java
 from tree_sitter import Language, Node, Parser
 
+from app.services.java_framework import detect_java_framework_meta
+from app.services.java_inheritance import ExtractedRelation
+
 PARSER_NAME = "java-treesitter"
-PARSER_VERSION = "6.2-treesitter"
+PARSER_VERSION = "6.4-treesitter"
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +58,8 @@ class ParseResult:
     error: str | None = None
     parser_name: str | None = None
     language: str | None = None
+    relations: tuple[ExtractedRelation, ...] = ()
+    import_map: tuple[tuple[str, str], ...] = ()  # leaf → FQN
 
 
 def path_fallback_package(relative_path: str) -> str:
@@ -80,7 +86,7 @@ def parse_java_source(
     known_modules: frozenset[str] = frozenset(),
 ) -> ParseResult:
     """Parse Java source; fail closed on syntax / encode errors."""
-    del known_modules  # reserved for Day 4+ resolution
+    del known_modules  # reserved for richer resolution later
     try:
         raw = source.encode("utf-8")
     except UnicodeEncodeError as exc:
@@ -94,13 +100,35 @@ def parse_java_source(
     if tree.root_node.has_error:
         return ParseResult(ok=False, symbols=(), error="syntax_error")
 
-    symbols = _extract(raw, tree.root_node, relative_path=relative_path)
+    symbols, relations, import_map = _extract(
+        raw, tree.root_node, relative_path=relative_path
+    )
+    symbols = _apply_framework(symbols)
     return ParseResult(
         ok=True,
         symbols=tuple(symbols),
         parser_name=PARSER_NAME,
         language="java",
+        relations=tuple(relations),
+        import_map=tuple(import_map.items()),
     )
+
+
+def _apply_framework(symbols: list[ExtractedSymbol]) -> list[ExtractedSymbol]:
+    updated: list[ExtractedSymbol] = []
+    for sym in symbols:
+        meta = detect_java_framework_meta(kind=sym.kind, decorators=sym.decorators)
+        if meta is None:
+            updated.append(sym)
+            continue
+        updated.append(
+            replace(
+                sym,
+                framework_role=meta.role,
+                framework_detail=meta.detail,
+            )
+        )
+    return updated
 
 
 def _text(source: bytes, node: Node | None) -> str:
@@ -145,16 +173,11 @@ def _modifiers(source: bytes, node: Node) -> tuple[str, ...]:
         return ()
     out: list[str] = []
     for child in mods.children:
-        if child.type == "marker_annotation" or child.type == "annotation":
-            out.append(_text(source, child).strip())
-        elif child.type not in {"(", ")", ",", "[", "]"}:
+        if child.type in {"marker_annotation", "annotation"}:
             text = _text(source, child).strip()
-            if text and text not in {"@", "(", ")"}:
-                # Keep annotation-like and keyword modifiers for Day 3+.
-                if text.startswith("@") or child.is_named:
-                    out.append(text)
-    # Prefer only annotation strings for decorators_json; keywords stay in signature.
-    return tuple(d for d in out if d.startswith("@"))
+            if text:
+                out.append(text)
+    return tuple(out)
 
 
 def _type_parameters(source: bytes, node: Node) -> str | None:
@@ -167,7 +190,6 @@ def _type_parameters(source: bytes, node: Node) -> str | None:
 def _formal_parameters(source: bytes, node: Node) -> tuple[ExtractedParameter, ...]:
     params_node = _child_by_type(node, "formal_parameters")
     if params_node is None:
-        # Records put components directly under record_declaration.
         params_node = node
     out: list[ExtractedParameter] = []
     for param in _children_by_type(params_node, "formal_parameter"):
@@ -226,9 +248,27 @@ def _package_name(source: bytes, root: Node) -> str | None:
     return None
 
 
-def _extract(source: bytes, root: Node, *, relative_path: str) -> list[ExtractedSymbol]:
+def _type_name_from_node(source: bytes, node: Node | None) -> str | None:
+    if node is None:
+        return None
+    if node.type in {"type_identifier", "identifier", "scoped_type_identifier"}:
+        return _text(source, node).strip() or None
+    # generic_type / etc.
+    inner = _child_by_type(node, "type_identifier") or _child_by_type(
+        node, "scoped_type_identifier"
+    )
+    if inner is not None:
+        return _text(source, inner).strip() or None
+    return _text(source, node).strip() or None
+
+
+def _extract(
+    source: bytes, root: Node, *, relative_path: str
+) -> tuple[list[ExtractedSymbol], list[ExtractedRelation], dict[str, str]]:
     package = _package_name(source, root) or path_fallback_package(relative_path)
     symbols: list[ExtractedSymbol] = []
+    relations: list[ExtractedRelation] = []
+    import_map: dict[str, str] = {}
 
     pkg_node = _child_by_type(root, "package_declaration")
     if pkg_node is not None and package:
@@ -247,39 +287,44 @@ def _extract(source: bytes, root: Node, *, relative_path: str) -> list[Extracted
 
     for node in root.named_children:
         if node.type == "import_declaration":
-            symbols.extend(_extract_import(source, node, package=package))
+            for item in _extract_import(source, node, package=package):
+                symbols.append(item)
+                if item.resolved_module and "*" not in (item.name or ""):
+                    import_map[item.name] = item.resolved_module
         elif node.type == "class_declaration":
-            symbols.extend(
-                _extract_type(
-                    source, node, package=package, kind="class", type_stack=[]
-                )
+            syms, rels = _extract_type(
+                source, node, package=package, kind="class", type_stack=[]
             )
+            symbols.extend(syms)
+            relations.extend(rels)
         elif node.type == "interface_declaration":
-            symbols.extend(
-                _extract_type(
-                    source, node, package=package, kind="interface", type_stack=[]
-                )
+            syms, rels = _extract_type(
+                source, node, package=package, kind="interface", type_stack=[]
             )
+            symbols.extend(syms)
+            relations.extend(rels)
         elif node.type == "enum_declaration":
-            symbols.extend(
-                _extract_type(
-                    source, node, package=package, kind="enum", type_stack=[]
-                )
+            syms, rels = _extract_type(
+                source, node, package=package, kind="enum", type_stack=[]
             )
+            symbols.extend(syms)
+            relations.extend(rels)
         elif node.type == "record_declaration":
-            symbols.extend(
-                _extract_type(
-                    source, node, package=package, kind="record", type_stack=[]
-                )
+            syms, rels = _extract_type(
+                source, node, package=package, kind="record", type_stack=[]
             )
+            symbols.extend(syms)
+            relations.extend(rels)
 
     symbols.sort(key=lambda s: (s.start_line, s.qualified_name, s.kind))
-    return symbols
+    relations.sort(key=lambda r: (r.line, r.relation_kind, r.raw_target))
+    return symbols, relations, import_map
 
 
 def _extract_import(
     source: bytes, node: Node, *, package: str
 ) -> list[ExtractedSymbol]:
+    del package
     start, end = _line_span(node)
     text = _text(source, node).strip()
     target = None
@@ -309,6 +354,75 @@ def _extract_import(
     ]
 
 
+def _extract_inheritance(
+    source: bytes,
+    node: Node,
+    *,
+    from_qname: str,
+    package: str,
+) -> list[ExtractedRelation]:
+    out: list[ExtractedRelation] = []
+    superclass = _child_by_type(node, "superclass")
+    if superclass is not None:
+        type_n = superclass.named_children[0] if superclass.named_children else None
+        raw = _type_name_from_node(source, type_n)
+        if raw:
+            out.append(
+                ExtractedRelation(
+                    from_qualified_name=from_qname,
+                    relation_kind="extends",
+                    raw_target=raw,
+                    line=superclass.start_point[0] + 1,
+                    package=package,
+                )
+            )
+    interfaces = _child_by_type(node, "super_interfaces")
+    if interfaces is not None:
+        type_list = _child_by_type(interfaces, "type_list") or interfaces
+        for type_n in type_list.named_children:
+            if type_n.type not in {
+                "type_identifier",
+                "scoped_type_identifier",
+                "generic_type",
+            }:
+                continue
+            raw = _type_name_from_node(source, type_n)
+            if raw:
+                out.append(
+                    ExtractedRelation(
+                        from_qualified_name=from_qname,
+                        relation_kind="implements",
+                        raw_target=raw,
+                        line=type_n.start_point[0] + 1,
+                        package=package,
+                    )
+                )
+    # Interfaces can extend other interfaces via `extends` clause typed as
+    # `extends_interfaces` in some grammars — also check `extends_interfaces`.
+    extends_ifaces = _child_by_type(node, "extends_interfaces")
+    if extends_ifaces is not None:
+        type_list = _child_by_type(extends_ifaces, "type_list") or extends_ifaces
+        for type_n in type_list.named_children:
+            if type_n.type not in {
+                "type_identifier",
+                "scoped_type_identifier",
+                "generic_type",
+            }:
+                continue
+            raw = _type_name_from_node(source, type_n)
+            if raw:
+                out.append(
+                    ExtractedRelation(
+                        from_qualified_name=from_qname,
+                        relation_kind="extends",
+                        raw_target=raw,
+                        line=type_n.start_point[0] + 1,
+                        package=package,
+                    )
+                )
+    return out
+
+
 def _extract_type(
     source: bytes,
     node: Node,
@@ -316,10 +430,10 @@ def _extract_type(
     package: str,
     kind: str,
     type_stack: list[str],
-) -> list[ExtractedSymbol]:
+) -> tuple[list[ExtractedSymbol], list[ExtractedRelation]]:
     name = _identifier(source, node)
     if not name:
-        return []
+        return [], []
     start, end = _line_span(node)
     nested = [*type_stack, name]
     qname = qualify(package, *nested)
@@ -346,6 +460,9 @@ def _extract_type(
             parameters=params,
         )
     ]
+    relations = _extract_inheritance(
+        source, node, from_qname=qname, package=package
+    )
 
     body = (
         _child_by_type(node, "class_body")
@@ -354,7 +471,7 @@ def _extract_type(
         or _child_by_type(node, "record_body")
     )
     if body is None:
-        return out
+        return out, relations
 
     for child in body.named_children:
         if child.type == "field_declaration":
@@ -382,34 +499,34 @@ def _extract_type(
                     )
                 )
         elif child.type == "class_declaration":
-            out.extend(
-                _extract_type(
-                    source, child, package=package, kind="class", type_stack=nested
-                )
+            syms, rels = _extract_type(
+                source, child, package=package, kind="class", type_stack=nested
             )
+            out.extend(syms)
+            relations.extend(rels)
         elif child.type == "interface_declaration":
-            out.extend(
-                _extract_type(
-                    source,
-                    child,
-                    package=package,
-                    kind="interface",
-                    type_stack=nested,
-                )
+            syms, rels = _extract_type(
+                source,
+                child,
+                package=package,
+                kind="interface",
+                type_stack=nested,
             )
+            out.extend(syms)
+            relations.extend(rels)
         elif child.type == "enum_declaration":
-            out.extend(
-                _extract_type(
-                    source, child, package=package, kind="enum", type_stack=nested
-                )
+            syms, rels = _extract_type(
+                source, child, package=package, kind="enum", type_stack=nested
             )
+            out.extend(syms)
+            relations.extend(rels)
         elif child.type == "record_declaration":
-            out.extend(
-                _extract_type(
-                    source, child, package=package, kind="record", type_stack=nested
-                )
+            syms, rels = _extract_type(
+                source, child, package=package, kind="record", type_stack=nested
             )
-    return out
+            out.extend(syms)
+            relations.extend(rels)
+    return out, relations
 
 
 def _extract_fields(

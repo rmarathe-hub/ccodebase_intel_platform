@@ -148,7 +148,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     snapshot_id=snapshot.id,
                     repo_root=cloned.path,
                 )
-                parsed_java, java_symbols = replace_java_symbols_for_snapshot(
+                parsed_java, java_symbols, java_relations = replace_java_symbols_for_snapshot(
                     session,
                     snapshot_id=snapshot.id,
                     repo_root=cloned.path,
@@ -159,8 +159,8 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                 session.commit()
                 logger.info(
                     "Indexed snapshot %s for %s@%s files=%s deep=%s parsed_py=%s "
-                    "parsed_js_ts=%s parsed_java=%s symbols=%s calls=%s truncated=%s "
-                    "job=%s",
+                    "parsed_js_ts=%s parsed_java=%s symbols=%s calls=%s "
+                    "relations=%s truncated=%s job=%s",
                     snapshot.id,
                     repo_label,
                     cloned.commit_sha[:12],
@@ -171,6 +171,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     parsed_java,
                     py_symbols + js_symbols + java_symbols,
                     py_calls + js_calls,
+                    java_relations,
                     discovery.truncated,
                     job_id,
                 )

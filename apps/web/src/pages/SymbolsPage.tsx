@@ -57,6 +57,12 @@ const ROLE_FILTERS: Array<{ id: "all" | FrameworkRole; label: string }> = [
   { id: "nestjs_route", label: "Nest route" },
   { id: "nextjs_page", label: "Next page" },
   { id: "nextjs_route", label: "Next route" },
+  { id: "spring_rest_controller", label: "Spring REST" },
+  { id: "spring_controller", label: "Spring controller" },
+  { id: "spring_service", label: "Spring service" },
+  { id: "spring_repository", label: "Spring repository" },
+  { id: "spring_entity", label: "Spring entity" },
+  { id: "spring_route", label: "Spring route" },
 ];
 
 function presetParams(preset: ViewPreset): {

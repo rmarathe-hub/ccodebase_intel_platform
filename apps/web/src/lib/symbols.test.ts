@@ -26,6 +26,10 @@ describe("frameworkRoleLabel", () => {
     expect(frameworkRoleLabel("express_route")).toBe("Express route");
     expect(frameworkRoleLabel("nestjs_controller")).toBe("NestJS controller");
     expect(frameworkRoleLabel("nextjs_route")).toBe("Next.js route");
+    expect(frameworkRoleLabel("spring_rest_controller")).toBe(
+      "Spring REST controller",
+    );
+    expect(frameworkRoleLabel("spring_service")).toBe("Spring service");
     expect(frameworkRoleLabel(null)).toBe("");
   });
 });

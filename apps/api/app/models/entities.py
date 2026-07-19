@@ -112,6 +112,9 @@ class RepositorySnapshot(Base):
     source_files: Mapped[list[SourceFile]] = relationship(back_populates="snapshot")
     symbols: Mapped[list[Symbol]] = relationship(back_populates="snapshot")
     symbol_calls: Mapped[list[SymbolCall]] = relationship(back_populates="snapshot")
+    symbol_relations: Mapped[list[SymbolRelation]] = relationship(
+        back_populates="snapshot"
+    )
 
 
 class SourceFile(Base):
@@ -240,6 +243,50 @@ class SymbolCall(Base):
     )
 
     snapshot: Mapped[RepositorySnapshot] = relationship(back_populates="symbol_calls")
+
+
+class SymbolRelation(Base):
+    """Inheritance / interface edge (Week 6 Day 4+): EXTENDS / IMPLEMENTS."""
+
+    __tablename__ = "symbol_relations"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("repository_snapshots.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    source_file_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("source_files.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    from_symbol_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("symbols.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    from_qualified_name: Mapped[str] = mapped_column(Text, nullable=False)
+    relation_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    raw_target: Mapped[str] = mapped_column(Text, nullable=False)
+    line: Mapped[int] = mapped_column(Integer, nullable=False)
+    candidate_qualified_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    to_symbol_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("symbols.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    confidence: Mapped[str] = mapped_column(String(32), nullable=False, default="unresolved")
+    language: Mapped[str] = mapped_column(String(64), nullable=False, default="java")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    snapshot: Mapped[RepositorySnapshot] = relationship(back_populates="symbol_relations")
 
 
 class IndexingJob(Base):
