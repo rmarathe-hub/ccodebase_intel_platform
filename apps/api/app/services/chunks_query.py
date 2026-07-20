@@ -375,6 +375,8 @@ def _hybrid_search(
             "semantic": round(semantic_score, 6),
             "path_boost": path_score,
             "fused": round(fused, 6),
+            "w_exact": w_exact,
+            "w_semantic": w_semantic,
         }
         if cosine_distance is not None:
             breakdown["cosine_distance"] = round(cosine_distance, 6)
