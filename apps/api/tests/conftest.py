@@ -35,6 +35,7 @@ _POSTGRES_NODE_HINTS = (
     "test_worker_pipeline",
     "test_migrations_week04",
     "test_embeddings_persist_week09",
+    "test_search_week09",
     "test_java_symbols_persist",
   "test_mixed_frontend_backend",
 )

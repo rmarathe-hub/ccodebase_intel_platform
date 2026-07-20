@@ -7,7 +7,7 @@ Honest deferrals after Weeks 0–7. Update as Week 8+ lands.
 1. ~~Embedding / validating job stages (chunking is wired; embedding not)~~ — Embedding stage wired Week 9 Days 1–2; Validating still deferred
 2. Functional Search UI (exact chunk search API exists)
 3. Ask API / citation-validated answers
-4. Semantic / hybrid search modes (exact only until Week 9 Days 3–4)
+4. ~~Semantic / hybrid search modes (exact only until Week 9 Days 3–4)~~ — `search_mode=exact|semantic|hybrid` shipped Week 9 Days 3–4
 5. ~~Format-native configuration + Markdown AST chunking — Week 7 Days 3–4~~ (done)
 6. ~~Deterministic + LLM-enhanced repository summaries — Week 7 Day 5~~ (done)
 7. ~~Interactive graph visualization~~ — React Flow + accuracy matrix shipped Week 8 Days 6–7
@@ -33,6 +33,7 @@ Honest deferrals after Weeks 0–7. Update as Week 8+ lands.
 - Week 8 Day 5–6: graph filters (`filters` echo) + React Flow Graph page
 - Week 8 Day 7: graph accuracy matrix (circular imports, ambiguous calls, implementations, mixed langs, directory scale)
 - Week 9 Day 1–2: `chunk_embeddings` (pgvector) + `EmbeddingProvider` + worker Embedding stage (local-hash default)
+- Week 9 Day 3–4: semantic + hybrid chunk search (`search_mode`, scores, filters)
 
 ## Architecture decisions locked for Week 7+
 

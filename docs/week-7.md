@@ -50,7 +50,8 @@ and [llm-enrichment.md](./llm-enrichment.md).
 ### Days 5–6 shipped
 
 - `GET /api/v1/repositories/{id}/summary` — `deterministic_summary` always; `llm_summary` separate when enrichment enabled (LangChain Azure)
-- `GET /api/v1/repositories/{id}/chunks/search` — exact substring search; `search_mode=exact` (semantic/LLM rerank reserved for Week 9)
+- `GET /api/v1/repositories/{id}/chunks/search` — `search_mode=exact|semantic|hybrid`
+  (exact is default and LLM-independent; semantic/hybrid require embeddings)
 - Filters: language, path_prefix, support_level, chunk_type, extraction_method, parser_name, llm_enriched, validation_status
 
 ### Day 7 shipped
@@ -59,6 +60,12 @@ and [llm-enrichment.md](./llm-enrichment.md).
 - Worker E2E over `generic_polyglot`
 - Asserts: no `re` imports in chunking package, no verified-deep pollution, LLM outage keeps deterministic chunks, batching (not 1-call-per-chunk), enrichment cache skips repeat calls
 - Tests: `test_week07_day7_matrix.py`, `test_worker_pipeline_succeeds_with_generic_polyglot`
+
+### Post–Day 7 real-repo validation
+
+Deterministic pipeline validated on public GitHub repos (enrichment OFF): typer,
+spark, commander.js, cobra, awesome-compose. All imports, searches, and re-indexes
+passed — see [testing/week7-validation/REPORT.md](./testing/week7-validation/REPORT.md).
 
 ## Artifacts
 

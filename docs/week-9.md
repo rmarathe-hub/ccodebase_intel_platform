@@ -6,8 +6,8 @@
 | --- | --- | --- |
 | 1 | Embedding schema + EmbeddingProvider (local default) | Done |
 | 2 | Wire worker Embedding stage + persist vectors | Done |
-| 3 | Semantic search API | Planned |
-| 4 | Hybrid ranking | Planned |
+| 3 | Semantic search API | Done |
+| 4 | Hybrid ranking | Done |
 | 5 | Worker Validating stage | Planned |
 | 6 | Functional Search UI | Planned |
 | 7 | Matrix / honesty / smoke | Planned |
@@ -39,6 +39,16 @@ Search: exact (exists) | semantic | hybrid (Days 3–4)
 - Tests: `test_embeddings_week09.py`, `test_embeddings_persist_week09.py`,
   worker pipeline asserts one embedding per chunk
 
+### Days 3–4 shipped
+
+- `GET .../chunks/search?search_mode=exact|semantic|hybrid`
+- Semantic: query embed → pgvector cosine distance within snapshot + model/version
+- Hybrid: fuse exact (0.45) + semantic (0.55) + small path boost; stable ordering
+- Hits include `score` + `score_breakdown` (exact/semantic/fused/cosine_distance)
+- Empty vectors / embeddings disabled → semantic returns zero hits (no invention)
+- Exact remains default and LLM-independent
+- Tests: `test_search_week09.py`
+
 ### Invariants
 
 - Exact search remains independent of embeddings
@@ -52,5 +62,7 @@ Search: exact (exists) | semantic | hybrid (Days 3–4)
 - `apps/api/app/services/embeddings/`
 - `apps/api/app/models/entities.py` (`ChunkEmbedding`)
 - `apps/worker/worker/__main__.py` (Embedding stage)
+- `apps/api/app/services/chunks_query.py` (exact / semantic / hybrid)
 - `apps/api/tests/test_embeddings_week09.py`
 - `apps/api/tests/test_embeddings_persist_week09.py`
+- `apps/api/tests/test_search_week09.py`

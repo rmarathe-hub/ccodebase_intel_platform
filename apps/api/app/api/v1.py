@@ -34,7 +34,7 @@ from app.services.calls_query import (
     list_implementations_for_symbol,
     list_symbol_calls,
 )
-from app.services.chunks_query import search_chunks
+from app.services.chunks_query import VALID_SEARCH_MODES, search_chunks_ranked
 from app.services.files_query import (
     latest_ready_snapshot,
     list_repositories,
@@ -1021,7 +1021,11 @@ def get_repository_summary(
 )
 def search_repository_chunks(
     repository_id: UUID,
-    q: str = Query(..., min_length=1, max_length=500, description="Exact substring query"),
+    q: str = Query(..., min_length=1, max_length=500, description="Search query"),
+    search_mode: str = Query(
+        default="exact",
+        description="exact | semantic | hybrid",
+    ),
     language: str | None = Query(default=None),
     path_prefix: str | None = Query(default=None),
     support_level: str | None = Query(default=None),
@@ -1034,10 +1038,20 @@ def search_repository_chunks(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ) -> ChunkSearchResponse:
-    """Deterministic exact chunk search. Extensible later for semantic/LLM rerank."""
+    """Chunk search: exact (default), semantic (pgvector), or hybrid fusion."""
     repo = db.get(Repository, repository_id)
     if repo is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+
+    mode = search_mode.strip().lower()
+    if mode not in VALID_SEARCH_MODES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "invalid_search_mode",
+                "message": "search_mode must be exact, semantic, or hybrid",
+            },
+        )
 
     if support_level is not None and support_level.lower() not in {"deep", "generic", "skip"}:
         raise HTTPException(
@@ -1057,14 +1071,15 @@ def search_repository_chunks(
             total=0,
             limit=limit,
             offset=offset,
-            search_mode="exact",
+            search_mode=mode,
             hits=[],
         )
 
-    rows, total = search_chunks(
+    ranked, total = search_chunks_ranked(
         db,
         snapshot_id=snapshot.id,
         query=q,
+        search_mode=mode,
         language=language,
         path_prefix=path_prefix,
         support_level=support_level,
@@ -1078,27 +1093,29 @@ def search_repository_chunks(
     )
     hits = [
         ChunkSearchHit(
-            id=row.id,
-            path=row.path,
-            language=row.language,
-            support_level=row.support_level,
-            chunk_type=row.chunk_type,
-            start_line=row.start_line,
-            end_line=row.end_line,
-            content=row.content,
-            content_hash=row.content_hash,
-            extraction_method=row.extraction_method,
-            parser_name=row.parser_name,
-            parser_version=row.parser_version,
-            verified_deep=row.verified_deep,
-            llm_enriched=row.llm_enriched,
-            validation_status=row.validation_status,
-            semantic_label=row.semantic_label,
-            concise_summary=row.concise_summary,
-            parent_context=row.parent_context,
-            created_at=row.created_at,
+            id=row.chunk.id,
+            path=row.chunk.path,
+            language=row.chunk.language,
+            support_level=row.chunk.support_level,
+            chunk_type=row.chunk.chunk_type,
+            start_line=row.chunk.start_line,
+            end_line=row.chunk.end_line,
+            content=row.chunk.content,
+            content_hash=row.chunk.content_hash,
+            extraction_method=row.chunk.extraction_method,
+            parser_name=row.chunk.parser_name,
+            parser_version=row.chunk.parser_version,
+            verified_deep=row.chunk.verified_deep,
+            llm_enriched=row.chunk.llm_enriched,
+            validation_status=row.chunk.validation_status,
+            semantic_label=row.chunk.semantic_label,
+            concise_summary=row.chunk.concise_summary,
+            parent_context=row.chunk.parent_context,
+            created_at=row.chunk.created_at,
+            score=row.score,
+            score_breakdown=row.score_breakdown,
         )
-        for row in rows
+        for row in ranked
     ]
     return ChunkSearchResponse(
         repository_id=repository_id,
@@ -1107,7 +1124,7 @@ def search_repository_chunks(
         total=total,
         limit=limit,
         offset=offset,
-        search_mode="exact",
+        search_mode=mode,
         hits=hits,
     )
 

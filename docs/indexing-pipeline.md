@@ -137,7 +137,8 @@ a labeled final fallback (`extraction_method` records the fallback).
 - Enrichment is opt-in, budget-capped, cached, and skipped when disabled / over budget
 - Exact search must work with enrichment off
 - Embeddings: worker Embedding stage persists `chunk_embeddings` (pgvector);
-  local-hash provider is the CI/default; Azure optional. Semantic/hybrid search = Week 9 Days 3–4.
+  local-hash provider is the CI/default; Azure optional.
+  Search modes: `exact` (default), `semantic`, `hybrid` (Week 9 Days 3–4).
 
 ### 10. Validate
 

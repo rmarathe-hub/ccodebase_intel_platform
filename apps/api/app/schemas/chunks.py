@@ -61,6 +61,8 @@ class ChunkSearchHit(BaseModel):
     concise_summary: str | None
     parent_context: str | None
     created_at: datetime
+    score: float | None = None
+    score_breakdown: dict[str, float] | None = None
 
 
 class ChunkSearchResponse(BaseModel):
@@ -70,6 +72,5 @@ class ChunkSearchResponse(BaseModel):
     total: int
     limit: int
     offset: int
-    # Reserved for Week 9 hybrid / semantic / LLM rerank layers.
     search_mode: str = "exact"
     hits: list[ChunkSearchHit]
