@@ -23,6 +23,7 @@ EXPECTED_REVISIONS = (
     "0005_framework_imports.py",
     "0006_symbol_calls.py",
     "0007_symbol_relations.py",
+    "0008_chunks.py",
 )
 
 
@@ -50,6 +51,7 @@ def test_migration_chain_revision_ids() -> None:
     assert 'down_revision: str | None = "0006_symbol_calls"' in texts[
         "0007_symbol_relations.py"
     ]
+    assert 'down_revision: str | None = "0007_symbol_relations"' in texts["0008_chunks.py"]
 
 
 def test_live_schema_has_week3_and_week4_tables() -> None:
@@ -67,6 +69,8 @@ def test_live_schema_has_week3_and_week4_tables() -> None:
         "symbols",
         "symbol_calls",
         "symbol_relations",
+        "chunks",
+        "llm_enrichment_cache",
     ):
         assert table in tables
 
@@ -135,15 +139,15 @@ def test_live_schema_has_week3_and_week4_tables() -> None:
 
     with engine.connect() as conn:
         head = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-    assert head == "0007_symbol_relations"
+    assert head == "0008_chunks"
     engine.dispose()
 
 
-def test_alembic_heads_cli_matches_0007() -> None:
+def test_alembic_heads_cli_matches_0008() -> None:
     from alembic.config import Config
     from alembic.script import ScriptDirectory
 
     cfg = Config(str(ROOT / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
     heads = script.get_heads()
-    assert heads == ["0007_symbol_relations"]
+    assert heads == ["0008_chunks"]

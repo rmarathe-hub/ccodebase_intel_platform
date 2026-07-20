@@ -4,17 +4,16 @@ Honest deferrals after Weeks 0–6. Update as Week 7+ lands.
 
 ## Product features not implemented (do not test as complete)
 
-1. Chunking / embedding / validating job stages (labels exist; worker still skips chunk work)
+1. Embedding / validating job stages (chunking is wired; embedding not)
 2. Exact chunk search API and functional Search UI
 3. Ask API / citation-validated answers
-4. Generic parser-derived structural chunks (Tree-sitter / format-native) — planned Week 7
-4. Optional validated LLM enrichment (opt-in, Azure OpenAI primary, LangChain thin adapter) — planned Week 7
-6. Deterministic repository summaries API — planned Week 7
-7. Interactive graph visualization (Graph page is still a call-site table)
-8. Authentication / multi-tenancy
-9. Private repository import / non-GitHub hosts
-10. Incremental indexing
-11. `packages/parser-core` deep pipeline (Python / JS-TS / Java logic lives under `apps/api/app/services`)
+4. Format-native configuration + Markdown AST chunking — Week 7 Days 3–4
+5. Deterministic + LLM-enhanced repository summaries — Week 7 Day 5
+6. Interactive graph visualization (Graph page is still a call-site table)
+7. Authentication / multi-tenancy
+8. Private repository import / non-GitHub hosts
+9. Incremental indexing
+10. `packages/parser-core` deep pipeline (Python / JS-TS / Java logic lives under `apps/api/app/services`)
 
 ## Implemented and no longer gaps
 
@@ -22,6 +21,8 @@ Honest deferrals after Weeks 0–6. Update as Week 7+ lands.
 - Call extraction (Python / JS-TS / Java) with confidence
 - Java inheritance / Spring architecture roles
 - Mixed frontend/backend and Spring fixture matrices
+- Chunk schema + deep symbol-aware chunks + generic Tree-sitter (Go/Rust/C/C++/C#/Ruby/Shell) + SQLGlot
+- Worker Chunking stage + optional batched LangChain/Azure enrichment (mocked in CI)
 
 ## Architecture decisions locked for Week 7+
 

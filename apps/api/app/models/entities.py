@@ -8,6 +8,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -115,6 +116,7 @@ class RepositorySnapshot(Base):
     symbol_relations: Mapped[list[SymbolRelation]] = relationship(
         back_populates="snapshot"
     )
+    chunks: Mapped[list[Chunk]] = relationship(back_populates="snapshot")
 
 
 class SourceFile(Base):
@@ -151,6 +153,7 @@ class SourceFile(Base):
 
     snapshot: Mapped[RepositorySnapshot] = relationship(back_populates="source_files")
     symbols: Mapped[list[Symbol]] = relationship(back_populates="source_file")
+    chunks: Mapped[list[Chunk]] = relationship(back_populates="source_file")
 
 
 class Symbol(Base):
@@ -287,6 +290,81 @@ class SymbolRelation(Base):
     )
 
     snapshot: Mapped[RepositorySnapshot] = relationship(back_populates="symbol_relations")
+
+
+class Chunk(Base):
+    """Parser-derived source chunk (Week 7+). Ranges are parser-authoritative."""
+
+    __tablename__ = "chunks"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("repository_snapshots.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    source_file_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("source_files.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    symbol_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("symbols.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    path: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    language: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    support_level: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    chunk_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    start_line: Mapped[int] = mapped_column(Integer, nullable=False)
+    end_line: Mapped[int] = mapped_column(Integer, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    parent_context: Mapped[str | None] = mapped_column(Text, nullable=True)
+    extraction_method: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    parser_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    parser_version: Mapped[str] = mapped_column(String(50), nullable=False)
+    verified_deep: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    llm_enriched: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    llm_provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    llm_model: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    prompt_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    validation_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    semantic_label: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    concise_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    probable_construct_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    entry_point_likelihood: Mapped[float | None] = mapped_column(Float, nullable=True)
+    metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    snapshot: Mapped[RepositorySnapshot] = relationship(back_populates="chunks")
+    source_file: Mapped[SourceFile] = relationship(back_populates="chunks")
+
+
+class LlmEnrichmentCache(Base):
+    """Cache LLM enrichment by content + prompt + model hash."""
+
+    __tablename__ = "llm_enrichment_cache"
+    __table_args__ = (UniqueConstraint("cache_key", name="uq_llm_enrichment_cache_key"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cache_key: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    model: Mapped[str] = mapped_column(String(128), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    response_json: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 class IndexingJob(Base):

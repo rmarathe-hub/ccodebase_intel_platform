@@ -40,8 +40,9 @@ def test_factory_returns_azure_stub_when_configured() -> None:
     provider = get_llm_provider(cfg)
     assert isinstance(provider, AzureOpenAIProvider)
     assert provider.provider_name == "azure_openai"
-    with pytest.raises(NotImplementedError):
-        provider.enrich_batch(items=[], prompt_version="1")
+    empty = provider.enrich_batch(items=[], prompt_version="1")
+    assert empty.items == []
+    assert empty.provider == "azure_openai"
 
 
 def test_factory_null_when_azure_incomplete() -> None:
