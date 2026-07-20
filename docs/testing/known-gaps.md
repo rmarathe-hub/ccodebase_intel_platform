@@ -1,6 +1,6 @@
 # Known Gaps — current
 
-Honest deferrals after Weeks 0–6. Update as Week 7+ lands.
+Honest deferrals after Weeks 0–7. Update as Week 8+ lands.
 
 ## Product features not implemented (do not test as complete)
 
@@ -25,6 +25,7 @@ Honest deferrals after Weeks 0–6. Update as Week 7+ lands.
 - Worker Chunking stage + optional batched LangChain/Azure enrichment (mocked in CI)
 - Format-native config chunks (JSON/YAML/TOML/XML/Dockerfile) + Mistune Markdown sections
 - Repository summary API (deterministic + optional LLM) and exact chunk search API
+- Week 7 Day 7 polyglot matrix + worker E2E (generic languages stay non-deep)
 
 ## Architecture decisions locked for Week 7+
 

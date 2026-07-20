@@ -258,6 +258,68 @@ def test_worker_pipeline_succeeds_with_spring_fixture(
     assert any(c.language == "java" and c.confidence == "resolved" for c in calls)
 
 
+def test_worker_pipeline_succeeds_with_generic_polyglot(
+    db_session: Session,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Worker indexes polyglot generic fixture through chunking stage."""
+    from app.models import Chunk
+
+    fixture = Path(__file__).resolve().parent / "fixtures" / "generic_polyglot"
+    poly = tmp_path / "polyglot"
+    shutil.copytree(fixture, poly)
+
+    _repo, job = _enqueue_repo(db_session)
+
+    @contextmanager
+    def fake_clone(*_args, **_kwargs):  # type: ignore[no-untyped-def]
+        yield CloneResult(
+            path=poly,
+            branch="main",
+            commit_sha="polyglot1234567",
+            bytes_on_disk=1024,
+        )
+
+    monkeypatch.setattr("worker.__main__.secure_clone", fake_clone)
+
+    factory = _session_factory(db_session)
+    assert process_one(factory, worker_id="test-worker-polyglot") is True
+
+    db_session.expire_all()
+    refreshed = db_session.get(IndexingJob, job.id)
+    assert refreshed is not None
+    assert refreshed.status == JobStatus.SUCCEEDED, (
+        f"status={refreshed.status} err={refreshed.error_code}:{refreshed.error_message}"
+    )
+    assert refreshed.stage == JobStage.COMPLETED.value
+    assert refreshed.snapshot_id is not None
+
+    chunks = (
+        db_session.query(Chunk)
+        .filter(Chunk.snapshot_id == refreshed.snapshot_id)
+        .all()
+    )
+    assert len(chunks) >= 15
+    assert all(c.verified_deep is False for c in chunks)
+    langs = {c.language for c in chunks}
+    assert "go" in langs
+    assert "configuration" in langs or any(
+        c.chunk_type == "configuration_section" for c in chunks
+    )
+    assert any(c.chunk_type == "documentation_section" for c in chunks)
+
+    symbols = (
+        db_session.query(Symbol)
+        .filter(Symbol.snapshot_id == refreshed.snapshot_id)
+        .all()
+    )
+    # Generic polyglot must not invent verified deep symbols for Go/etc.
+    assert all(
+        s.language in {"python", "java", "javascript", "typescript"} for s in symbols
+    )
+
+
 def test_worker_clone_failure_schedules_retry(
     db_session: Session,
     monkeypatch: pytest.MonkeyPatch,

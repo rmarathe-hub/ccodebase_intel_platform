@@ -10,7 +10,7 @@
 | 4 | Markdown / document AST chunking | Done |
 | 5 | Deterministic + LLM-enhanced repository summaries | Done |
 | 6 | Exact PostgreSQL chunk search (LLM-independent) | Done |
-| 7 | Polyglot fixture matrix + worker E2E (full) | Not started |
+| 7 | Polyglot fixture matrix + worker E2E (full) | Done |
 
 ## Architecture (locked)
 
@@ -53,12 +53,24 @@ and [llm-enrichment.md](./llm-enrichment.md).
 - `GET /api/v1/repositories/{id}/chunks/search` — exact substring search; `search_mode=exact` (semantic/LLM rerank reserved for Week 9)
 - Filters: language, path_prefix, support_level, chunk_type, extraction_method, parser_name, llm_enriched, validation_status
 
-### Artifacts
+### Day 7 shipped
+
+- Full matrix: discovery → classify → chunk → optional enrich → summary → exact search
+- Worker E2E over `generic_polyglot`
+- Asserts: no `re` imports in chunking package, no verified-deep pollution, LLM outage keeps deterministic chunks, batching (not 1-call-per-chunk), enrichment cache skips repeat calls
+- Tests: `test_week07_day7_matrix.py`, `test_worker_pipeline_succeeds_with_generic_polyglot`
+
+## Artifacts
 
 - `apps/api/app/services/chunking/`
 - `apps/api/app/services/llm/`
+- `apps/api/app/services/repository_summary.py`
+- `apps/api/app/services/chunks_query.py`
 - `apps/api/tests/fixtures/generic_polyglot/`
 - `apps/api/tests/test_chunking_week07.py`
+- `apps/api/tests/test_config_docs_chunking.py`
+- `apps/api/tests/test_summary_and_search.py`
+- `apps/api/tests/test_week07_day7_matrix.py`
 
 ## Honesty
 
