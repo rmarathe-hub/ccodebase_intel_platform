@@ -107,13 +107,8 @@ def test_worker_pipeline_succeeds_with_python_fixture(
     assert refreshed.stage == JobStage.COMPLETED.value
     assert refreshed.progress_percentage == 100
     assert refreshed.snapshot_id is not None
-    # Embedding / validating remain future stages.
-    assert refreshed.stage not in {
-        JobStage.EMBEDDING.value,
-        JobStage.VALIDATING.value,
-    }
 
-    from app.models import Chunk
+    from app.models import Chunk, ChunkEmbedding
 
     chunks = (
         db_session.query(Chunk)
@@ -122,6 +117,13 @@ def test_worker_pipeline_succeeds_with_python_fixture(
     )
     assert len(chunks) >= 1
     assert any(c.verified_deep for c in chunks)
+
+    embeddings = (
+        db_session.query(ChunkEmbedding)
+        .filter(ChunkEmbedding.snapshot_id == refreshed.snapshot_id)
+        .all()
+    )
+    assert len(embeddings) == len(chunks)
 
     symbols = (
         db_session.query(Symbol)

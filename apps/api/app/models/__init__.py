@@ -3,6 +3,7 @@
 from app.db.session import Base
 from app.models.entities import (
     Chunk,
+    ChunkEmbedding,
     IndexingJob,
     JobStatus,
     LlmEnrichmentCache,
@@ -21,6 +22,7 @@ from app.models.relation_kinds import ALL_RELATION_KINDS, RELATION_CONFIDENCES, 
 __all__ = [
     "Base",
     "Chunk",
+    "ChunkEmbedding",
     "IndexingJob",
     "JOB_STAGE_LABELS",
     "JOB_STAGE_PROGRESS",
@@ -28,6 +30,7 @@ __all__ = [
     "JobStatus",
     "LlmEnrichmentCache",
     "Repository",
+    "RepositorySnapshot",
     "RelationKind",
     "ALL_RELATION_KINDS",
     "RELATION_CONFIDENCES",

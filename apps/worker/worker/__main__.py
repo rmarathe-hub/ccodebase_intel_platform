@@ -24,6 +24,7 @@ from app.services.job_queue import (
 )
 from app.services.jobs import mark_job_succeeded, set_job_stage
 from app.services.chunking import replace_chunks_for_snapshot
+from app.services.embeddings import replace_embeddings_for_snapshot
 from app.services.java_symbols import replace_java_symbols_for_snapshot
 from app.services.js_ts_symbols import replace_js_ts_symbols_for_snapshot
 from app.services.relationships import replace_structural_relations_for_snapshot
@@ -180,13 +181,31 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     repo_root=cloned.path,
                 )
 
-                # Embedding / validating remain later work.
+                set_job_stage(job, JobStage.EMBEDDING)
+                session.commit()
+                job = session.get(IndexingJob, job_id)
+                if job is None:
+                    raise RuntimeError(f"Job {job_id} disappeared during embedding")
+                heartbeat_job(
+                    session,
+                    job_id=job_id,
+                    worker_id=worker_id,
+                    lease_seconds=settings.job_lease_seconds,
+                )
+                embedded_count, embedding_skipped = replace_embeddings_for_snapshot(
+                    session,
+                    snapshot_id=snapshot.id,
+                )
+
+                # Validating remains Week 9 Day 5+.
                 mark_job_succeeded(job)
                 session.commit()
                 logger.info(
                     "Indexed snapshot %s for %s@%s files=%s deep=%s parsed_py=%s "
                     "parsed_js_ts=%s parsed_java=%s symbols=%s calls=%s "
-                    "relations=%s import_edges=%s export_edges=%s contains_edges=%s chunks=%s enriched=%s truncated=%s job=%s",
+                    "relations=%s import_edges=%s export_edges=%s contains_edges=%s "
+                    "chunks=%s enriched=%s embeddings=%s embed_skipped=%s "
+                    "truncated=%s job=%s",
                     snapshot.id,
                     repo_label,
                     cloned.commit_sha[:12],
@@ -203,6 +222,8 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     structural.get("contains", 0),
                     chunk_count,
                     enriched_count,
+                    embedded_count,
+                    embedding_skipped,
                     discovery.truncated,
                     job_id,
                 )

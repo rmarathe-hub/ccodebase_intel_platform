@@ -4,16 +4,17 @@ Honest deferrals after Weeks 0–7. Update as Week 8+ lands.
 
 ## Product features not implemented (do not test as complete)
 
-1. Embedding / validating job stages (chunking is wired; embedding not)
+1. ~~Embedding / validating job stages (chunking is wired; embedding not)~~ — Embedding stage wired Week 9 Days 1–2; Validating still deferred
 2. Functional Search UI (exact chunk search API exists)
 3. Ask API / citation-validated answers
-4. ~~Format-native configuration + Markdown AST chunking — Week 7 Days 3–4~~ (done)
-5. ~~Deterministic + LLM-enhanced repository summaries — Week 7 Day 5~~ (done)
-6. ~~Interactive graph visualization~~ — React Flow + accuracy matrix shipped Week 8 Days 6–7
-7. Authentication / multi-tenancy
-8. Private repository import / non-GitHub hosts
-9. Incremental indexing
-10. `packages/parser-core` deep pipeline (Python / JS-TS / Java logic lives under `apps/api/app/services`)
+4. Semantic / hybrid search modes (exact only until Week 9 Days 3–4)
+5. ~~Format-native configuration + Markdown AST chunking — Week 7 Days 3–4~~ (done)
+6. ~~Deterministic + LLM-enhanced repository summaries — Week 7 Day 5~~ (done)
+7. ~~Interactive graph visualization~~ — React Flow + accuracy matrix shipped Week 8 Days 6–7
+8. Authentication / multi-tenancy
+9. Private repository import / non-GitHub hosts
+10. Incremental indexing
+11. `packages/parser-core` deep pipeline (Python / JS-TS / Java logic lives under `apps/api/app/services`)
 
 ## Implemented and no longer gaps
 
@@ -31,6 +32,7 @@ Honest deferrals after Weeks 0–7. Update as Week 8+ lands.
 - Week 8 Day 3–4: call neighborhood graph, implementations API, directory graph API
 - Week 8 Day 5–6: graph filters (`filters` echo) + React Flow Graph page
 - Week 8 Day 7: graph accuracy matrix (circular imports, ambiguous calls, implementations, mixed langs, directory scale)
+- Week 9 Day 1–2: `chunk_embeddings` (pgvector) + `EmbeddingProvider` + worker Embedding stage (local-hash default)
 
 ## Architecture decisions locked for Week 7+
 

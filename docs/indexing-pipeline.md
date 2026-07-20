@@ -136,7 +136,8 @@ a labeled final fallback (`extraction_method` records the fallback).
 - Parser ranges are authoritative; LLM never alters boundaries or creates verified symbols
 - Enrichment is opt-in, budget-capped, cached, and skipped when disabled / over budget
 - Exact search must work with enrichment off
-- Embeddings / hybrid retrieval remain a later stage (Week 9+); local embedding provider default
+- Embeddings: worker Embedding stage persists `chunk_embeddings` (pgvector);
+  local-hash provider is the CI/default; Azure optional. Semantic/hybrid search = Week 9 Days 3–4.
 
 ### 10. Validate
 

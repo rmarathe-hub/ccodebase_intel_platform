@@ -4,6 +4,7 @@ import enum
 import uuid
 from datetime import datetime
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
     Boolean,
@@ -20,6 +21,9 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
+
+# Must match alembic 0009_chunk_embeddings.EMBEDDING_DIMENSIONS and local provider.
+CHUNK_EMBEDDING_DIMENSIONS = 64
 
 
 class SnapshotStatus(enum.StrEnum):
@@ -117,6 +121,9 @@ class RepositorySnapshot(Base):
         back_populates="snapshot"
     )
     chunks: Mapped[list[Chunk]] = relationship(back_populates="snapshot")
+    chunk_embeddings: Mapped[list[ChunkEmbedding]] = relationship(
+        back_populates="snapshot"
+    )
 
 
 class SourceFile(Base):
@@ -352,6 +359,51 @@ class Chunk(Base):
 
     snapshot: Mapped[RepositorySnapshot] = relationship(back_populates="chunks")
     source_file: Mapped[SourceFile] = relationship(back_populates="chunks")
+    embeddings: Mapped[list[ChunkEmbedding]] = relationship(
+        back_populates="chunk", cascade="all, delete-orphan"
+    )
+
+
+class ChunkEmbedding(Base):
+    """pgvector embedding for a parser-derived chunk (Week 9)."""
+
+    __tablename__ = "chunk_embeddings"
+    __table_args__ = (
+        UniqueConstraint(
+            "chunk_id",
+            "embedding_model",
+            "embedding_version",
+            name="uq_chunk_embeddings_chunk_model_version",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    chunk_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("chunks.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("repository_snapshots.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    embedding_provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    embedding_model: Mapped[str] = mapped_column(String(128), nullable=False)
+    embedding_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    dimensions: Mapped[int] = mapped_column(Integer, nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(
+        Vector(CHUNK_EMBEDDING_DIMENSIONS), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    chunk: Mapped[Chunk] = relationship(back_populates="embeddings")
+    snapshot: Mapped[RepositorySnapshot] = relationship(back_populates="chunk_embeddings")
 
 
 class LlmEnrichmentCache(Base):

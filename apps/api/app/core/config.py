@@ -53,6 +53,14 @@ class Settings(BaseSettings):
     azure_openai_deployment: str = ""
     azure_openai_embedding_deployment: str = ""
 
+    # Embeddings (Week 9) — local deterministic provider by default; CI-safe.
+    embeddings_enabled: bool = True
+    embedding_provider: str = "local"  # local | azure_openai | none
+    embedding_model: str = "local-hash-v1"
+    embedding_version: str = "9.1"
+    embedding_dimensions: int = 64
+    embedding_batch_size: int = 32
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
@@ -67,11 +75,27 @@ class Settings(BaseSettings):
         )
 
     @property
+    def embeddings_active(self) -> bool:
+        """True when embedding stage should persist vectors."""
+        return (
+            self.embeddings_enabled
+            and self.embedding_provider not in {"", "none"}
+        )
+
+    @property
     def azure_openai_configured(self) -> bool:
         return bool(
             self.azure_openai_endpoint.strip()
             and (self.azure_openai_api_key.strip() or self.llm_api_key.strip())
             and self.azure_openai_deployment.strip()
+        )
+
+    @property
+    def azure_openai_embeddings_configured(self) -> bool:
+        return bool(
+            self.azure_openai_endpoint.strip()
+            and (self.azure_openai_api_key.strip() or self.llm_api_key.strip())
+            and self.azure_openai_embedding_deployment.strip()
         )
 
 
