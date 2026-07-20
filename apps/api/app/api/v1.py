@@ -11,6 +11,13 @@ from app.schemas.calls import (
     SymbolCallRead,
     SymbolNeighborsResponse,
 )
+from app.schemas.chunks import (
+    ChunkSearchHit,
+    ChunkSearchResponse,
+    DeterministicSummary,
+    EvidenceRef,
+    RepositorySummaryResponse,
+)
 from app.schemas.files import RepositoryListItem, SourceFileListResponse, SourceFileRead
 from app.schemas.jobs import IndexingJobRead
 from app.schemas.relations import SymbolRelationListResponse, SymbolRelationRead
@@ -23,6 +30,7 @@ from app.services.calls_query import (
     list_callers_for_symbol,
     list_symbol_calls,
 )
+from app.services.chunks_query import search_chunks
 from app.services.files_query import (
     latest_ready_snapshot,
     list_repositories,
@@ -35,6 +43,7 @@ from app.services.import_repository import (
     retry_indexing_job,
 )
 from app.services.relations_query import list_symbol_relations
+from app.services.repository_summary import build_repository_summary
 from app.services.symbols_query import list_symbols
 
 router = APIRouter(prefix="/api/v1")
@@ -524,6 +533,145 @@ def get_symbol_callees(
         direction="callees",
         total=len(calls),
         calls=calls,
+    )
+
+
+@router.get(
+    "/repositories/{repository_id}/summary",
+    response_model=RepositorySummaryResponse,
+)
+def get_repository_summary(
+    repository_id: UUID,
+    db: Session = Depends(get_db),
+) -> RepositorySummaryResponse:
+    """Deterministic summary always; optional LLM-enhanced summary when enabled."""
+    repo = db.get(Repository, repository_id)
+    if repo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+    snapshot = latest_ready_snapshot(db, repository_id)
+    if snapshot is None:
+        return RepositorySummaryResponse(
+            repository_id=repository_id,
+            snapshot_id=None,
+            deterministic_summary=None,
+            llm_summary=None,
+            llm_summary_status="no_snapshot",
+            evidence=[],
+            model_provenance=None,
+        )
+    built = build_repository_summary(db, snapshot_id=snapshot.id)
+    det = built.get("deterministic_summary")
+    return RepositorySummaryResponse(
+        repository_id=repository_id,
+        snapshot_id=snapshot.id,
+        deterministic_summary=(
+            DeterministicSummary.model_validate(det) if isinstance(det, dict) else None
+        ),
+        llm_summary=built.get("llm_summary") if isinstance(built.get("llm_summary"), dict) else None,
+        llm_summary_status=str(built.get("llm_summary_status", "skipped")),
+        evidence=[EvidenceRef.model_validate(e) for e in (built.get("evidence") or [])],
+        model_provenance=(
+            built.get("model_provenance")
+            if isinstance(built.get("model_provenance"), dict)
+            else None
+        ),
+    )
+
+
+@router.get(
+    "/repositories/{repository_id}/chunks/search",
+    response_model=ChunkSearchResponse,
+)
+def search_repository_chunks(
+    repository_id: UUID,
+    q: str = Query(..., min_length=1, max_length=500, description="Exact substring query"),
+    language: str | None = Query(default=None),
+    path_prefix: str | None = Query(default=None),
+    support_level: str | None = Query(default=None),
+    chunk_type: str | None = Query(default=None),
+    extraction_method: str | None = Query(default=None),
+    parser_name: str | None = Query(default=None),
+    llm_enriched: bool | None = Query(default=None),
+    validation_status: str | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+) -> ChunkSearchResponse:
+    """Deterministic exact chunk search. Extensible later for semantic/LLM rerank."""
+    repo = db.get(Repository, repository_id)
+    if repo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+
+    if support_level is not None and support_level.lower() not in {"deep", "generic", "skip"}:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "invalid_support_level",
+                "message": "support_level must be deep, generic, or skip",
+            },
+        )
+
+    snapshot = latest_ready_snapshot(db, repository_id)
+    if snapshot is None:
+        return ChunkSearchResponse(
+            repository_id=repository_id,
+            snapshot_id=None,
+            query=q,
+            total=0,
+            limit=limit,
+            offset=offset,
+            search_mode="exact",
+            hits=[],
+        )
+
+    rows, total = search_chunks(
+        db,
+        snapshot_id=snapshot.id,
+        query=q,
+        language=language,
+        path_prefix=path_prefix,
+        support_level=support_level,
+        chunk_type=chunk_type,
+        extraction_method=extraction_method,
+        parser_name=parser_name,
+        llm_enriched=llm_enriched,
+        validation_status=validation_status,
+        limit=limit,
+        offset=offset,
+    )
+    hits = [
+        ChunkSearchHit(
+            id=row.id,
+            path=row.path,
+            language=row.language,
+            support_level=row.support_level,
+            chunk_type=row.chunk_type,
+            start_line=row.start_line,
+            end_line=row.end_line,
+            content=row.content,
+            content_hash=row.content_hash,
+            extraction_method=row.extraction_method,
+            parser_name=row.parser_name,
+            parser_version=row.parser_version,
+            verified_deep=row.verified_deep,
+            llm_enriched=row.llm_enriched,
+            validation_status=row.validation_status,
+            semantic_label=row.semantic_label,
+            concise_summary=row.concise_summary,
+            parent_context=row.parent_context,
+            created_at=row.created_at,
+        )
+        for row in rows
+    ]
+    return ChunkSearchResponse(
+        repository_id=repository_id,
+        snapshot_id=snapshot.id,
+        query=q,
+        total=total,
+        limit=limit,
+        offset=offset,
+        search_mode="exact",
+        hits=hits,
     )
 
 

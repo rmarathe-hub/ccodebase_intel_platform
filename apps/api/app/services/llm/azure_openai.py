@@ -192,9 +192,122 @@ class AzureOpenAIProvider:
         evidence: list[dict[str, object]],
         prompt_version: str,
     ) -> RepositoryLlmSummary:
-        _ = deterministic_summary, evidence, prompt_version
-        raise NotImplementedError(
-            "Repository LLM summary wires in Day 5; deterministic summary remains authoritative"
+        """LangChain structured summary grounded in deterministic metadata + evidence."""
+        use_langchain = self.orchestration in {"auto", "langchain"}
+        payload = {
+            "deterministic_summary": deterministic_summary,
+            "evidence": evidence,
+            "prompt_version": prompt_version,
+        }
+        if use_langchain:
+            try:
+                return self._summarize_langchain(payload=payload, prompt_version=prompt_version)
+            except ImportError:
+                logger.warning(
+                    "LangChain not installed; falling back to direct Azure OpenAI SDK "
+                    "for summarize_repository only"
+                )
+                if self.orchestration == "langchain":
+                    raise
+            except Exception:
+                if self.orchestration == "langchain":
+                    raise
+                logger.exception(
+                    "LangChain summarize_repository failed; trying direct Azure OpenAI SDK"
+                )
+        return self._summarize_direct(payload=payload, prompt_version=prompt_version)
+
+    def _summarize_langchain(
+        self,
+        *,
+        payload: dict[str, object],
+        prompt_version: str,
+    ) -> RepositoryLlmSummary:
+        from langchain_core.prompts import ChatPromptTemplate
+
+        llm = self._langchain_model().with_structured_output(RepositoryLlmSummary)
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    "You write an enhanced repository summary from deterministic metadata "
+                    "and supplied evidence chunks. Never invent line ranges outside evidence. "
+                    "claims_verified_deep must be false. Cite evidence_line_ranges from "
+                    "supplied chunk lines only. Prompt version: {pv}.",
+                ),
+                ("human", "{body}"),
+            ]
+        )
+        result = (prompt | llm).invoke(
+            {"pv": prompt_version, "body": json.dumps(payload, ensure_ascii=False)}
+        )
+        if isinstance(result, RepositoryLlmSummary):
+            return result.model_copy(
+                update={
+                    "model": self.deployment,
+                    "prompt_version": prompt_version,
+                    "provider": self.provider_name,
+                    "claims_verified_deep": False,
+                }
+            )
+        parsed = RepositoryLlmSummary.model_validate(result)
+        return parsed.model_copy(
+            update={
+                "model": self.deployment,
+                "prompt_version": prompt_version,
+                "provider": self.provider_name,
+                "claims_verified_deep": False,
+            }
+        )
+
+    def _summarize_direct(
+        self,
+        *,
+        payload: dict[str, object],
+        prompt_version: str,
+    ) -> RepositoryLlmSummary:
+        from openai import AzureOpenAI
+
+        client = AzureOpenAI(
+            azure_endpoint=self.endpoint,
+            api_key=self.api_key,
+            api_version=self.api_version,
+            timeout=self.timeout_seconds,
+            max_retries=self.max_retries,
+        )
+        schema = RepositoryLlmSummary.model_json_schema()
+        completion = client.beta.chat.completions.parse(
+            model=self.deployment,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Enhanced repository summary from deterministic metadata + evidence. "
+                        "Never invent ranges. claims_verified_deep=false. "
+                        f"Prompt version: {prompt_version}."
+                    ),
+                },
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+            ],
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "RepositoryLlmSummary",
+                    "schema": schema,
+                    "strict": False,
+                },
+            },
+            temperature=self.temperature,
+        )
+        raw = completion.choices[0].message.content or "{}"
+        parsed = RepositoryLlmSummary.model_validate_json(raw)
+        return parsed.model_copy(
+            update={
+                "model": self.deployment,
+                "prompt_version": prompt_version,
+                "provider": self.provider_name,
+                "claims_verified_deep": False,
+            }
         )
 
 

@@ -8,8 +8,8 @@
 | 2 | Multi-lang generic parsers + LangChain Azure enrichment (batched) | Done |
 | 3 | Format-native configuration chunking | Done |
 | 4 | Markdown / document AST chunking | Done |
-| 5 | Deterministic + LLM-enhanced repository summaries | Not started |
-| 6 | Exact PostgreSQL chunk search (LLM-independent) | Not started |
+| 5 | Deterministic + LLM-enhanced repository summaries | Done |
+| 6 | Exact PostgreSQL chunk search (LLM-independent) | Done |
 | 7 | Polyglot fixture matrix + worker E2E (full) | Not started |
 
 ## Architecture (locked)
@@ -46,6 +46,12 @@ and [llm-enrichment.md](./llm-enrichment.md).
 - Config: JSON (brace-depth spans), YAML (`yaml.compose` marks), TOML (`tomllib` + `[section]` lines), XML (defusedxml SAX), Dockerfile (`dockerfile-parse` stages)
 - Docs: Mistune AST headings → section chunks; fenced `#` text is not a heading
 - Fixtures under `generic_polyglot/` (`package.json`, compose, Cargo, POM, Dockerfile, `ARCHITECTURE.md`)
+
+### Days 5–6 shipped
+
+- `GET /api/v1/repositories/{id}/summary` — `deterministic_summary` always; `llm_summary` separate when enrichment enabled (LangChain Azure)
+- `GET /api/v1/repositories/{id}/chunks/search` — exact substring search; `search_mode=exact` (semantic/LLM rerank reserved for Week 9)
+- Filters: language, path_prefix, support_level, chunk_type, extraction_method, parser_name, llm_enriched, validation_status
 
 ### Artifacts
 
