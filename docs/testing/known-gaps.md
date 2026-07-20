@@ -7,7 +7,7 @@ Honest deferrals after Weeks 0–6. Update as Week 7+ lands.
 1. Embedding / validating job stages (chunking is wired; embedding not)
 2. Exact chunk search API and functional Search UI
 3. Ask API / citation-validated answers
-4. Format-native configuration + Markdown AST chunking — Week 7 Days 3–4
+4. ~~Format-native configuration + Markdown AST chunking — Week 7 Days 3–4~~ (done)
 5. Deterministic + LLM-enhanced repository summaries — Week 7 Day 5
 6. Interactive graph visualization (Graph page is still a call-site table)
 7. Authentication / multi-tenancy
@@ -23,6 +23,7 @@ Honest deferrals after Weeks 0–6. Update as Week 7+ lands.
 - Mixed frontend/backend and Spring fixture matrices
 - Chunk schema + deep symbol-aware chunks + generic Tree-sitter (Go/Rust/C/C++/C#/Ruby/Shell) + SQLGlot
 - Worker Chunking stage + optional batched LangChain/Azure enrichment (mocked in CI)
+- Format-native config chunks (JSON/YAML/TOML/XML/Dockerfile) + Mistune Markdown sections
 
 ## Architecture decisions locked for Week 7+
 

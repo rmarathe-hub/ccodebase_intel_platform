@@ -39,6 +39,9 @@ def collect_generic_chunks(
     snapshot_id: UUID,
     repo_root: Path,
 ) -> list[ExtractedChunk]:
+    from app.services.chunking.config_chunking import chunk_configuration_file
+    from app.services.chunking.markdown_chunks import chunk_markdown_source
+
     files = list(
         session.scalars(
             select(SourceFile).where(
@@ -50,14 +53,21 @@ def collect_generic_chunks(
     out: list[ExtractedChunk] = []
     supported = supported_generic_languages()
     for file_row in files:
-        if not file_row.language or file_row.language not in supported:
+        if not file_row.language:
             continue
         text = _read_text(repo_root / file_row.path)
         if text is None:
             continue
-        if file_row.language == "sql":
+        if file_row.language == "configuration":
+            out.extend(chunk_configuration_file(source=text, path=file_row.path))
+        elif file_row.language == "documentation":
+            # Markdown AST for .md / .markdown; other docs as whole-file later.
+            suffix = Path(file_row.path).suffix.lower()
+            if suffix in {".md", ".markdown"}:
+                out.extend(chunk_markdown_source(source=text, path=file_row.path))
+        elif file_row.language == "sql":
             out.extend(chunk_sql_source(source=text, path=file_row.path))
-        else:
+        elif file_row.language in supported:
             out.extend(
                 chunk_generic_source(
                     source=text, path=file_row.path, language=file_row.language
@@ -74,8 +84,10 @@ def _priority_for_chunk(chunk: ExtractedChunk) -> EnrichmentPriority:
         return EnrichmentPriority.ENTRY_POINT_CANDIDATE
     if chunk.chunk_type == "symbol" and chunk.verified_deep:
         return EnrichmentPriority.TOP_LEVEL_DECLARATION
-    if chunk.language in {"sql"} or "config" in chunk.path.lower():
+    if chunk.language in {"sql", "configuration"} or "config" in chunk.path.lower():
         return EnrichmentPriority.CONFIGURATION_BUILD
+    if chunk.chunk_type == "documentation_section":
+        return EnrichmentPriority.README_DOCS
     if chunk.parent_context and "function" in (chunk.parent_context or "").lower():
         return EnrichmentPriority.TOP_LEVEL_DECLARATION
     return EnrichmentPriority.DEFAULT

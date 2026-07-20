@@ -6,8 +6,8 @@
 | --- | --- | --- |
 | 1 | Chunk schema + deep symbol-aware chunks + generic Tree-sitter source chunks | Done |
 | 2 | Multi-lang generic parsers + LangChain Azure enrichment (batched) | Done |
-| 3 | Format-native configuration chunking | Not started |
-| 4 | Markdown / document AST chunking | Not started |
+| 3 | Format-native configuration chunking | Done |
+| 4 | Markdown / document AST chunking | Done |
 | 5 | Deterministic + LLM-enhanced repository summaries | Not started |
 | 6 | Exact PostgreSQL chunk search (LLM-independent) | Not started |
 | 7 | Polyglot fixture matrix + worker E2E (full) | Not started |
@@ -40,6 +40,12 @@ and [llm-enrichment.md](./llm-enrichment.md).
 - Worker **Chunking** stage wired
 - `AzureOpenAIProvider.enrich_batch` prefers **LangChain**; direct SDK only if LangChain unavailable (documented fallback)
 - One enrichment call per logical batch; mock provider in tests; CI never requires paid APIs
+
+### Days 3–4 shipped
+
+- Config: JSON (brace-depth spans), YAML (`yaml.compose` marks), TOML (`tomllib` + `[section]` lines), XML (defusedxml SAX), Dockerfile (`dockerfile-parse` stages)
+- Docs: Mistune AST headings → section chunks; fenced `#` text is not a heading
+- Fixtures under `generic_polyglot/` (`package.json`, compose, Cargo, POM, Dockerfile, `ARCHITECTURE.md`)
 
 ### Artifacts
 
