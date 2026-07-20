@@ -9,7 +9,7 @@ Honest deferrals after Weeks 0–7. Update as Week 8+ lands.
 3. Ask API / citation-validated answers
 4. ~~Format-native configuration + Markdown AST chunking — Week 7 Days 3–4~~ (done)
 5. ~~Deterministic + LLM-enhanced repository summaries — Week 7 Day 5~~ (done)
-6. Interactive graph visualization (Graph page is still a call-site table; module/package graph APIs shipped Week 8 Day 2)
+6. Interactive graph visualization (React Flow Graph page shipped Week 8 Day 6; Day 7 accuracy matrix still open)
 7. Authentication / multi-tenancy
 8. Private repository import / non-GitHub hosts
 9. Incremental indexing
@@ -29,6 +29,7 @@ Honest deferrals after Weeks 0–7. Update as Week 8+ lands.
 - Week 7 real-repo validation (typer / spark / commander.js / cobra / awesome-compose) — see [week7-validation/REPORT.md](./week7-validation/REPORT.md)
 - Week 8 Day 1–2: `RelationKind`, structural IMPORTS/EXPORTS/CONTAINS, module/package graph APIs
 - Week 8 Day 3–4: call neighborhood graph, implementations API, directory graph API
+- Week 8 Day 5–6: graph filters (`filters` echo) + React Flow Graph page
 
 ## Architecture decisions locked for Week 7+
 

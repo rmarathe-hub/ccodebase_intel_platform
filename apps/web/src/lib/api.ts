@@ -125,3 +125,59 @@ export function fetchSymbolCallees(repositoryId: string, symbolId: string, limit
     `/api/v1/repositories/${repositoryId}/symbols/${symbolId}/callees?limit=${limit}`,
   );
 }
+
+function graphQuery(params: import("./graphs").GraphQueryParams): string {
+  const query = new URLSearchParams();
+  if (params.language) query.set("language", params.language);
+  if (params.support_level) query.set("support_level", params.support_level);
+  if (params.relation_kind) query.set("relation_kind", params.relation_kind);
+  if (params.confidence) query.set("confidence", params.confidence);
+  if (params.path_prefix) query.set("path_prefix", params.path_prefix);
+  if (params.local_imports_only != null) {
+    query.set("local_imports_only", String(params.local_imports_only));
+  }
+  if (params.include_files != null) query.set("include_files", String(params.include_files));
+  if (params.inferred != null) query.set("inferred", String(params.inferred));
+  if (params.max_nodes != null) query.set("max_nodes", String(params.max_nodes));
+  if (params.max_edges != null) query.set("max_edges", String(params.max_edges));
+  if (params.symbol_id) query.set("symbol_id", params.symbol_id);
+  if (params.depth != null) query.set("depth", String(params.depth));
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return suffix;
+}
+
+export function fetchRepositoryModuleGraph(
+  repositoryId: string,
+  params: import("./graphs").GraphQueryParams = {},
+) {
+  return request<import("./graphs").RepositoryGraphResponse>(
+    `/api/v1/repositories/${repositoryId}/graph/modules${graphQuery(params)}`,
+  );
+}
+
+export function fetchRepositoryPackageGraph(
+  repositoryId: string,
+  params: import("./graphs").GraphQueryParams = {},
+) {
+  return request<import("./graphs").RepositoryGraphResponse>(
+    `/api/v1/repositories/${repositoryId}/graph/packages${graphQuery(params)}`,
+  );
+}
+
+export function fetchRepositoryDirectoryGraph(
+  repositoryId: string,
+  params: import("./graphs").GraphQueryParams = {},
+) {
+  return request<import("./graphs").RepositoryGraphResponse>(
+    `/api/v1/repositories/${repositoryId}/graph/directories${graphQuery(params)}`,
+  );
+}
+
+export function fetchRepositoryCallGraph(
+  repositoryId: string,
+  params: import("./graphs").GraphQueryParams & { symbol_id: string },
+) {
+  return request<import("./graphs").RepositoryGraphResponse>(
+    `/api/v1/repositories/${repositoryId}/graph/calls${graphQuery(params)}`,
+  );
+}

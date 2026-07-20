@@ -39,5 +39,6 @@ class RepositoryGraphResponse(BaseModel):
     edge_count: int
     center_symbol_id: UUID | None = None
     depth: int | None = None
+    filters: dict[str, object] = Field(default_factory=dict)
     nodes: list[GraphNodeRead] = Field(default_factory=list)
     edges: list[GraphEdgeRead] = Field(default_factory=list)

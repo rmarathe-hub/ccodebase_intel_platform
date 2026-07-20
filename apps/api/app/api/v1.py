@@ -41,6 +41,7 @@ from app.services.files_query import (
     list_source_files,
 )
 from app.services.github_url import GitHubURLValidationError
+from app.services.graph_filters import apply_graph_filters, filters_echo
 from app.services.graphs import (
     build_call_neighborhood_graph,
     build_directory_graph,
@@ -419,6 +420,7 @@ def _graph_response(
     edges,
     center_symbol_id: UUID | None = None,
     depth: int | None = None,
+    filters: dict[str, object] | None = None,
 ) -> RepositoryGraphResponse:
     return RepositoryGraphResponse(
         repository_id=repository_id,
@@ -428,6 +430,7 @@ def _graph_response(
         edge_count=len(edges),
         center_symbol_id=center_symbol_id,
         depth=depth,
+        filters=filters or {},
         nodes=[
             GraphNodeRead(
                 id=n.id,
@@ -459,6 +462,46 @@ def _graph_response(
     )
 
 
+def _validate_graph_filter_params(
+    *,
+    support_level: str | None,
+    relation_kind: str | None,
+    confidence: str | None,
+) -> None:
+    if support_level is not None and support_level.lower() not in {
+        "deep",
+        "generic",
+        "mixed",
+        "skip",
+    }:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "invalid_support_level",
+                "message": "support_level must be deep, generic, mixed, or skip",
+            },
+        )
+    if relation_kind is not None and relation_kind.lower() not in ALL_RELATION_KINDS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "invalid_relation_kind",
+                "message": (
+                    "relation_kind must be one of: "
+                    + ", ".join(sorted(ALL_RELATION_KINDS))
+                ),
+            },
+        )
+    if confidence is not None and confidence.lower() not in RELATION_CONFIDENCES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "invalid_confidence",
+                "message": "confidence must be resolved, ambiguous, or unresolved",
+            },
+        )
+
+
 @router.get(
     "/repositories/{repository_id}/graph/modules",
     response_model=RepositoryGraphResponse,
@@ -466,13 +509,34 @@ def _graph_response(
 def get_repository_module_graph(
     repository_id: UUID,
     language: str | None = Query(default=None),
+    support_level: str | None = Query(default=None),
+    relation_kind: str | None = Query(default=None),
+    confidence: str | None = Query(default=None),
+    path_prefix: str | None = Query(default=None),
     local_imports_only: bool = Query(default=False),
+    max_nodes: int | None = Query(default=None, ge=1, le=2000),
+    max_edges: int | None = Query(default=None, ge=1, le=5000),
     db: Session = Depends(get_db),
 ) -> RepositoryGraphResponse:
     """Module-level graph from IMPORTS relations (deep languages)."""
     repo = db.get(Repository, repository_id)
     if repo is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+    _validate_graph_filter_params(
+        support_level=support_level,
+        relation_kind=relation_kind,
+        confidence=confidence,
+    )
+    applied = filters_echo(
+        language=language,
+        support_level=support_level,
+        relation_kind=relation_kind,
+        confidence=confidence,
+        path_prefix=path_prefix,
+        local_imports_only=local_imports_only,
+        max_nodes=max_nodes,
+        max_edges=max_edges,
+    )
     snapshot = latest_ready_snapshot(db, repository_id)
     if snapshot is None:
         return _graph_response(
@@ -481,6 +545,7 @@ def get_repository_module_graph(
             graph_type="modules",
             nodes=[],
             edges=[],
+            filters=applied,
         )
     nodes, edges = build_module_graph(
         db,
@@ -488,12 +553,24 @@ def get_repository_module_graph(
         language=language,
         local_imports_only=local_imports_only,
     )
+    nodes, edges = apply_graph_filters(
+        nodes,
+        edges,
+        language=None,  # already applied in builder
+        support_level=support_level,
+        relation_kind=relation_kind,
+        confidence=confidence,
+        path_prefix=path_prefix,
+        max_nodes=max_nodes,
+        max_edges=max_edges,
+    )
     return _graph_response(
         repository_id=repository_id,
         snapshot_id=snapshot.id,
         graph_type="modules",
         nodes=nodes,
         edges=edges,
+        filters=applied,
     )
 
 
@@ -504,13 +581,34 @@ def get_repository_module_graph(
 def get_repository_package_graph(
     repository_id: UUID,
     language: str | None = Query(default=None),
+    support_level: str | None = Query(default=None),
+    relation_kind: str | None = Query(default=None),
+    confidence: str | None = Query(default=None),
+    path_prefix: str | None = Query(default=None),
     local_imports_only: bool = Query(default=True),
+    max_nodes: int | None = Query(default=None, ge=1, le=2000),
+    max_edges: int | None = Query(default=None, ge=1, le=5000),
     db: Session = Depends(get_db),
 ) -> RepositoryGraphResponse:
     """Package-level graph aggregated from module IMPORTS (deep languages)."""
     repo = db.get(Repository, repository_id)
     if repo is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+    _validate_graph_filter_params(
+        support_level=support_level,
+        relation_kind=relation_kind,
+        confidence=confidence,
+    )
+    applied = filters_echo(
+        language=language,
+        support_level=support_level,
+        relation_kind=relation_kind,
+        confidence=confidence,
+        path_prefix=path_prefix,
+        local_imports_only=local_imports_only,
+        max_nodes=max_nodes,
+        max_edges=max_edges,
+    )
     snapshot = latest_ready_snapshot(db, repository_id)
     if snapshot is None:
         return _graph_response(
@@ -519,6 +617,7 @@ def get_repository_package_graph(
             graph_type="packages",
             nodes=[],
             edges=[],
+            filters=applied,
         )
     nodes, edges = build_package_graph(
         db,
@@ -526,12 +625,23 @@ def get_repository_package_graph(
         language=language,
         local_imports_only=local_imports_only,
     )
+    nodes, edges = apply_graph_filters(
+        nodes,
+        edges,
+        support_level=support_level,
+        relation_kind=relation_kind,
+        confidence=confidence,
+        path_prefix=path_prefix,
+        max_nodes=max_nodes,
+        max_edges=max_edges,
+    )
     return _graph_response(
         repository_id=repository_id,
         snapshot_id=snapshot.id,
         graph_type="packages",
         nodes=nodes,
         edges=edges,
+        filters=applied,
     )
 
 
@@ -545,20 +655,30 @@ def get_repository_call_graph(
     depth: int = Query(default=1, ge=1, le=3),
     confidence: str | None = Query(default=None),
     language: str | None = Query(default=None),
+    support_level: str | None = Query(default=None),
+    path_prefix: str | None = Query(default=None),
+    max_nodes: int | None = Query(default=None, ge=1, le=2000),
+    max_edges: int | None = Query(default=None, ge=1, le=5000),
     db: Session = Depends(get_db),
 ) -> RepositoryGraphResponse:
     """Symbol-level CALLS neighborhood (deep languages; confidence-aware)."""
     repo = db.get(Repository, repository_id)
     if repo is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
-    if confidence is not None and confidence.lower() not in RELATION_CONFIDENCES:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={
-                "code": "invalid_confidence",
-                "message": "confidence must be resolved, ambiguous, or unresolved",
-            },
-        )
+    _validate_graph_filter_params(
+        support_level=support_level,
+        relation_kind=None,
+        confidence=confidence,
+    )
+    applied = filters_echo(
+        language=language,
+        support_level=support_level,
+        confidence=confidence,
+        path_prefix=path_prefix,
+        max_nodes=max_nodes,
+        max_edges=max_edges,
+        depth=depth,
+    )
     snapshot = latest_ready_snapshot(db, repository_id)
     if snapshot is None:
         return _graph_response(
@@ -569,6 +689,7 @@ def get_repository_call_graph(
             edges=[],
             center_symbol_id=symbol_id,
             depth=depth,
+            filters=applied,
         )
     nodes, edges, center = build_call_neighborhood_graph(
         db,
@@ -580,6 +701,14 @@ def get_repository_call_graph(
     )
     if center is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Symbol not found")
+    nodes, edges = apply_graph_filters(
+        nodes,
+        edges,
+        support_level=support_level,
+        path_prefix=path_prefix,
+        max_nodes=max_nodes,
+        max_edges=max_edges,
+    )
     return _graph_response(
         repository_id=repository_id,
         snapshot_id=snapshot.id,
@@ -588,6 +717,7 @@ def get_repository_call_graph(
         edges=edges,
         center_symbol_id=symbol_id,
         depth=depth,
+        filters=applied,
     )
 
 
@@ -598,12 +728,34 @@ def get_repository_call_graph(
 def get_repository_directory_graph(
     repository_id: UUID,
     include_files: bool = Query(default=False),
+    support_level: str | None = Query(default=None),
+    relation_kind: str | None = Query(default=None),
+    confidence: str | None = Query(default=None),
+    path_prefix: str | None = Query(default=None),
+    inferred: bool | None = Query(default=None),
+    max_nodes: int | None = Query(default=None, ge=1, le=2000),
+    max_edges: int | None = Query(default=None, ge=1, le=5000),
     db: Session = Depends(get_db),
 ) -> RepositoryGraphResponse:
     """Directory hierarchy for all indexed files; inferred cross-dir IMPORTS when known."""
     repo = db.get(Repository, repository_id)
     if repo is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+    _validate_graph_filter_params(
+        support_level=support_level,
+        relation_kind=relation_kind,
+        confidence=confidence,
+    )
+    applied = filters_echo(
+        support_level=support_level,
+        relation_kind=relation_kind,
+        confidence=confidence,
+        path_prefix=path_prefix,
+        inferred=inferred,
+        include_files=include_files,
+        max_nodes=max_nodes,
+        max_edges=max_edges,
+    )
     snapshot = latest_ready_snapshot(db, repository_id)
     if snapshot is None:
         return _graph_response(
@@ -612,11 +764,23 @@ def get_repository_directory_graph(
             graph_type="directories",
             nodes=[],
             edges=[],
+            filters=applied,
         )
     nodes, edges = build_directory_graph(
         db,
         snapshot_id=snapshot.id,
         include_files=include_files,
+    )
+    nodes, edges = apply_graph_filters(
+        nodes,
+        edges,
+        support_level=support_level,
+        relation_kind=relation_kind,
+        confidence=confidence,
+        path_prefix=path_prefix,
+        inferred=inferred,
+        max_nodes=max_nodes,
+        max_edges=max_edges,
     )
     return _graph_response(
         repository_id=repository_id,
@@ -624,6 +788,7 @@ def get_repository_directory_graph(
         graph_type="directories",
         nodes=nodes,
         edges=edges,
+        filters=applied,
     )
 
 

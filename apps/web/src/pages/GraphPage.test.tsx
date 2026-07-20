@@ -1,9 +1,29 @@
-// Graph page: call-site table honesty (not an interactive diagram).
+// Graph page: interactive React Flow canvas with graph-type filters.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { GraphPage } from "./GraphPage";
+
+beforeAll(() => {
+  class ResizeObserverStub {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+});
+
+vi.mock("@xyflow/react", () => ({
+  ReactFlow: ({ children }: { children?: ReactNode }) => (
+    <div data-testid="react-flow-mock">{children}</div>
+  ),
+  ReactFlowProvider: ({ children }: { children?: ReactNode }) => <>{children}</>,
+  Background: () => null,
+  Controls: () => null,
+  MiniMap: () => null,
+  MarkerType: { ArrowClosed: "arrowclosed" },
+}));
 
 vi.mock("../lib/api", () => ({
   fetchRepositories: vi.fn(async () => [
@@ -18,28 +38,97 @@ vi.mock("../lib/api", () => ({
       updated_at: "2026-01-01T00:00:00Z",
     },
   ]),
-  fetchRepositoryCalls: vi.fn(async () => ({
+  fetchRepositoryModuleGraph: vi.fn(async () => ({
     repository_id: "repo-1",
     snapshot_id: "snap-1",
-    total: 1,
-    limit: 200,
-    offset: 0,
-    calls: [
+    graph_type: "modules",
+    node_count: 2,
+    edge_count: 1,
+    center_symbol_id: null,
+    depth: null,
+    filters: { local_imports_only: true },
+    nodes: [
       {
-        id: "c1",
-        source_file_id: "f1",
-        path: "svc.py",
-        caller_symbol_id: "s1",
-        caller_qualified_name: "svc.main",
-        raw_callee: "helper",
-        qualified_expression: "helper",
-        line: 4,
-        candidate_qualified_name: "svc.helper",
-        confidence: "resolved",
+        id: "pkg.a",
+        label: "pkg.a",
+        node_type: "module",
         language: "python",
-        created_at: "2026-01-01T00:00:00Z",
+        support_level: "deep",
+        path: "pkg/a.py",
+        symbol_count: 2,
+        file_count: 0,
+        symbol_id: null,
+        kind: null,
+      },
+      {
+        id: "pkg.b",
+        label: "pkg.b",
+        node_type: "module",
+        language: "python",
+        support_level: "deep",
+        path: "pkg/b.py",
+        symbol_count: 1,
+        file_count: 0,
+        symbol_id: null,
+        kind: null,
       },
     ],
+    edges: [
+      {
+        source: "pkg.a",
+        target: "pkg.b",
+        relation_kind: "imports",
+        confidence: "resolved",
+        language: "python",
+        weight: 1,
+        inferred: false,
+        line: null,
+      },
+    ],
+  })),
+  fetchRepositoryPackageGraph: vi.fn(async () => ({
+    repository_id: "repo-1",
+    snapshot_id: "snap-1",
+    graph_type: "packages",
+    node_count: 0,
+    edge_count: 0,
+    center_symbol_id: null,
+    depth: null,
+    filters: {},
+    nodes: [],
+    edges: [],
+  })),
+  fetchRepositoryDirectoryGraph: vi.fn(async () => ({
+    repository_id: "repo-1",
+    snapshot_id: "snap-1",
+    graph_type: "directories",
+    node_count: 0,
+    edge_count: 0,
+    center_symbol_id: null,
+    depth: null,
+    filters: {},
+    nodes: [],
+    edges: [],
+  })),
+  fetchRepositoryCallGraph: vi.fn(async () => ({
+    repository_id: "repo-1",
+    snapshot_id: "snap-1",
+    graph_type: "calls",
+    node_count: 0,
+    edge_count: 0,
+    center_symbol_id: null,
+    depth: 1,
+    filters: {},
+    nodes: [],
+    edges: [],
+  })),
+  fetchRepositorySymbols: vi.fn(async () => ({
+    repository_id: "repo-1",
+    snapshot_id: "snap-1",
+    total: 0,
+    limit: 100,
+    offset: 0,
+    symbols: [],
   })),
 }));
 
@@ -55,17 +144,19 @@ afterEach(() => {
 });
 
 describe("GraphPage", () => {
-  it("renders call-site verification table, not a canvas diagram", async () => {
+  it("renders interactive graph canvas with type filters", async () => {
     wrap(<GraphPage />);
     expect(screen.getByRole("heading", { name: "Graph" })).toBeInTheDocument();
-    expect(screen.getByText(/call-site list/i)).toBeInTheDocument();
-    expect(screen.queryByRole("img")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "resolved" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "ambiguous" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "unresolved" })).toBeInTheDocument();
+    expect(screen.getByText(/interactive structural graphs/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Modules" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Packages" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Directories" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Calls" })).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.getByText("svc.main")).toBeInTheDocument();
+      expect(screen.getByTestId("graph-canvas")).toBeInTheDocument();
     });
-    expect(screen.getByText("helper")).toBeInTheDocument();
+    expect(screen.getByTestId("react-flow-mock")).toBeInTheDocument();
+    expect(screen.getByLabelText("Language")).toBeInTheDocument();
+    expect(screen.getByLabelText("Support level")).toBeInTheDocument();
   });
 });

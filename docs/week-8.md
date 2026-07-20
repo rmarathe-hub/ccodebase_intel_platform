@@ -8,8 +8,8 @@
 | 2 | Module + package graph builders + APIs | Done |
 | 3 | Deep caller/callee graph neighborhoods + implementations API | Done |
 | 4 | Generic directory graph | Done |
-| 5 | Graph API polish (filters, depth) | Not started |
-| 6 | React Flow Graph page | Not started |
+| 5 | Graph API polish (filters, depth) | Done |
+| 6 | React Flow Graph page | Done |
 | 7 | Graph accuracy matrix | Not started |
 
 ## Architecture (locked)
@@ -23,7 +23,9 @@ Structural relation pass (IMPORTS / EXPORTS / CONTAINS → symbol_relations)
         ↓
 Module / package / call / directory graph aggregation
         ↓
-Graph APIs (+ React Flow UI later)
+Post-build filters (language, support_level, relation_kind, path, caps)
+        ↓
+Graph APIs + React Flow UI
 ```
 
 - **CALLS** stay in `symbol_calls` (high-volume call sites); call **graphs** read from that table.
@@ -51,7 +53,6 @@ Graph APIs (+ React Flow UI later)
 - `build_call_neighborhood_graph` — BFS over `symbol_calls` with confidence filter
 - `GET /api/v1/repositories/{id}/graph/calls?symbol_id=&depth=&confidence=`
 - `GET /api/v1/repositories/{id}/symbols/{symbol_id}/implementations` (Java IMPLEMENTS)
-- `list_implementations_for_symbol` in `calls_query.py`
 - Tests: `test_week08_day3_call_graph.py`
 
 ### Day 4 shipped
@@ -59,20 +60,34 @@ Graph APIs (+ React Flow UI later)
 - `build_directory_graph` — directory hierarchy + optional file leaves
 - Inferred cross-directory IMPORTS when module targets resolve within snapshot
 - `GET /api/v1/repositories/{id}/graph/directories?include_files=`
-- Generic repos: hierarchy only; no fake deep symbol nodes
 - Tests: `test_week08_day4_directories.py`
+
+### Day 5 shipped
+
+- Shared `apply_graph_filters` / `filters_echo` (`app/services/graph_filters.py`)
+- All graph endpoints accept: `support_level`, `relation_kind`, `confidence`, `path_prefix`, `max_nodes`, `max_edges` (plus existing language / depth / include_files / local_imports_only)
+- Response includes `filters` echo of applied query params
+- Tests: `test_week08_day5_filters.py`
+
+### Day 6 shipped
+
+- `@xyflow/react` Graph page: Modules / Packages / Directories / Calls
+- UI filters: language, support level, confidence, path prefix, local imports, depth, center symbol
+- Deterministic layered layout (no paid layout service)
+- Frontend API clients + Vitest coverage
+- Honesty notice: generic directory graphs do not invent deep call edges
 
 ## Artifacts
 
 - `apps/api/app/models/relation_kinds.py`
 - `apps/api/app/services/relationships.py`
 - `apps/api/app/services/graphs.py`
+- `apps/api/app/services/graph_filters.py`
 - `apps/api/app/schemas/graphs.py`
 - `apps/api/app/schemas/implementations.py`
-- `apps/api/tests/test_week08_day1_relations.py`
-- `apps/api/tests/test_week08_day2_graphs.py`
-- `apps/api/tests/test_week08_day3_call_graph.py`
-- `apps/api/tests/test_week08_day4_directories.py`
+- `apps/web/src/pages/GraphPage.tsx`
+- `apps/web/src/lib/graphs.ts`
+- `apps/api/tests/test_week08_day1_relations.py` … `test_week08_day5_filters.py`
 
 ## Git policy
 

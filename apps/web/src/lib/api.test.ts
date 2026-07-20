@@ -4,7 +4,9 @@ import {
   apiBase,
   fetchRepositories,
   fetchRepositoryCalls,
+  fetchRepositoryDirectoryGraph,
   fetchRepositoryFiles,
+  fetchRepositoryModuleGraph,
   fetchRepositorySymbols,
   fetchSymbolCallees,
   fetchSymbolCallers,
@@ -98,6 +100,34 @@ describe("api client", () => {
     expect(String(fetchMock.mock.calls.at(1)?.[0] ?? "")).toContain(
       "/symbols/s/callees?limit=25",
     );
+  });
+
+  it("builds graph query strings", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ nodes: [], edges: [], node_count: 0, edge_count: 0 }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await fetchRepositoryModuleGraph("repo-1", {
+      language: "python",
+      local_imports_only: true,
+      max_nodes: 50,
+    });
+    const modulesUrl = String(fetchMock.mock.calls.at(0)?.[0] ?? "");
+    expect(modulesUrl).toContain("/graph/modules?");
+    expect(modulesUrl).toContain("language=python");
+    expect(modulesUrl).toContain("local_imports_only=true");
+    expect(modulesUrl).toContain("max_nodes=50");
+
+    await fetchRepositoryDirectoryGraph("repo-1", {
+      path_prefix: "docs",
+      include_files: true,
+    });
+    const dirsUrl = String(fetchMock.mock.calls.at(1)?.[0] ?? "");
+    expect(dirsUrl).toContain("/graph/directories?");
+    expect(dirsUrl).toContain("path_prefix=docs");
+    expect(dirsUrl).toContain("include_files=true");
   });
 
   it("throws on non-ok responses without inventing success", async () => {
