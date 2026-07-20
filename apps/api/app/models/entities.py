@@ -249,7 +249,11 @@ class SymbolCall(Base):
 
 
 class SymbolRelation(Base):
-    """Inheritance / interface edge (Week 6 Day 4+): EXTENDS / IMPLEMENTS."""
+    """Structural / inheritance edge (RelationKind).
+
+    EXTENDS / IMPLEMENTS come from Java inheritance. IMPORTS / EXPORTS / CONTAINS
+    are rebuilt after deep symbol persist. CALLS stay in ``symbol_calls``.
+    """
 
     __tablename__ = "symbol_relations"
 

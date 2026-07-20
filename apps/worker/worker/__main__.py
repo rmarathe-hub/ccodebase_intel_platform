@@ -26,6 +26,7 @@ from app.services.jobs import mark_job_succeeded, set_job_stage
 from app.services.chunking import replace_chunks_for_snapshot
 from app.services.java_symbols import replace_java_symbols_for_snapshot
 from app.services.js_ts_symbols import replace_js_ts_symbols_for_snapshot
+from app.services.relationships import replace_structural_relations_for_snapshot
 from app.services.source_files import replace_source_files_for_snapshot
 from app.services.snapshots import create_or_update_snapshot
 from app.services.symbols import replace_python_symbols_for_snapshot
@@ -157,6 +158,11 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     )
                 )
 
+                structural = replace_structural_relations_for_snapshot(
+                    session,
+                    snapshot_id=snapshot.id,
+                )
+
                 set_job_stage(job, JobStage.CHUNKING)
                 session.commit()
                 job = session.get(IndexingJob, job_id)
@@ -180,7 +186,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                 logger.info(
                     "Indexed snapshot %s for %s@%s files=%s deep=%s parsed_py=%s "
                     "parsed_js_ts=%s parsed_java=%s symbols=%s calls=%s "
-                    "relations=%s chunks=%s enriched=%s truncated=%s job=%s",
+                    "relations=%s import_edges=%s export_edges=%s contains_edges=%s chunks=%s enriched=%s truncated=%s job=%s",
                     snapshot.id,
                     repo_label,
                     cloned.commit_sha[:12],
@@ -192,6 +198,9 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     py_symbols + js_symbols + java_symbols,
                     py_calls + js_calls + java_calls,
                     java_relations,
+                    structural.get("imports", 0),
+                    structural.get("exports", 0),
+                    structural.get("contains", 0),
                     chunk_count,
                     enriched_count,
                     discovery.truncated,

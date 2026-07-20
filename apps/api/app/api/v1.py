@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.db.deps import get_db
 from app.models.entities import IndexingJob, Repository, Symbol, SymbolCall, SymbolRelation
+from app.models.relation_kinds import ALL_RELATION_KINDS, RELATION_CONFIDENCES
 from app.schemas.calls import (
     SymbolCallListResponse,
     SymbolCallRead,
@@ -19,6 +20,7 @@ from app.schemas.chunks import (
     RepositorySummaryResponse,
 )
 from app.schemas.files import RepositoryListItem, SourceFileListResponse, SourceFileRead
+from app.schemas.graphs import GraphEdgeRead, GraphNodeRead, RepositoryGraphResponse
 from app.schemas.jobs import IndexingJobRead
 from app.schemas.relations import SymbolRelationListResponse, SymbolRelationRead
 from app.schemas.repositories import RepositoryImportRequest, RepositoryRead
@@ -37,6 +39,7 @@ from app.services.files_query import (
     list_source_files,
 )
 from app.services.github_url import GitHubURLValidationError
+from app.services.graphs import build_module_graph, build_package_graph
 from app.services.import_repository import (
     RepositoryImportError,
     import_repository,
@@ -348,23 +351,19 @@ def get_repository_relations(
             detail="Repository not found",
         )
 
-    if relation_kind is not None and relation_kind.lower() not in {
-        "extends",
-        "implements",
-    }:
+    if relation_kind is not None and relation_kind.lower() not in ALL_RELATION_KINDS:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={
                 "code": "invalid_relation_kind",
-                "message": "relation_kind must be extends or implements",
+                "message": (
+                    "relation_kind must be one of: "
+                    + ", ".join(sorted(ALL_RELATION_KINDS))
+                ),
             },
         )
 
-    if confidence is not None and confidence.lower() not in {
-        "resolved",
-        "ambiguous",
-        "unresolved",
-    }:
+    if confidence is not None and confidence.lower() not in RELATION_CONFIDENCES:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={
@@ -401,6 +400,123 @@ def get_repository_relations(
         limit=limit,
         offset=offset,
         relations=relations,
+    )
+
+
+def _graph_response(
+    *,
+    repository_id: UUID,
+    snapshot_id: UUID | None,
+    graph_type: str,
+    nodes,
+    edges,
+) -> RepositoryGraphResponse:
+    return RepositoryGraphResponse(
+        repository_id=repository_id,
+        snapshot_id=snapshot_id,
+        graph_type=graph_type,
+        node_count=len(nodes),
+        edge_count=len(edges),
+        nodes=[
+            GraphNodeRead(
+                id=n.id,
+                label=n.label,
+                node_type=n.node_type,
+                language=n.language,
+                support_level=n.support_level,
+                path=n.path,
+                symbol_count=n.symbol_count,
+            )
+            for n in nodes
+        ],
+        edges=[
+            GraphEdgeRead(
+                source=e.source,
+                target=e.target,
+                relation_kind=e.relation_kind,
+                confidence=e.confidence,
+                language=e.language,
+                weight=e.weight,
+                inferred=e.inferred,
+            )
+            for e in edges
+        ],
+    )
+
+
+@router.get(
+    "/repositories/{repository_id}/graph/modules",
+    response_model=RepositoryGraphResponse,
+)
+def get_repository_module_graph(
+    repository_id: UUID,
+    language: str | None = Query(default=None),
+    local_imports_only: bool = Query(default=False),
+    db: Session = Depends(get_db),
+) -> RepositoryGraphResponse:
+    """Module-level graph from IMPORTS relations (deep languages)."""
+    repo = db.get(Repository, repository_id)
+    if repo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+    snapshot = latest_ready_snapshot(db, repository_id)
+    if snapshot is None:
+        return _graph_response(
+            repository_id=repository_id,
+            snapshot_id=None,
+            graph_type="modules",
+            nodes=[],
+            edges=[],
+        )
+    nodes, edges = build_module_graph(
+        db,
+        snapshot_id=snapshot.id,
+        language=language,
+        local_imports_only=local_imports_only,
+    )
+    return _graph_response(
+        repository_id=repository_id,
+        snapshot_id=snapshot.id,
+        graph_type="modules",
+        nodes=nodes,
+        edges=edges,
+    )
+
+
+@router.get(
+    "/repositories/{repository_id}/graph/packages",
+    response_model=RepositoryGraphResponse,
+)
+def get_repository_package_graph(
+    repository_id: UUID,
+    language: str | None = Query(default=None),
+    local_imports_only: bool = Query(default=True),
+    db: Session = Depends(get_db),
+) -> RepositoryGraphResponse:
+    """Package-level graph aggregated from module IMPORTS (deep languages)."""
+    repo = db.get(Repository, repository_id)
+    if repo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+    snapshot = latest_ready_snapshot(db, repository_id)
+    if snapshot is None:
+        return _graph_response(
+            repository_id=repository_id,
+            snapshot_id=None,
+            graph_type="packages",
+            nodes=[],
+            edges=[],
+        )
+    nodes, edges = build_package_graph(
+        db,
+        snapshot_id=snapshot.id,
+        language=language,
+        local_imports_only=local_imports_only,
+    )
+    return _graph_response(
+        repository_id=repository_id,
+        snapshot_id=snapshot.id,
+        graph_type="packages",
+        nodes=nodes,
+        edges=edges,
     )
 
 

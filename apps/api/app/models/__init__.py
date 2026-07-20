@@ -16,6 +16,7 @@ from app.models.entities import (
     User,
 )
 from app.models.job_stages import JOB_STAGE_LABELS, JOB_STAGE_PROGRESS, JobStage
+from app.models.relation_kinds import ALL_RELATION_KINDS, RELATION_CONFIDENCES, RelationKind
 
 __all__ = [
     "Base",
@@ -27,7 +28,9 @@ __all__ = [
     "JobStatus",
     "LlmEnrichmentCache",
     "Repository",
-    "RepositorySnapshot",
+    "RelationKind",
+    "ALL_RELATION_KINDS",
+    "RELATION_CONFIDENCES",
     "SnapshotStatus",
     "SourceFile",
     "Symbol",
