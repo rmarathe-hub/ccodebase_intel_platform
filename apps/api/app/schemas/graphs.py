@@ -15,6 +15,9 @@ class GraphNodeRead(BaseModel):
     support_level: str
     path: str | None = None
     symbol_count: int = 0
+    file_count: int = 0
+    symbol_id: UUID | None = None
+    kind: str | None = None
 
 
 class GraphEdgeRead(BaseModel):
@@ -25,6 +28,7 @@ class GraphEdgeRead(BaseModel):
     language: str | None = None
     weight: int = 1
     inferred: bool = False
+    line: int | None = None
 
 
 class RepositoryGraphResponse(BaseModel):
@@ -33,5 +37,7 @@ class RepositoryGraphResponse(BaseModel):
     graph_type: str
     node_count: int
     edge_count: int
+    center_symbol_id: UUID | None = None
+    depth: int | None = None
     nodes: list[GraphNodeRead] = Field(default_factory=list)
     edges: list[GraphEdgeRead] = Field(default_factory=list)

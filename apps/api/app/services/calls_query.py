@@ -7,7 +7,7 @@ from uuid import UUID
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.models.entities import SourceFile, Symbol, SymbolCall
+from app.models.entities import SourceFile, Symbol, SymbolCall, SymbolRelation
 
 
 def list_symbol_calls(
@@ -127,3 +127,46 @@ def list_callers_for_symbol(
         elif call.candidate_qualified_name is None and call.raw_callee == symbol.name:
             filtered.append((call, path))
     return filtered
+
+
+def list_implementations_for_symbol(
+    session: Session,
+    *,
+    snapshot_id: UUID,
+    symbol: Symbol,
+    limit: int = 100,
+) -> list[tuple[Symbol, str, str]]:
+    """Classes that IMPLEMENTS the given interface/type symbol (incoming)."""
+    capped = max(1, min(limit, 500))
+    qname = symbol.qualified_name
+    rows = list(
+        session.execute(
+            select(SymbolRelation, SourceFile.path)
+            .join(SourceFile, SourceFile.id == SymbolRelation.source_file_id)
+            .where(
+                SymbolRelation.snapshot_id == snapshot_id,
+                SymbolRelation.relation_kind == "implements",
+                (
+                    (SymbolRelation.to_symbol_id == symbol.id)
+                    | (SymbolRelation.candidate_qualified_name == qname)
+                ),
+            )
+            .order_by(SymbolRelation.line.asc())
+            .limit(capped)
+        ).all()
+    )
+    out: list[tuple[Symbol, str, str]] = []
+    for rel, path in rows:
+        impl = session.scalars(
+            select(Symbol).where(
+                Symbol.snapshot_id == snapshot_id,
+                Symbol.qualified_name == rel.from_qualified_name,
+            )
+        ).first()
+        if impl is None and rel.from_symbol_id is not None:
+            impl = session.get(Symbol, rel.from_symbol_id)
+        if impl is None:
+            continue
+        out.append((impl, path, rel.confidence))
+    return out
+

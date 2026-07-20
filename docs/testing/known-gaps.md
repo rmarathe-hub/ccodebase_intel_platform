@@ -28,6 +28,7 @@ Honest deferrals after Weeks 0–7. Update as Week 8+ lands.
 - Week 7 Day 7 polyglot matrix + worker E2E (generic languages stay non-deep)
 - Week 7 real-repo validation (typer / spark / commander.js / cobra / awesome-compose) — see [week7-validation/REPORT.md](./week7-validation/REPORT.md)
 - Week 8 Day 1–2: `RelationKind`, structural IMPORTS/EXPORTS/CONTAINS, module/package graph APIs
+- Week 8 Day 3–4: call neighborhood graph, implementations API, directory graph API
 
 ## Architecture decisions locked for Week 7+
 

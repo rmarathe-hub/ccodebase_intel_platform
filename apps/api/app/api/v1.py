@@ -21,6 +21,7 @@ from app.schemas.chunks import (
 )
 from app.schemas.files import RepositoryListItem, SourceFileListResponse, SourceFileRead
 from app.schemas.graphs import GraphEdgeRead, GraphNodeRead, RepositoryGraphResponse
+from app.schemas.implementations import SymbolImplementationRead, SymbolImplementationsResponse
 from app.schemas.jobs import IndexingJobRead
 from app.schemas.relations import SymbolRelationListResponse, SymbolRelationRead
 from app.schemas.repositories import RepositoryImportRequest, RepositoryRead
@@ -30,6 +31,7 @@ from app.services.calls_query import (
     get_symbol_in_snapshot,
     list_callees_for_symbol,
     list_callers_for_symbol,
+    list_implementations_for_symbol,
     list_symbol_calls,
 )
 from app.services.chunks_query import search_chunks
@@ -39,7 +41,12 @@ from app.services.files_query import (
     list_source_files,
 )
 from app.services.github_url import GitHubURLValidationError
-from app.services.graphs import build_module_graph, build_package_graph
+from app.services.graphs import (
+    build_call_neighborhood_graph,
+    build_directory_graph,
+    build_module_graph,
+    build_package_graph,
+)
 from app.services.import_repository import (
     RepositoryImportError,
     import_repository,
@@ -410,6 +417,8 @@ def _graph_response(
     graph_type: str,
     nodes,
     edges,
+    center_symbol_id: UUID | None = None,
+    depth: int | None = None,
 ) -> RepositoryGraphResponse:
     return RepositoryGraphResponse(
         repository_id=repository_id,
@@ -417,6 +426,8 @@ def _graph_response(
         graph_type=graph_type,
         node_count=len(nodes),
         edge_count=len(edges),
+        center_symbol_id=center_symbol_id,
+        depth=depth,
         nodes=[
             GraphNodeRead(
                 id=n.id,
@@ -426,6 +437,9 @@ def _graph_response(
                 support_level=n.support_level,
                 path=n.path,
                 symbol_count=n.symbol_count,
+                file_count=n.file_count,
+                symbol_id=n.symbol_id,
+                kind=n.kind,
             )
             for n in nodes
         ],
@@ -438,6 +452,7 @@ def _graph_response(
                 language=e.language,
                 weight=e.weight,
                 inferred=e.inferred,
+                line=e.line,
             )
             for e in edges
         ],
@@ -515,6 +530,98 @@ def get_repository_package_graph(
         repository_id=repository_id,
         snapshot_id=snapshot.id,
         graph_type="packages",
+        nodes=nodes,
+        edges=edges,
+    )
+
+
+@router.get(
+    "/repositories/{repository_id}/graph/calls",
+    response_model=RepositoryGraphResponse,
+)
+def get_repository_call_graph(
+    repository_id: UUID,
+    symbol_id: UUID = Query(..., description="Center symbol for neighborhood BFS"),
+    depth: int = Query(default=1, ge=1, le=3),
+    confidence: str | None = Query(default=None),
+    language: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> RepositoryGraphResponse:
+    """Symbol-level CALLS neighborhood (deep languages; confidence-aware)."""
+    repo = db.get(Repository, repository_id)
+    if repo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+    if confidence is not None and confidence.lower() not in RELATION_CONFIDENCES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "invalid_confidence",
+                "message": "confidence must be resolved, ambiguous, or unresolved",
+            },
+        )
+    snapshot = latest_ready_snapshot(db, repository_id)
+    if snapshot is None:
+        return _graph_response(
+            repository_id=repository_id,
+            snapshot_id=None,
+            graph_type="calls",
+            nodes=[],
+            edges=[],
+            center_symbol_id=symbol_id,
+            depth=depth,
+        )
+    nodes, edges, center = build_call_neighborhood_graph(
+        db,
+        snapshot_id=snapshot.id,
+        center_symbol_id=symbol_id,
+        depth=depth,
+        confidence=confidence,
+        language=language,
+    )
+    if center is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Symbol not found")
+    return _graph_response(
+        repository_id=repository_id,
+        snapshot_id=snapshot.id,
+        graph_type="calls",
+        nodes=nodes,
+        edges=edges,
+        center_symbol_id=symbol_id,
+        depth=depth,
+    )
+
+
+@router.get(
+    "/repositories/{repository_id}/graph/directories",
+    response_model=RepositoryGraphResponse,
+)
+def get_repository_directory_graph(
+    repository_id: UUID,
+    include_files: bool = Query(default=False),
+    db: Session = Depends(get_db),
+) -> RepositoryGraphResponse:
+    """Directory hierarchy for all indexed files; inferred cross-dir IMPORTS when known."""
+    repo = db.get(Repository, repository_id)
+    if repo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+    snapshot = latest_ready_snapshot(db, repository_id)
+    if snapshot is None:
+        return _graph_response(
+            repository_id=repository_id,
+            snapshot_id=None,
+            graph_type="directories",
+            nodes=[],
+            edges=[],
+        )
+    nodes, edges = build_directory_graph(
+        db,
+        snapshot_id=snapshot.id,
+        include_files=include_files,
+    )
+    return _graph_response(
+        repository_id=repository_id,
+        snapshot_id=snapshot.id,
+        graph_type="directories",
         nodes=nodes,
         edges=edges,
     )
@@ -649,6 +756,55 @@ def get_symbol_callees(
         direction="callees",
         total=len(calls),
         calls=calls,
+    )
+
+
+@router.get(
+    "/repositories/{repository_id}/symbols/{symbol_id}/implementations",
+    response_model=SymbolImplementationsResponse,
+)
+def get_symbol_implementations(
+    repository_id: UUID,
+    symbol_id: UUID,
+    limit: int = Query(default=100, ge=1, le=500),
+    db: Session = Depends(get_db),
+) -> SymbolImplementationsResponse:
+    """Classes that implement the given interface/type (Java IMPLEMENTS edges)."""
+    repo = db.get(Repository, repository_id)
+    if repo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+    snapshot = latest_ready_snapshot(db, repository_id)
+    if snapshot is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No ready snapshot")
+    symbol = get_symbol_in_snapshot(db, snapshot_id=snapshot.id, symbol_id=symbol_id)
+    if symbol is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Symbol not found")
+    rows = list_implementations_for_symbol(
+        db, snapshot_id=snapshot.id, symbol=symbol, limit=limit
+    )
+    implementations = [
+        SymbolImplementationRead(
+            symbol_id=impl.id,
+            qualified_name=impl.qualified_name,
+            name=impl.name,
+            kind=impl.kind,
+            path=path,
+            line=impl.start_line,
+            confidence=conf,
+            relation_kind="implements",
+            language=impl.language,
+            created_at=impl.created_at,
+        )
+        for impl, path, conf in rows
+    ]
+    return SymbolImplementationsResponse(
+        repository_id=repository_id,
+        snapshot_id=snapshot.id,
+        symbol_id=symbol.id,
+        symbol_qualified_name=symbol.qualified_name,
+        symbol_kind=symbol.kind,
+        total=len(implementations),
+        implementations=implementations,
     )
 
 
