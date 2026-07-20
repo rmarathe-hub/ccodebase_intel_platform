@@ -85,6 +85,54 @@ def test_import_repository_queues_job(client: TestClient) -> None:
     assert any(job["id"] == job_id for job in listed.json())
 
 
+def test_import_job_visible_without_dependency_teardown_commit() -> None:
+    """Regression: clients must see the job before get_db's after-response commit.
+
+    Week 8 validation hit GET /jobs/{id} → 404 immediately after import Accepted
+    because get_db commits after the response is sent. import_repository must commit.
+    """
+    if not postgres_available():
+        pytest.skip("PostgreSQL required for import API tests")
+
+    engine = create_engine(settings.database_url, pool_pre_ping=True)
+    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    Base.metadata.create_all(bind=engine)
+
+    with SessionLocal() as session:
+        _cancel_open_jobs(session)
+
+    def _override_db_no_teardown_commit() -> Generator[Session, None, None]:
+        session = SessionLocal()
+        try:
+            yield session
+            # Intentionally no commit here — persistence must come from the service.
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    application = create_app()
+    application.dependency_overrides[get_db] = _override_db_no_teardown_commit
+    try:
+        with TestClient(application) as test_client:
+            response = test_client.post(
+                "/api/v1/repositories/import", json={"url": RETAIL_URL}
+            )
+            assert response.status_code == 202, response.text
+            job_id = response.json()["job"]["id"]
+
+        with SessionLocal() as session:
+            from uuid import UUID
+
+            persisted = session.get(IndexingJob, UUID(job_id))
+            assert persisted is not None
+            assert persisted.status == JobStatus.QUEUED
+    finally:
+        application.dependency_overrides.clear()
+        engine.dispose()
+
+
 def test_import_is_idempotent_while_active(client: TestClient) -> None:
     first = client.post("/api/v1/repositories/import", json={"url": RETAIL_URL})
     assert first.status_code == 202

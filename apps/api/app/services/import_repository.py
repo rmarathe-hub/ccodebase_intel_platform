@@ -56,7 +56,12 @@ def import_repository(session: Session, url: str) -> tuple[Repository, IndexingJ
 
     job = new_indexing_job(repository_id=repo.id)
     session.add(job)
-    session.flush()
+    # Commit before the HTTP response is returned. FastAPI runs dependency teardown
+    # (including get_db's commit) after the response is sent, so flush-only left a
+    # race where GET /jobs/{id} could 404 for a just-created job.
+    session.commit()
+    session.refresh(repo)
+    session.refresh(job)
     return repo, job, True
 
 
@@ -89,5 +94,6 @@ def retry_indexing_job(session: Session, job_id: UUID) -> IndexingJob:
     job.error_message = None
     job.started_at = None
     job.completed_at = None
-    session.flush()
+    session.commit()
+    session.refresh(job)
     return job

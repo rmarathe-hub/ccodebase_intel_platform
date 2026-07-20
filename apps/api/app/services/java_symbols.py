@@ -204,18 +204,32 @@ def replace_java_symbols_for_snapshot(
     session.add_all(symbol_rows)
     session.flush()
 
-    qname_to_id = {row.qualified_name: row.id for row in symbol_rows}
-    file_lookup = {
-        (e.from_qualified_name, e.relation_kind, e.raw_target, e.line): fid
-        for e, fid in edge_file_ids
+    # Prefer per-file symbol ids when sample apps reuse the same FQCN.
+    file_qname_to_id = {
+        (row.source_file_id, row.qualified_name): row.id for row in symbol_rows
     }
+    qname_to_id = {row.qualified_name: row.id for row in symbol_rows}
 
     relation_rows: list[SymbolRelation] = []
-    for edge in resolved:
-        key = (edge.from_qualified_name, edge.relation_kind, edge.raw_target, edge.line)
-        source_file_id = file_lookup.get(key)
-        if source_file_id is None:
+    seen_relation_keys: set[tuple[UUID, str, str, str, int]] = set()
+    for raw_edge, source_file_id in edge_file_ids:
+        # Resolve one edge at a time so provenance stays bound to its file.
+        edge = resolve_relations(
+            [raw_edge], types=type_refs, imports_by_from=imports_by_key
+        )[0]
+        key = (
+            source_file_id,
+            edge.from_qualified_name,
+            edge.relation_kind,
+            edge.raw_target,
+            edge.line,
+        )
+        if key in seen_relation_keys:
             continue
+        seen_relation_keys.add(key)
+        from_id = file_qname_to_id.get(
+            (source_file_id, edge.from_qualified_name)
+        ) or qname_to_id.get(edge.from_qualified_name)
         to_id = (
             qname_to_id.get(edge.candidate_qualified_name)
             if edge.candidate_qualified_name
@@ -225,7 +239,7 @@ def replace_java_symbols_for_snapshot(
             SymbolRelation(
                 snapshot_id=snapshot_id,
                 source_file_id=source_file_id,
-                from_symbol_id=qname_to_id.get(edge.from_qualified_name),
+                from_symbol_id=from_id,
                 from_qualified_name=edge.from_qualified_name,
                 relation_kind=edge.relation_kind,
                 raw_target=edge.raw_target,

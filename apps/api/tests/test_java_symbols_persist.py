@@ -200,3 +200,80 @@ def test_java_coexists_with_python_and_js(db_session: Session, tmp_path: Path) -
     )
     assert any(r.language == "python" and r.name == "helper" for r in rows2)
     assert any(r.language == "typescript" and r.name == "add" for r in rows2)
+
+
+def test_duplicate_fqcn_across_sample_apps_keeps_per_file_extends(
+    db_session: Session, tmp_path: Path
+) -> None:
+    """Regression: identical FQCNs in different sample trees must not collapse.
+
+    awesome-compose ships the same GreetingRepository in multiple backends.
+    Lookup-by-(qname,kind,raw,line) previously assigned both EXTENDS rows to one
+    source_file_id, looking like duplicates on a single path.
+    """
+    sample = """
+package com.company.project.repository;
+import org.springframework.data.repository.CrudRepository;
+public interface GreetingRepository extends CrudRepository {}
+"""
+    for tree in ("app-a", "app-b"):
+        path = (
+            tmp_path
+            / tree
+            / "src"
+            / "main"
+            / "java"
+            / "com"
+            / "company"
+            / "project"
+            / "repository"
+        )
+        path.mkdir(parents=True)
+        (path / "GreetingRepository.java").write_text(sample, encoding="utf-8")
+
+    repo = Repository(
+        host="github.com",
+        owner_name="rmarathe-hub",
+        name=f"java-dup-{uuid4().hex[:8]}",
+        default_branch="main",
+        clone_url="https://github.com/rmarathe-hub/retail-retention-revenue-intel.git",
+    )
+    db_session.add(repo)
+    db_session.flush()
+    snapshot = create_or_update_snapshot(
+        db_session,
+        repository_id=repo.id,
+        branch="main",
+        commit_sha="dupfqcn1",
+        file_count=0,
+        status=SnapshotStatus.READY,
+    )
+    discovery = discover_repository(tmp_path)
+    replace_source_files_for_snapshot(
+        db_session, snapshot_id=snapshot.id, discovery=discovery
+    )
+    db_session.flush()
+
+    _parsed, _syms, rel_count, _calls = replace_java_symbols_for_snapshot(
+        db_session, snapshot_id=snapshot.id, repo_root=tmp_path
+    )
+    db_session.commit()
+
+    extends = list(
+        db_session.scalars(
+            select(SymbolRelation).where(
+                SymbolRelation.snapshot_id == snapshot.id,
+                SymbolRelation.relation_kind == "extends",
+            )
+        ).all()
+    )
+    assert rel_count >= 2
+    assert len(extends) == 2
+    file_ids = {r.source_file_id for r in extends}
+    assert len(file_ids) == 2
+    paths = {
+        db_session.get(SourceFile, fid).path  # type: ignore[union-attr]
+        for fid in file_ids
+    }
+    assert any("app-a" in p for p in paths)
+    assert any("app-b" in p for p in paths)

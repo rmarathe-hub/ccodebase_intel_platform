@@ -361,55 +361,59 @@ def _extract_inheritance(
     *,
     from_qname: str,
     package: str,
+    kind: str,
 ) -> list[ExtractedRelation]:
+    """Extract EXTENDS / IMPLEMENTS edges for a type declaration.
+
+    Tree-sitter-java may expose an interface ``extends`` clause under both
+    ``superclass`` and ``extends_interfaces``; reading both produced duplicate
+    EXTENDS rows for the same type (seen on awesome-compose Spring samples).
+    """
     out: list[ExtractedRelation] = []
-    superclass = _child_by_type(node, "superclass")
-    if superclass is not None:
-        type_n = superclass.named_children[0] if superclass.named_children else None
-        raw = _type_name_from_node(source, type_n)
-        if raw:
-            out.append(
-                ExtractedRelation(
-                    from_qualified_name=from_qname,
-                    relation_kind="extends",
-                    raw_target=raw,
-                    line=superclass.start_point[0] + 1,
-                    package=package,
-                )
-            )
-    interfaces = _child_by_type(node, "super_interfaces")
-    if interfaces is not None:
-        type_list = _child_by_type(interfaces, "type_list") or interfaces
-        for type_n in type_list.named_children:
-            if type_n.type not in {
-                "type_identifier",
-                "scoped_type_identifier",
-                "generic_type",
-            }:
-                continue
-            raw = _type_name_from_node(source, type_n)
-            if raw:
-                out.append(
-                    ExtractedRelation(
-                        from_qualified_name=from_qname,
-                        relation_kind="implements",
-                        raw_target=raw,
-                        line=type_n.start_point[0] + 1,
-                        package=package,
+    if kind == "interface":
+        extends_ifaces = _child_by_type(node, "extends_interfaces")
+        # Some grammar versions model interface extends as ``superclass``.
+        if extends_ifaces is None:
+            extends_ifaces = _child_by_type(node, "superclass")
+        if extends_ifaces is not None:
+            type_list = _child_by_type(extends_ifaces, "type_list")
+            if type_list is not None:
+                type_nodes = [
+                    n
+                    for n in type_list.named_children
+                    if n.type
+                    in {
+                        "type_identifier",
+                        "scoped_type_identifier",
+                        "generic_type",
+                    }
+                ]
+            else:
+                type_nodes = []
+                if extends_ifaces.named_children:
+                    child = extends_ifaces.named_children[0]
+                    if child.type in {
+                        "type_identifier",
+                        "scoped_type_identifier",
+                        "generic_type",
+                    }:
+                        type_nodes = [child]
+            for type_n in type_nodes:
+                raw = _type_name_from_node(source, type_n)
+                if raw:
+                    out.append(
+                        ExtractedRelation(
+                            from_qualified_name=from_qname,
+                            relation_kind="extends",
+                            raw_target=raw,
+                            line=type_n.start_point[0] + 1,
+                            package=package,
+                        )
                     )
-                )
-    # Interfaces can extend other interfaces via `extends` clause typed as
-    # `extends_interfaces` in some grammars — also check `extends_interfaces`.
-    extends_ifaces = _child_by_type(node, "extends_interfaces")
-    if extends_ifaces is not None:
-        type_list = _child_by_type(extends_ifaces, "type_list") or extends_ifaces
-        for type_n in type_list.named_children:
-            if type_n.type not in {
-                "type_identifier",
-                "scoped_type_identifier",
-                "generic_type",
-            }:
-                continue
+    else:
+        superclass = _child_by_type(node, "superclass")
+        if superclass is not None:
+            type_n = superclass.named_children[0] if superclass.named_children else None
             raw = _type_name_from_node(source, type_n)
             if raw:
                 out.append(
@@ -417,11 +421,42 @@ def _extract_inheritance(
                         from_qualified_name=from_qname,
                         relation_kind="extends",
                         raw_target=raw,
-                        line=type_n.start_point[0] + 1,
+                        line=superclass.start_point[0] + 1,
                         package=package,
                     )
                 )
-    return out
+        interfaces = _child_by_type(node, "super_interfaces")
+        if interfaces is not None:
+            type_list = _child_by_type(interfaces, "type_list") or interfaces
+            for type_n in type_list.named_children:
+                if type_n.type not in {
+                    "type_identifier",
+                    "scoped_type_identifier",
+                    "generic_type",
+                }:
+                    continue
+                raw = _type_name_from_node(source, type_n)
+                if raw:
+                    out.append(
+                        ExtractedRelation(
+                            from_qualified_name=from_qname,
+                            relation_kind="implements",
+                            raw_target=raw,
+                            line=type_n.start_point[0] + 1,
+                            package=package,
+                        )
+                    )
+
+    # Deduplicate identical edges (defense in depth).
+    seen: set[tuple[str, str, str, int]] = set()
+    unique: list[ExtractedRelation] = []
+    for edge in out:
+        key = (edge.from_qualified_name, edge.relation_kind, edge.raw_target, edge.line)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(edge)
+    return unique
 
 
 def _extract_type(
@@ -462,7 +497,7 @@ def _extract_type(
         )
     ]
     relations = _extract_inheritance(
-        source, node, from_qname=qname, package=package
+        source, node, from_qname=qname, package=package, kind=kind
     )
 
     body = (

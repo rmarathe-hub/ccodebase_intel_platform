@@ -134,12 +134,5 @@ def resolve_relations(
                 confidence=confidence,
             )
         )
-    out.sort(
-        key=lambda e: (
-            e.line,
-            e.relation_kind,
-            e.from_qualified_name,
-            e.raw_target,
-        )
-    )
+    # Preserve input order so callers can zip with per-file provenance.
     return tuple(out)

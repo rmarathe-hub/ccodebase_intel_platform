@@ -155,3 +155,33 @@ public interface AdminApi extends UserApi {}
     assert any(
         r.relation_kind == "extends" and r.raw_target == "UserApi" for r in result.relations
     )
+
+
+def test_interface_extends_generic_no_duplicate_edges() -> None:
+    """Regression: interface extends must not emit duplicate EXTENDS rows.
+
+    Tree-sitter may expose the clause under both superclass and extends_interfaces;
+    awesome-compose GreetingRepository previously persisted two identical edges.
+    """
+    source = """
+package com.company.project.repository;
+import com.company.project.entity.Greeting;
+import org.springframework.data.repository.CrudRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface GreetingRepository extends CrudRepository<Greeting, Integer> {
+}
+"""
+    result = parse_java_source(
+        source,
+        relative_path="com/company/project/repository/GreetingRepository.java",
+    )
+    assert result.ok
+    extends = [
+        r
+        for r in result.relations
+        if r.relation_kind == "extends" and r.raw_target == "CrudRepository"
+    ]
+    assert len(extends) == 1, f"expected one EXTENDS edge, got {len(extends)}"
+
