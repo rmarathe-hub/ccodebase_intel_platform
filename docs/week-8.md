@@ -10,7 +10,7 @@
 | 4 | Generic directory graph | Done |
 | 5 | Graph API polish (filters, depth) | Done |
 | 6 | React Flow Graph page | Done |
-| 7 | Graph accuracy matrix | Not started |
+| 7 | Graph accuracy matrix | Done |
 
 ## Architecture (locked)
 
@@ -77,6 +77,18 @@ Graph APIs + React Flow UI
 - Frontend API clients + Vitest coverage
 - Honesty notice: generic directory graphs do not invent deep call edges
 
+### Day 7 shipped
+
+- Fixture `graph_accuracy/` — circular Python imports + ambiguous same-name callees
+- Accuracy matrix tests:
+  - Circular IMPORTS both directions in module graph
+  - Ambiguous call confidence preserved (`/calls` + call graph center)
+  - Java `UserService` → `UserServiceImpl` implementations
+  - Mixed-language module graph (python + js/ts, deep-only)
+  - Large polyglot directory hierarchy + `max_nodes` caps
+  - Rollup smoke across circ / spring / mixed / polyglot
+- Tests: `test_week08_day7_accuracy.py`
+
 ## Artifacts
 
 - `apps/api/app/models/relation_kinds.py`
@@ -87,7 +99,8 @@ Graph APIs + React Flow UI
 - `apps/api/app/schemas/implementations.py`
 - `apps/web/src/pages/GraphPage.tsx`
 - `apps/web/src/lib/graphs.ts`
-- `apps/api/tests/test_week08_day1_relations.py` … `test_week08_day5_filters.py`
+- `apps/api/tests/fixtures/graph_accuracy/`
+- `apps/api/tests/test_week08_day1_relations.py` … `test_week08_day7_accuracy.py`
 
 ## Git policy
 
