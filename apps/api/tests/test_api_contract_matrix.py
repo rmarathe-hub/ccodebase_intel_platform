@@ -79,6 +79,8 @@ def test_openapi_exposes_week2_paths(client: TestClient) -> None:
         "/api/v1/jobs/{job_id}",
         "/api/v1/repositories/{repository_id}/jobs",
         "/api/v1/jobs/{job_id}/retry",
+        "/api/v1/jobs/{job_id}/cancel",
+        "/api/v1/repositories/{repository_id}/reindex",
     ):
         assert required in paths
 

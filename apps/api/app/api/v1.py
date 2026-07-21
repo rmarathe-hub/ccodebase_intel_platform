@@ -7,11 +7,6 @@ from sqlalchemy.orm import Session
 from app.db.deps import get_db
 from app.models.entities import IndexingJob, Repository, Symbol, SymbolCall, SymbolRelation
 from app.models.relation_kinds import ALL_RELATION_KINDS, RELATION_CONFIDENCES
-from app.schemas.calls import (
-    SymbolCallListResponse,
-    SymbolCallRead,
-    SymbolNeighborsResponse,
-)
 from app.schemas.ask import (
     AskAnalysisEcho,
     AskCitation,
@@ -19,6 +14,11 @@ from app.schemas.ask import (
     AskRequest,
     AskResponse,
     AskValidationEcho,
+)
+from app.schemas.calls import (
+    SymbolCallListResponse,
+    SymbolCallRead,
+    SymbolNeighborsResponse,
 )
 from app.schemas.chunks import (
     ChunkSearchHit,
@@ -48,8 +48,6 @@ from app.services.files_query import (
     list_repositories,
     list_source_files,
 )
-from app.services.rag.answer import run_ask
-from app.services.rag.citations import citation_key
 from app.services.github_url import GitHubURLValidationError
 from app.services.graph_filters import apply_graph_filters, filters_echo
 from app.services.graphs import (
@@ -60,9 +58,13 @@ from app.services.graphs import (
 )
 from app.services.import_repository import (
     RepositoryImportError,
+    cancel_indexing_job,
     import_repository,
+    reindex_repository,
     retry_indexing_job,
 )
+from app.services.rag.answer import run_ask
+from app.services.rag.citations import citation_key
 from app.services.relations_query import list_symbol_relations
 from app.services.repository_summary import build_repository_summary
 from app.services.symbols_query import list_symbols
@@ -1014,7 +1016,9 @@ def get_repository_summary(
         deterministic_summary=(
             DeterministicSummary.model_validate(det) if isinstance(det, dict) else None
         ),
-        llm_summary=built.get("llm_summary") if isinstance(built.get("llm_summary"), dict) else None,
+        llm_summary=(
+            built.get("llm_summary") if isinstance(built.get("llm_summary"), dict) else None
+        ),
         llm_summary_status=str(built.get("llm_summary_status", "skipped")),
         evidence=[EvidenceRef.model_validate(e) for e in (built.get("evidence") or [])],
         model_provenance=(
@@ -1286,10 +1290,57 @@ def list_repository_jobs(
     return [IndexingJobRead.model_validate(job) for job in jobs]
 
 
+@router.post(
+    "/repositories/{repository_id}/reindex",
+    response_model=RepositoryImportResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def reindex_repository_endpoint(
+    repository_id: UUID,
+    db: Session = Depends(get_db),
+) -> RepositoryImportResponse:
+    """Queue a full re-index for a previously imported repository."""
+    try:
+        repo, job, created = reindex_repository(db, repository_id)
+    except RepositoryImportError as exc:
+        code = (
+            status.HTTP_404_NOT_FOUND
+            if exc.code == "repository_not_found"
+            else status.HTTP_409_CONFLICT
+        )
+        raise HTTPException(
+            status_code=code,
+            detail={"code": exc.code, "message": str(exc)},
+        ) from exc
+    return RepositoryImportResponse(
+        repository=RepositoryRead.model_validate(repo),
+        job=IndexingJobRead.model_validate(job),
+        created_new_job=created,
+    )
+
+
 @router.post("/jobs/{job_id}/retry", response_model=IndexingJobRead)
 def retry_job(job_id: UUID, db: Session = Depends(get_db)) -> IndexingJobRead:
     try:
         job = retry_indexing_job(db, job_id)
+    except RepositoryImportError as exc:
+        code = (
+            status.HTTP_404_NOT_FOUND
+            if exc.code == "job_not_found"
+            else status.HTTP_409_CONFLICT
+        )
+        raise HTTPException(
+            status_code=code,
+            detail={"code": exc.code, "message": str(exc)},
+        ) from exc
+    return IndexingJobRead.model_validate(job)
+
+
+@router.post("/jobs/{job_id}/cancel", response_model=IndexingJobRead)
+def cancel_job(job_id: UUID, db: Session = Depends(get_db)) -> IndexingJobRead:
+    """Cancel a QUEUED or RUNNING indexing job."""
+    try:
+        job = cancel_indexing_job(db, job_id)
     except RepositoryImportError as exc:
         code = (
             status.HTTP_404_NOT_FOUND

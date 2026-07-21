@@ -11,7 +11,7 @@ from app.models.entities import IndexingJob, JobStatus, Repository
 from app.models.job_stages import JOB_STAGE_PROGRESS, JobStage
 from app.services.github_url import parse_github_repository_url
 from app.services.job_queue import find_active_job_for_repository
-from app.services.jobs import new_indexing_job
+from app.services.jobs import mark_job_cancelled, new_indexing_job
 
 
 class RepositoryImportError(RuntimeError):
@@ -108,6 +108,50 @@ def retry_indexing_job(session: Session, job_id: UUID) -> IndexingJob:
     job.error_message = None
     job.started_at = None
     job.completed_at = None
+    session.commit()
+    session.refresh(job)
+    return job
+
+
+def reindex_repository(
+    session: Session,
+    repository_id: UUID,
+) -> tuple[Repository, IndexingJob, bool]:
+    """Queue a full re-index for an existing repository (or return the active job)."""
+    repo = session.get(Repository, repository_id)
+    if repo is None:
+        raise RepositoryImportError("repository_not_found", f"Repository {repository_id} not found")
+
+    active = find_active_job_for_repository(session, repo.id)
+    if active is not None:
+        return repo, active, False
+
+    job = new_indexing_job(repository_id=repo.id)
+    session.add(job)
+    session.commit()
+    session.refresh(repo)
+    session.refresh(job)
+    return repo, job, True
+
+
+def cancel_indexing_job(session: Session, job_id: UUID) -> IndexingJob:
+    """Cancel a QUEUED or RUNNING job. Idempotent if already CANCELLED."""
+    job = session.get(IndexingJob, job_id)
+    if job is None:
+        raise RepositoryImportError("job_not_found", f"Job {job_id} not found")
+
+    if job.status == JobStatus.CANCELLED:
+        return job
+
+    if job.status not in {JobStatus.QUEUED, JobStatus.RUNNING}:
+        raise RepositoryImportError(
+            "job_not_cancellable",
+            f"Only QUEUED or RUNNING jobs can be cancelled (status={job.status})",
+        )
+
+    mark_job_cancelled(job)
+    job.error_code = "cancelled"
+    job.error_message = "Indexing cancelled by user"
     session.commit()
     session.refresh(job)
     return job

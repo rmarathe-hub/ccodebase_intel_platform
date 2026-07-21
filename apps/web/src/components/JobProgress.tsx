@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { isCancellableStatus, jobErrorHint, jobErrorTitle } from "../lib/jobErrors";
 import {
   JOB_STAGES,
   isJobReady,
@@ -11,6 +12,8 @@ type JobProgressProps = {
   job: IndexingJob;
   repositoryLabel?: string;
   showWorkspaceLinks?: boolean;
+  onCancel?: (jobId: string) => void;
+  cancelPending?: boolean;
 };
 
 function statusTone(status: JobStatus): string {
@@ -33,14 +36,22 @@ function statusLabel(job: IndexingJob): string {
   return job.status;
 }
 
+function workspacePath(base: string, repositoryId: string): string {
+  return `${base}?repo=${encodeURIComponent(repositoryId)}`;
+}
+
 export function JobProgress({
   job,
   repositoryLabel,
   showWorkspaceLinks = false,
+  onCancel,
+  cancelPending = false,
 }: JobProgressProps) {
   const activeIndex = stageIndex(job.stage);
   const failed = job.status === "FAILED";
+  const cancelled = job.status === "CANCELLED";
   const ready = isJobReady(job);
+  const canCancel = Boolean(onCancel) && isCancellableStatus(job.status);
 
   return (
     <div className="space-y-4">
@@ -57,6 +68,16 @@ export function JobProgress({
         <div className="text-right text-sm">
           <p className={statusTone(job.status)}>{statusLabel(job)}</p>
           <p className="text-[var(--muted)]">{job.progress_percentage}% complete</p>
+          {canCancel && (
+            <button
+              type="button"
+              className="mt-2 rounded-md border border-rose-400/40 px-2.5 py-1 text-xs text-rose-100 hover:border-rose-300 disabled:opacity-50"
+              onClick={() => onCancel?.(job.id)}
+              disabled={cancelPending}
+            >
+              {cancelPending ? "Cancelling…" : "Cancel indexing"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -109,7 +130,7 @@ export function JobProgress({
             ).map(([to, label]) => (
               <Link
                 key={to}
-                to={to}
+                to={workspacePath(to, job.repository_id)}
                 className="rounded-md border border-emerald-400/40 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] px-3 py-1.5 text-sm text-emerald-50 hover:border-emerald-300"
               >
                 {label}
@@ -119,10 +140,22 @@ export function JobProgress({
         </div>
       )}
 
-      {failed && (
-        <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-100">
-          <p className="font-medium">{job.error_code ?? "error"}</p>
-          <p className="mt-1 text-rose-100/80">{job.error_message ?? "Job failed"}</p>
+      {(failed || cancelled) && (
+        <div
+          className={[
+            "rounded-lg border px-3 py-2 text-sm",
+            failed
+              ? "border-rose-500/40 bg-rose-500/10 text-rose-100"
+              : "border-zinc-500/40 bg-zinc-500/10 text-zinc-200",
+          ].join(" ")}
+        >
+          <p className="font-medium">{jobErrorTitle(job.error_code)}</p>
+          {job.error_message ? (
+            <p className="mt-1 opacity-80">{job.error_message}</p>
+          ) : null}
+          {jobErrorHint(job.error_code) ? (
+            <p className="mt-2 text-xs opacity-70">{jobErrorHint(job.error_code)}</p>
+          ) : null}
         </div>
       )}
     </div>

@@ -12,7 +12,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
-from app.models.entities import IndexingJob, Repository, SnapshotStatus
+from app.models.entities import IndexingJob, JobStatus, Repository, SnapshotStatus
 from app.models.job_stages import JobStage
 from app.services.discovery import discover_repository
 from app.services.git_clone import GitCloneError, secure_clone
@@ -38,6 +38,20 @@ from app.services.symbols import replace_python_symbols_for_snapshot
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("codeintel.worker")
+
+
+class JobCancelled(Exception):
+    """Raised when a job was cancelled while the worker held it."""
+
+
+def _reload_active_job(session, job_id) -> IndexingJob:  # type: ignore[no-untyped-def]
+    job = session.get(IndexingJob, job_id)
+    if job is None:
+        raise RuntimeError(f"Job {job_id} disappeared")
+    session.refresh(job)
+    if job.status == JobStatus.CANCELLED:
+        raise JobCancelled()
+    return job
 
 
 def _worker_id() -> str:
@@ -76,9 +90,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                 max_bytes=settings.git_clone_max_bytes,
                 base_dir=settings.git_clone_base_dir,
             ) as cloned:
-                job = session.get(IndexingJob, job_id)
-                if job is None:
-                    raise RuntimeError(f"Job {job_id} disappeared during clone")
+                job = _reload_active_job(session, job_id)
                 # Persist resolved branch when import did not pin one.
                 repo_row = session.get(Repository, repository_id)
                 if repo_row is not None and not (repo_row.default_branch or "").strip():
@@ -100,9 +112,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     binary_sample_bytes=settings.discovery_binary_sample_bytes,
                 )
 
-                job = session.get(IndexingJob, job_id)
-                if job is None:
-                    raise RuntimeError(f"Job {job_id} disappeared during discovery")
+                job = _reload_active_job(session, job_id)
                 heartbeat_job(
                     session,
                     job_id=job_id,
@@ -129,9 +139,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                 set_job_stage(job, JobStage.PARSING)
                 session.commit()
 
-                job = session.get(IndexingJob, job_id)
-                if job is None:
-                    raise RuntimeError(f"Job {job_id} disappeared during parsing")
+                job = _reload_active_job(session, job_id)
                 heartbeat_job(
                     session,
                     job_id=job_id,
@@ -142,9 +150,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                 set_job_stage(job, JobStage.BUILDING_RELATIONSHIPS)
                 session.commit()
 
-                job = session.get(IndexingJob, job_id)
-                if job is None:
-                    raise RuntimeError(f"Job {job_id} disappeared during relationships")
+                job = _reload_active_job(session, job_id)
                 heartbeat_job(
                     session,
                     job_id=job_id,
@@ -177,9 +183,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
 
                 set_job_stage(job, JobStage.CHUNKING)
                 session.commit()
-                job = session.get(IndexingJob, job_id)
-                if job is None:
-                    raise RuntimeError(f"Job {job_id} disappeared during chunking")
+                job = _reload_active_job(session, job_id)
                 heartbeat_job(
                     session,
                     job_id=job_id,
@@ -194,9 +198,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
 
                 set_job_stage(job, JobStage.EMBEDDING)
                 session.commit()
-                job = session.get(IndexingJob, job_id)
-                if job is None:
-                    raise RuntimeError(f"Job {job_id} disappeared during embedding")
+                job = _reload_active_job(session, job_id)
                 heartbeat_job(
                     session,
                     job_id=job_id,
@@ -210,9 +212,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
 
                 set_job_stage(job, JobStage.VALIDATING)
                 session.commit()
-                job = session.get(IndexingJob, job_id)
-                if job is None:
-                    raise RuntimeError(f"Job {job_id} disappeared during validating")
+                job = _reload_active_job(session, job_id)
                 heartbeat_job(
                     session,
                     job_id=job_id,
@@ -224,6 +224,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     snapshot_id=snapshot.id,
                 )
 
+                job = _reload_active_job(session, job_id)
                 mark_job_succeeded(job)
                 session.commit()
                 logger.info(
@@ -256,10 +257,14 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     job_id,
                 )
             return True
+        except JobCancelled:
+            logger.info("Job %s cancelled; stopping without retry", job_id)
+            session.rollback()
+            return True
         except GitCloneError as exc:
             logger.exception("Clone failed for job %s", job_id)
             job = session.get(IndexingJob, job_id)
-            if job is not None:
+            if job is not None and job.status != JobStatus.CANCELLED:
                 schedule_retry(
                     session,
                     job,
@@ -272,7 +277,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
         except SnapshotValidationError as exc:
             logger.exception("Validation failed for job %s", job_id)
             job = session.get(IndexingJob, job_id)
-            if job is not None:
+            if job is not None and job.status != JobStatus.CANCELLED:
                 schedule_retry(
                     session,
                     job,
@@ -285,7 +290,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
         except Exception as exc:  # noqa: BLE001 — keep the poll loop alive
             logger.exception("Unexpected failure for job %s", job_id)
             job = session.get(IndexingJob, job_id)
-            if job is not None:
+            if job is not None and job.status != JobStatus.CANCELLED:
                 schedule_retry(
                     session,
                     job,

@@ -41,6 +41,31 @@ export function retryJob(jobId: string) {
   });
 }
 
+export function cancelJob(jobId: string) {
+  return request<import("./jobs").IndexingJob>(`/api/v1/jobs/${jobId}/cancel`, {
+    method: "POST",
+  });
+}
+
+export function reindexRepository(repositoryId: string) {
+  return request<import("./jobs").RepositoryImportResponse>(
+    `/api/v1/repositories/${repositoryId}/reindex`,
+    { method: "POST" },
+  );
+}
+
+export function fetchRepositoryJobs(repositoryId: string) {
+  return request<import("./jobs").IndexingJob[]>(
+    `/api/v1/repositories/${repositoryId}/jobs`,
+  );
+}
+
+export function fetchRepositorySummary(repositoryId: string) {
+  return request<import("./summary").RepositorySummaryResponse>(
+    `/api/v1/repositories/${repositoryId}/summary`,
+  );
+}
+
 export function fetchRepositories(limit = 50) {
   return request<import("./files").RepositoryListItem[]>(`/api/v1/repositories?limit=${limit}`);
 }

@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { PageShell } from "../components/PageShell";
 import { fetchRepositories, fetchRepositoryFiles } from "../lib/api";
 import { supportLevelLabel, type SupportLevel } from "../lib/files";
+import { useRepoQueryParam } from "../lib/useRepoQueryParam";
 
 const LEVEL_FILTERS: Array<{ id: "all" | SupportLevel; label: string }> = [
   { id: "all", label: "All" },
@@ -12,17 +13,14 @@ const LEVEL_FILTERS: Array<{ id: "all" | SupportLevel; label: string }> = [
 ];
 
 export function FilesPage() {
-  const [repositoryId, setRepositoryId] = useState<string>("");
-  const [level, setLevel] = useState<"all" | SupportLevel>("all");
-  const [includeSkipped, setIncludeSkipped] = useState(true);
-  const [pathPrefix, setPathPrefix] = useState("");
-
   const reposQuery = useQuery({
     queryKey: ["repositories"],
     queryFn: () => fetchRepositories(50),
   });
-
-  const selectedId = repositoryId || reposQuery.data?.[0]?.id || "";
+  const { selectedId, selectRepository } = useRepoQueryParam(reposQuery.data?.[0]?.id || "");
+  const [level, setLevel] = useState<"all" | SupportLevel>("all");
+  const [includeSkipped, setIncludeSkipped] = useState(true);
+  const [pathPrefix, setPathPrefix] = useState("");
 
   const filesQuery = useQuery({
     queryKey: ["repository-files", selectedId, level, includeSkipped, pathPrefix],
@@ -56,7 +54,7 @@ export function FilesPage() {
             <select
               className="rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg)_70%,black)] px-3 py-2 outline-none ring-[var(--accent)] focus:ring-2"
               value={selectedId}
-              onChange={(event) => setRepositoryId(event.target.value)}
+              onChange={(event) => selectRepository(event.target.value)}
               aria-label="Repository"
             >
               {(reposQuery.data ?? []).length === 0 && (

@@ -10,6 +10,7 @@ vi.mock("../lib/api", async () => {
   const actual = await vi.importActual<typeof import("../lib/api")>("../lib/api");
   return {
     ...actual,
+    fetchRepositories: vi.fn(async () => []),
     importRepository: vi.fn(async () => ({
       repository: {
         id: "repo-1",

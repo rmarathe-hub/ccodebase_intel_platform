@@ -12,7 +12,9 @@ import {
   fetchSymbolCallees,
   fetchSymbolCallers,
   importRepository,
+  reindexRepository,
   retryJob,
+  cancelJob,
 } from "./api";
 
 afterEach(() => {
@@ -211,6 +213,29 @@ describe("api client", () => {
       apply_rerank: true,
       expand: false,
     });
+  });
+
+  it("posts cancel and reindex", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: "j1", status: "CANCELLED" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await cancelJob("j1");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/api/v1/jobs/j1/cancel");
+    expect((fetchMock.mock.calls[0]?.[1] as RequestInit).method).toBe("POST");
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        repository: { id: "r1" },
+        job: { id: "j2" },
+        created_new_job: true,
+      }),
+    });
+    await reindexRepository("r1");
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("/api/v1/repositories/r1/reindex");
   });
 
   it("throws on non-ok responses without inventing success", async () => {

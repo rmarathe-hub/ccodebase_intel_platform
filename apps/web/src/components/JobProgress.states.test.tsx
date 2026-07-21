@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { JobProgress } from "./JobProgress";
 import type { IndexingJob } from "../lib/jobs";
 
@@ -42,8 +42,35 @@ describe("JobProgress states", () => {
         />
       </MemoryRouter>,
     );
-    expect(screen.getByText(/clone_failed/i)).toBeInTheDocument();
+    expect(screen.getByText(/clone failed/i)).toBeInTheDocument();
     expect(screen.getByText(/remote rejected/i)).toBeInTheDocument();
+  });
+
+  it("shows humanized clone size limit guidance", () => {
+    render(
+      <MemoryRouter>
+        <JobProgress
+          job={job({
+            status: "FAILED",
+            error_code: "repo_too_large",
+            error_message: "Repository size 999 exceeds limit",
+          })}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText(/exceeds clone size limit/i)).toBeInTheDocument();
+    expect(screen.getByText(/GIT_CLONE_MAX_BYTES/i)).toBeInTheDocument();
+  });
+
+  it("exposes cancel control for running jobs", () => {
+    const onCancel = vi.fn();
+    render(
+      <MemoryRouter>
+        <JobProgress job={job({ status: "RUNNING" })} onCancel={onCancel} />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /cancel indexing/i }));
+    expect(onCancel).toHaveBeenCalledWith(job().id);
   });
 
   it("renders ready progress", () => {

@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { ImportRepositoryPanel } from "../components/ImportRepositoryPanel";
 import { JobProgress } from "../components/JobProgress";
 import { PageShell } from "../components/PageShell";
-import { fetchJob, fetchJobs, retryJob } from "../lib/api";
+import { cancelJob, fetchJob, fetchJobs, retryJob } from "../lib/api";
 import { isTerminalStatus, type IndexingJob } from "../lib/jobs";
 
 export function JobsPage() {
@@ -39,6 +39,15 @@ export function JobsPage() {
     },
   });
 
+  const cancelMutation = useMutation({
+    mutationFn: (jobId: string) => cancelJob(jobId),
+    onSuccess: (job) => {
+      setSelectedJobId(job.id);
+      void queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      void queryClient.invalidateQueries({ queryKey: ["job", job.id] });
+    },
+  });
+
   const selectedJob: IndexingJob | undefined = useMemo(() => {
     if (selectedJobQuery.data) return selectedJobQuery.data;
     return jobsQuery.data?.find((job) => job.id === selectedJobId);
@@ -48,7 +57,7 @@ export function JobsPage() {
     <div className="space-y-4">
       <PageShell
         title="Jobs"
-        description="Import from here or the Dashboard, then track every indexing stage through Ready. Retry failed or cancelled jobs from history."
+        description="Import from here or the Dashboard, then track every indexing stage through Ready. Cancel in-flight jobs or retry failed ones from history."
       />
 
       <ImportRepositoryPanel
@@ -85,7 +94,9 @@ export function JobsPage() {
                   type="button"
                   className={[
                     "flex w-full items-center justify-between gap-3 py-3 text-left hover:bg-[color-mix(in_srgb,var(--bg)_35%,transparent)]",
-                    selectedJobId === job.id ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]" : "",
+                    selectedJobId === job.id
+                      ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]"
+                      : "",
                   ].join(" ")}
                   onClick={() => setSelectedJobId(job.id)}
                 >
@@ -106,7 +117,12 @@ export function JobsPage() {
 
         {selectedJob && (
           <div className="mt-6 border-t border-[var(--border)] pt-6">
-            <JobProgress job={selectedJob} showWorkspaceLinks />
+            <JobProgress
+              job={selectedJob}
+              showWorkspaceLinks
+              onCancel={(jobId) => cancelMutation.mutate(jobId)}
+              cancelPending={cancelMutation.isPending}
+            />
             {(selectedJob.status === "FAILED" || selectedJob.status === "CANCELLED") && (
               <button
                 type="button"

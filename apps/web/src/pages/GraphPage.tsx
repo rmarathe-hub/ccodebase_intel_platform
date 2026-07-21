@@ -26,6 +26,7 @@ import {
   type GraphType,
   type RepositoryGraphResponse,
 } from "../lib/graphs";
+import { useRepoQueryParam } from "../lib/useRepoQueryParam";
 
 const GRAPH_TYPES: Array<{ id: GraphType; label: string }> = [
   { id: "modules", label: "Modules" },
@@ -92,7 +93,11 @@ function toFlowElements(graph: RepositoryGraphResponse): { nodes: Node[]; edges:
 }
 
 export function GraphPage() {
-  const [repositoryId, setRepositoryId] = useState("");
+  const reposQuery = useQuery({
+    queryKey: ["repositories"],
+    queryFn: () => fetchRepositories(50),
+  });
+  const { selectedId, selectRepository } = useRepoQueryParam(reposQuery.data?.[0]?.id || "");
   const [graphType, setGraphType] = useState<GraphType>("modules");
   const [language, setLanguage] = useState("all");
   const [supportLevel, setSupportLevel] = useState("all");
@@ -104,12 +109,6 @@ export function GraphPage() {
   const [includeFiles, setIncludeFiles] = useState(false);
   const [depth, setDepth] = useState(1);
   const [centerSymbolId, setCenterSymbolId] = useState("");
-
-  const reposQuery = useQuery({
-    queryKey: ["repositories"],
-    queryFn: () => fetchRepositories(50),
-  });
-  const selectedId = repositoryId || reposQuery.data?.[0]?.id || "";
 
   const symbolsQuery = useQuery({
     queryKey: ["graph-symbols", selectedId],
@@ -220,7 +219,7 @@ export function GraphPage() {
               <select
                 className={selectClass}
                 value={selectedId}
-                onChange={(event) => setRepositoryId(event.target.value)}
+                onChange={(event) => selectRepository(event.target.value)}
                 aria-label="Repository"
               >
                 {(reposQuery.data ?? []).length === 0 && (

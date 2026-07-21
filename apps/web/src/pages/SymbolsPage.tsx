@@ -15,6 +15,7 @@ import {
   type SymbolItem,
   type SymbolKind,
 } from "../lib/symbols";
+import { useRepoQueryParam } from "../lib/useRepoQueryParam";
 
 type ViewPreset = "all" | "functions" | "classes" | "routes" | "models";
 
@@ -86,7 +87,11 @@ function presetParams(preset: ViewPreset): {
 }
 
 export function SymbolsPage() {
-  const [repositoryId, setRepositoryId] = useState<string>("");
+  const reposQuery = useQuery({
+    queryKey: ["repositories"],
+    queryFn: () => fetchRepositories(50),
+  });
+  const { selectedId, selectRepository } = useRepoQueryParam(reposQuery.data?.[0]?.id || "");
   const [preset, setPreset] = useState<ViewPreset>("all");
   const [kind, setKind] = useState<"all" | SymbolKind>("all");
   const [role, setRole] = useState<"all" | FrameworkRole>("all");
@@ -95,12 +100,6 @@ export function SymbolsPage() {
   const [pathPrefix, setPathPrefix] = useState("");
   const [selected, setSelected] = useState<SymbolItem | null>(null);
 
-  const reposQuery = useQuery({
-    queryKey: ["repositories"],
-    queryFn: () => fetchRepositories(50),
-  });
-
-  const selectedId = repositoryId || reposQuery.data?.[0]?.id || "";
   const fromPreset = presetParams(preset);
   const effectiveKind = fromPreset.kind ?? (kind === "all" ? undefined : kind);
   const effectiveRole =
@@ -166,7 +165,7 @@ export function SymbolsPage() {
               className="rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg)_70%,black)] px-3 py-2 outline-none ring-[var(--accent)] focus:ring-2"
               value={selectedId}
               onChange={(event) => {
-                setRepositoryId(event.target.value);
+                selectRepository(event.target.value);
                 setSelected(null);
               }}
               aria-label="Repository"

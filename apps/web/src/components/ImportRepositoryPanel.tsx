@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { JobProgress } from "./JobProgress";
-import { fetchJob, importRepository } from "../lib/api";
+import { cancelJob, fetchJob, importRepository } from "../lib/api";
 import { isTerminalStatus, type IndexingJob, type RepositorySummary } from "../lib/jobs";
 
 const DEMO_URL = "https://github.com/rmarathe-hub/retail-retention-revenue-intel";
@@ -51,6 +51,14 @@ export function ImportRepositoryPanel({
       void queryClient.invalidateQueries({ queryKey: ["jobs"] });
       void queryClient.invalidateQueries({ queryKey: ["repositories"] });
       onImported?.(result);
+    },
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (jobId: string) => cancelJob(jobId),
+    onSuccess: (job) => {
+      void queryClient.invalidateQueries({ queryKey: ["job", job.id] });
+      void queryClient.invalidateQueries({ queryKey: ["jobs"] });
     },
   });
 
@@ -140,6 +148,8 @@ export function ImportRepositoryPanel({
               job={job}
               repositoryLabel={repoLabel}
               showWorkspaceLinks={showWorkspaceLinksOnReady}
+              onCancel={(jobId) => cancelMutation.mutate(jobId)}
+              cancelPending={cancelMutation.isPending}
             />
           ) : null}
         </section>

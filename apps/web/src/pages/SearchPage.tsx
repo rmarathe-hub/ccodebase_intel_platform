@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PageShell } from "../components/PageShell";
 import { fetchRepositories, fetchRepositoryChunksSearch } from "../lib/api";
 import {
@@ -24,7 +25,9 @@ const LEVEL_FILTERS: Array<{ id: "all" | SupportLevel; label: string }> = [
 ];
 
 export function SearchPage() {
-  const [repositoryId, setRepositoryId] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const repoFromUrl = searchParams.get("repo") ?? "";
+  const [repositoryId, setRepositoryId] = useState(repoFromUrl);
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
   const [searchMode, setSearchMode] = useState<SearchMode>("exact");
@@ -37,7 +40,15 @@ export function SearchPage() {
     queryFn: () => fetchRepositories(50),
   });
 
-  const selectedId = repositoryId || reposQuery.data?.[0]?.id || "";
+  const selectedId = repositoryId || repoFromUrl || reposQuery.data?.[0]?.id || "";
+
+  function selectRepository(nextId: string) {
+    setRepositoryId(nextId);
+    const next = new URLSearchParams(searchParams);
+    if (nextId) next.set("repo", nextId);
+    else next.delete("repo");
+    setSearchParams(next, { replace: true });
+  }
 
   const searchQuery = useQuery({
     queryKey: [
@@ -88,7 +99,7 @@ export function SearchPage() {
               <select
                 className="rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg)_70%,black)] px-3 py-2 outline-none ring-[var(--accent)] focus:ring-2"
                 value={selectedId}
-                onChange={(event) => setRepositoryId(event.target.value)}
+                onChange={(event) => selectRepository(event.target.value)}
                 aria-label="Repository"
               >
                 {(reposQuery.data ?? []).length === 0 && (
