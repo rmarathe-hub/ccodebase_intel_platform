@@ -9,7 +9,7 @@
 | 4 | Failure UX (clone limits, partial support, cancel) | Done |
 | 5 | Incremental indexing best-effort (full re-index fallback OK) | Done |
 | 6 | Search + Ask polish (filters, empty states, per-repo Ask budget) | Done |
-| 7 | End-to-end dry run (import → search → ask → graph) | Planned |
+| 7 | End-to-end dry run (import → search → ask → graph) | Done |
 
 ## Theme
 
@@ -73,3 +73,12 @@ You can paste a public GitHub URL, watch stages, then search / graph / ask with 
 - `GET /repositories/{id}/ask/budget` + `budget` echo on Ask responses
 - Config: `ASK_MAX_REQUESTS_PER_REPOSITORY` (and tokens/cost companions)
 - Tests: `test_incremental_index_week11.py`, `test_ask_repo_budget_week11.py`
+
+## Day 7 shipped
+
+- CI-safe product E2E dry run: import → Ready → Search → Ask → Graph → summary →
+  re-index unchanged → cancel
+- Fixture: `mixed_frontend_backend` with mocked clone (no public network in CI)
+- Report: [testing/week11-e2e-dry-run/REPORT.md](./testing/week11-e2e-dry-run/REPORT.md)
+- Optional live helper: `docs/testing/week11-e2e-dry-run/run_dry_run.py`
+- Test: `tests/test_week11_day7_e2e.py`

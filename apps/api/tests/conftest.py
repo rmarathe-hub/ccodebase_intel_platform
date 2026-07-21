@@ -40,6 +40,7 @@ _POSTGRES_NODE_HINTS = (
     "test_week09_day7_matrix",
     "test_snapshot_validation_week09",
     "test_rag_week10_day1_2",
+    "test_week11_day7_e2e",
     "test_java_symbols_persist",
   "test_mixed_frontend_backend",
 )

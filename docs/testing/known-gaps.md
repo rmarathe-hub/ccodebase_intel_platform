@@ -41,6 +41,7 @@ Honest deferrals after Weeks 0–7. Update as Week 8+ lands.
 - Week 10 Days 1–7: RRF/rerank/rewrite/expand, grounded Ask API + UI, eval matrix — see [week10-ask-eval/REPORT.md](./week10-ask-eval/REPORT.md)
 - Week 11 Days 1–4: import UX → Ready, repo history/switch/re-index, cancel + failure UX
 - Week 11 Days 5–6: incremental index plan + Search/Ask polish + per-repo Ask budget
+- Week 11 Day 7: product E2E dry run — see [week11-e2e-dry-run/REPORT.md](./week11-e2e-dry-run/REPORT.md)
 
 ## Architecture decisions locked for Week 7+
 
