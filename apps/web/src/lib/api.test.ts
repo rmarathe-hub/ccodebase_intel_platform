@@ -42,6 +42,23 @@ describe("api client", () => {
     });
   });
 
+  it("posts import payloads with optional branch", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ repository: { id: "r1" }, job: { id: "j1" }, created_new_job: true }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await importRepository(
+      "https://github.com/rmarathe-hub/retail-retention-revenue-intel",
+      "develop",
+    );
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+      url: "https://github.com/rmarathe-hub/retail-retention-revenue-intel",
+      branch: "develop",
+    });
+  });
+
   it("builds files query strings", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

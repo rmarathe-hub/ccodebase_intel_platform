@@ -30,7 +30,7 @@ describe("jobs helpers", () => {
       "Chunking",
       "Embedding",
       "Validating",
-      "Completed",
+      "Ready",
     ]);
   });
 });

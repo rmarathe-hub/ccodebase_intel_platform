@@ -1,7 +1,16 @@
-import { JOB_STAGES, stageIndex, type IndexingJob, type JobStatus } from "../lib/jobs";
+import { Link } from "react-router-dom";
+import {
+  JOB_STAGES,
+  isJobReady,
+  stageIndex,
+  type IndexingJob,
+  type JobStatus,
+} from "../lib/jobs";
 
 type JobProgressProps = {
   job: IndexingJob;
+  repositoryLabel?: string;
+  showWorkspaceLinks?: boolean;
 };
 
 function statusTone(status: JobStatus): string {
@@ -19,19 +28,34 @@ function statusTone(status: JobStatus): string {
   }
 }
 
-export function JobProgress({ job }: JobProgressProps) {
+function statusLabel(job: IndexingJob): string {
+  if (isJobReady(job)) return "Ready";
+  return job.status;
+}
+
+export function JobProgress({
+  job,
+  repositoryLabel,
+  showWorkspaceLinks = false,
+}: JobProgressProps) {
   const activeIndex = stageIndex(job.stage);
   const failed = job.status === "FAILED";
+  const ready = isJobReady(job);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs tracking-[0.18em] text-[var(--muted)] uppercase">Indexing job</p>
-          <p className="mt-1 font-mono text-sm text-[var(--text)]">{job.id}</p>
+          <p className="text-xs tracking-[0.18em] text-[var(--muted)] uppercase">
+            Indexing pipeline
+          </p>
+          {repositoryLabel ? (
+            <p className="mt-1 text-base font-medium">{repositoryLabel}</p>
+          ) : null}
+          <p className="mt-1 font-mono text-xs text-[var(--muted)]">{job.id}</p>
         </div>
         <div className="text-right text-sm">
-          <p className={statusTone(job.status)}>{job.status}</p>
+          <p className={statusTone(job.status)}>{statusLabel(job)}</p>
           <p className="text-[var(--muted)]">{job.progress_percentage}% complete</p>
         </div>
       </div>
@@ -45,8 +69,8 @@ export function JobProgress({ job }: JobProgressProps) {
 
       <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {JOB_STAGES.map((stage, index) => {
-          const reached = index <= activeIndex;
-          const current = index === activeIndex && job.status !== "SUCCEEDED";
+          const reached = index <= activeIndex || ready;
+          const current = index === activeIndex && !ready && job.status !== "SUCCEEDED";
           return (
             <li
               key={stage.id}
@@ -67,6 +91,33 @@ export function JobProgress({ job }: JobProgressProps) {
           );
         })}
       </ol>
+
+      {ready && showWorkspaceLinks && (
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
+          <p className="text-sm font-medium text-emerald-100">
+            Repository is Ready — open a workspace surface
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(
+              [
+                ["/search", "Search"],
+                ["/ask", "Ask"],
+                ["/graph", "Graph"],
+                ["/symbols", "Symbols"],
+                ["/files", "Files"],
+              ] as const
+            ).map(([to, label]) => (
+              <Link
+                key={to}
+                to={to}
+                className="rounded-md border border-emerald-400/40 bg-[color-mix(in_srgb,var(--bg)_50%,transparent)] px-3 py-1.5 text-sm text-emerald-50 hover:border-emerald-300"
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {failed && (
         <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-100">

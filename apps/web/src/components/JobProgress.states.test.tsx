@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import { JobProgress } from "./JobProgress";
 import type { IndexingJob } from "../lib/jobs";
@@ -29,43 +30,50 @@ function job(overrides: Partial<IndexingJob> = {}): IndexingJob {
 describe("JobProgress states", () => {
   it("shows failure details when the job failed", () => {
     render(
-      <JobProgress
-        job={job({
-          status: "FAILED",
-          stage: "cloning",
-          progress_percentage: 10,
-          error_code: "clone_failed",
-          error_message: "remote rejected",
-        })}
-      />,
+      <MemoryRouter>
+        <JobProgress
+          job={job({
+            status: "FAILED",
+            stage: "cloning",
+            progress_percentage: 10,
+            error_code: "clone_failed",
+            error_message: "remote rejected",
+          })}
+        />
+      </MemoryRouter>,
     );
     expect(screen.getByText(/clone_failed/i)).toBeInTheDocument();
     expect(screen.getByText(/remote rejected/i)).toBeInTheDocument();
   });
 
-  it("renders completed progress", () => {
+  it("renders ready progress", () => {
     render(
-      <JobProgress
-        job={job({
-          status: "SUCCEEDED",
-          stage: "completed",
-          progress_percentage: 100,
-        })}
-      />,
+      <MemoryRouter>
+        <JobProgress
+          job={job({
+            status: "SUCCEEDED",
+            stage: "completed",
+            progress_percentage: 100,
+          })}
+        />
+      </MemoryRouter>,
     );
     expect(screen.getByText("100% complete")).toBeInTheDocument();
+    expect(screen.getAllByText("Ready").length).toBeGreaterThanOrEqual(1);
   });
 
   it("handles long unicode repository error messages", () => {
     const message = "失敗: " + "パス/".repeat(40);
     render(
-      <JobProgress
-        job={job({
-          status: "FAILED",
-          error_code: "clone_failed",
-          error_message: message,
-        })}
-      />,
+      <MemoryRouter>
+        <JobProgress
+          job={job({
+            status: "FAILED",
+            error_code: "clone_failed",
+            error_message: message,
+          })}
+        />
+      </MemoryRouter>,
     );
     expect(screen.getByText(new RegExp("失敗"))).toBeInTheDocument();
   });

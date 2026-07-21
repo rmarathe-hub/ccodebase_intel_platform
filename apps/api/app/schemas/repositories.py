@@ -7,12 +7,25 @@ from app.services.github_url import ParsedGitHubRepository, parse_github_reposit
 
 class RepositoryImportRequest(BaseModel):
     url: str = Field(min_length=1, description="Public GitHub HTTPS repository URL")
+    branch: str | None = Field(
+        default=None,
+        max_length=200,
+        description="Optional branch to clone (default: remote HEAD)",
+    )
 
     @field_validator("url")
     @classmethod
     def validate_github_url(cls, value: str) -> str:
         parsed = parse_github_repository_url(value)
         return parsed.canonical_https_url
+
+    @field_validator("branch")
+    @classmethod
+    def normalize_branch(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        return cleaned or None
 
 
 class ParsedRepositoryURL(BaseModel):

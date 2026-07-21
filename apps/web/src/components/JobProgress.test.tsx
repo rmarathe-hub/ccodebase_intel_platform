@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import { JobProgress } from "./JobProgress";
 import type { IndexingJob } from "../lib/jobs";
@@ -25,7 +26,11 @@ const baseJob: IndexingJob = {
 
 describe("JobProgress", () => {
   it("renders all pipeline stages", () => {
-    render(<JobProgress job={baseJob} />);
+    render(
+      <MemoryRouter>
+        <JobProgress job={baseJob} />
+      </MemoryRouter>,
+    );
     expect(screen.getByText("Queued")).toBeInTheDocument();
     expect(screen.getByText("Cloning")).toBeInTheDocument();
     expect(screen.getByText("Discovering files")).toBeInTheDocument();
@@ -34,7 +39,25 @@ describe("JobProgress", () => {
     expect(screen.getByText("Chunking")).toBeInTheDocument();
     expect(screen.getByText("Embedding")).toBeInTheDocument();
     expect(screen.getByText("Validating")).toBeInTheDocument();
-    expect(screen.getByText("Completed")).toBeInTheDocument();
+    expect(screen.getByText("Ready")).toBeInTheDocument();
     expect(screen.getByText("10% complete")).toBeInTheDocument();
+  });
+
+  it("shows workspace links when Ready", () => {
+    render(
+      <MemoryRouter>
+        <JobProgress
+          job={{
+            ...baseJob,
+            status: "SUCCEEDED",
+            stage: "completed",
+            progress_percentage: 100,
+          }}
+          showWorkspaceLinks
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("link", { name: "Search" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ask" })).toBeInTheDocument();
   });
 });

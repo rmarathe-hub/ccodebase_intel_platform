@@ -4,7 +4,7 @@
 
 | Day | Scope | Status |
 | --- | --- | --- |
-| 1–2 | Repository import UX (paste URL → live stages → Ready) | Planned |
+| 1–2 | Repository import UX (paste URL → live stages → Ready) | Done |
 | 3 | Repo history / switch previously indexed repos; re-index | Planned |
 | 4 | Failure UX (clone limits, partial support, cancel) | Planned |
 | 5 | Incremental indexing best-effort (full re-index fallback OK) | Planned |
@@ -40,3 +40,12 @@ Open workspace: Files / Symbols / Graph / Search / Ask
 ## Exit criteria
 
 You can paste a public GitHub URL, watch stages, then search / graph / ask with citations.
+
+## Days 1–2 shipped
+
+- Dashboard is the primary import path: URL + optional branch → **Start indexing**
+- Live stage tracker (Cloning → … → Validating → **Ready**) with workspace links on success
+- Shared `ImportRepositoryPanel` on Dashboard + Jobs
+- Optional `branch` on `POST /repositories/import`; empty = remote default HEAD
+- Worker shallow-clones with `--branch` only when a branch was requested
+- Tests: `DashboardPage.test.tsx`, updated `JobProgress` / `jobs` / `api` client tests

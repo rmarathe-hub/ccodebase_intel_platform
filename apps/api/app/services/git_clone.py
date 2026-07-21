@@ -96,6 +96,7 @@ def _resolve_head(repo_path: Path, *, timeout_seconds: int) -> tuple[str, str]:
 def secure_clone(
     clone_url: str,
     *,
+    branch: str | None = None,
     timeout_seconds: int = 120,
     max_bytes: int = 50 * 1024 * 1024,
     base_dir: str | Path | None = None,
@@ -104,6 +105,7 @@ def secure_clone(
 
     Safeguards:
     - depth-1 shallow clone
+    - optional branch (otherwise remote default / single-branch HEAD)
     - no submodule recursion
     - clone timeout
     - repository size limit after clone
@@ -119,19 +121,21 @@ def secure_clone(
 
     try:
         # --depth 1: shallow
-        # --single-branch: default branch only
+        # --single-branch: one branch only
         # --no-recurse-submodules: never fetch submodule contents
+        args = [
+            "clone",
+            "--depth",
+            "1",
+            "--single-branch",
+            "--no-recurse-submodules",
+        ]
+        requested = (branch or "").strip()
+        if requested:
+            args.extend(["--branch", requested])
+        args.extend(["--", clone_url, str(repo_path)])
         proc = _run_git(
-            [
-                "clone",
-                "--depth",
-                "1",
-                "--single-branch",
-                "--no-recurse-submodules",
-                "--",
-                clone_url,
-                str(repo_path),
-            ],
+            args,
             timeout_seconds=timeout_seconds,
         )
         if proc.returncode != 0:
@@ -145,7 +149,11 @@ def secure_clone(
                 f"Repository size {size} bytes exceeds limit of {max_bytes} bytes",
             )
 
-        branch, commit_sha = _resolve_head(repo_path, timeout_seconds=min(30, timeout_seconds))
+        resolved_branch, commit_sha = _resolve_head(
+            repo_path, timeout_seconds=min(30, timeout_seconds)
+        )
+        if requested:
+            resolved_branch = requested
         logger.info(
             "Cloned %s at %s (%s bytes) into %s",
             clone_url,
@@ -155,7 +163,7 @@ def secure_clone(
         )
         yield CloneResult(
             path=repo_path,
-            branch=branch,
+            branch=resolved_branch,
             commit_sha=commit_sha,
             bytes_on_disk=size,
         )

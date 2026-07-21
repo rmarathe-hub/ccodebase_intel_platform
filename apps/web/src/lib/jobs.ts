@@ -55,7 +55,7 @@ export const JOB_STAGES: Array<{ id: JobStage; label: string }> = [
   { id: "chunking", label: "Chunking" },
   { id: "embedding", label: "Embedding" },
   { id: "validating", label: "Validating" },
-  { id: "completed", label: "Completed" },
+  { id: "completed", label: "Ready" },
 ];
 
 export function stageIndex(stage: string): number {
@@ -65,4 +65,8 @@ export function stageIndex(stage: string): number {
 
 export function isTerminalStatus(status: JobStatus): boolean {
   return status === "SUCCEEDED" || status === "FAILED" || status === "CANCELLED";
+}
+
+export function isJobReady(job: IndexingJob): boolean {
+  return job.status === "SUCCEEDED" && (job.stage === "completed" || job.progress_percentage >= 100);
 }

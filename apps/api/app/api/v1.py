@@ -129,7 +129,7 @@ def import_github_repository(
     db: Session = Depends(get_db),
 ) -> RepositoryImportResponse:
     try:
-        repo, job, created = import_repository(db, body.url)
+        repo, job, created = import_repository(db, body.url, branch=body.branch)
     except GitHubURLValidationError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

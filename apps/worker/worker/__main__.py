@@ -12,7 +12,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
-from app.models.entities import IndexingJob, SnapshotStatus
+from app.models.entities import IndexingJob, Repository, SnapshotStatus
 from app.models.job_stages import JobStage
 from app.services.discovery import discover_repository
 from app.services.git_clone import GitCloneError, secure_clone
@@ -62,6 +62,8 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
         clone_url = repo.clone_url
         repository_id = repo.id
         repo_label = f"{repo.owner_name}/{repo.name}"
+        # Empty default_branch → remote HEAD. Non-empty → explicit import branch.
+        clone_branch = (repo.default_branch or "").strip() or None
         set_job_stage(job, JobStage.CLONING)
         session.commit()
         logger.info("Claimed job %s for %s", job_id, repo_label)
@@ -69,6 +71,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
         try:
             with secure_clone(
                 clone_url,
+                branch=clone_branch,
                 timeout_seconds=settings.git_clone_timeout_seconds,
                 max_bytes=settings.git_clone_max_bytes,
                 base_dir=settings.git_clone_base_dir,
@@ -76,6 +79,10 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                 job = session.get(IndexingJob, job_id)
                 if job is None:
                     raise RuntimeError(f"Job {job_id} disappeared during clone")
+                # Persist resolved branch when import did not pin one.
+                repo_row = session.get(Repository, repository_id)
+                if repo_row is not None and not (repo_row.default_branch or "").strip():
+                    repo_row.default_branch = cloned.branch
                 heartbeat_job(
                     session,
                     job_id=job_id,

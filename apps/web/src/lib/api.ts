@@ -17,10 +17,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export { apiBase };
 
-export function importRepository(url: string) {
+export function importRepository(url: string, branch?: string) {
   return request<import("./jobs").RepositoryImportResponse>("/api/v1/repositories/import", {
     method: "POST",
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({
+      url,
+      ...(branch?.trim() ? { branch: branch.trim() } : {}),
+    }),
   });
 }
 

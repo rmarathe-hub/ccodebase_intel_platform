@@ -20,7 +20,12 @@ class RepositoryImportError(RuntimeError):
         super().__init__(message)
 
 
-def get_or_create_repository(session: Session, url: str) -> tuple[Repository, bool]:
+def get_or_create_repository(
+    session: Session,
+    url: str,
+    *,
+    branch: str | None = None,
+) -> tuple[Repository, bool]:
     parsed = parse_github_repository_url(url)
     existing = session.scalars(
         select(Repository).where(
@@ -30,13 +35,16 @@ def get_or_create_repository(session: Session, url: str) -> tuple[Repository, bo
         )
     ).first()
     if existing is not None:
+        if branch:
+            existing.default_branch = branch
         return existing, False
 
     repo = Repository(
         host=parsed.host,
         owner_name=parsed.owner,
         name=parsed.name,
-        default_branch="main",
+        # Empty means "use remote default HEAD" until clone resolves the real name.
+        default_branch=branch or "",
         clone_url=parsed.clone_url,
     )
     session.add(repo)
@@ -44,12 +52,18 @@ def get_or_create_repository(session: Session, url: str) -> tuple[Repository, bo
     return repo, True
 
 
-def import_repository(session: Session, url: str) -> tuple[Repository, IndexingJob, bool]:
+def import_repository(
+    session: Session,
+    url: str,
+    *,
+    branch: str | None = None,
+) -> tuple[Repository, IndexingJob, bool]:
     """Create repository + queued job, or return existing in-flight job.
 
     Returns (repository, job, created_new_job).
+    When ``branch`` is set it is stored on the repository and used for shallow clone.
     """
-    repo, _repo_created = get_or_create_repository(session, url)
+    repo, _repo_created = get_or_create_repository(session, url, branch=branch)
     active = find_active_job_for_repository(session, repo.id)
     if active is not None:
         return repo, active, False
