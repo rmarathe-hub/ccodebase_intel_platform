@@ -84,6 +84,15 @@ class Settings(BaseSettings):
     ask_expand_relation_limit: int = 4
     ask_expand_low_confidence_score: float = 0.02
 
+    # Week 10 Day 5: grounded Ask endpoint (opt-in; mock by default for CI).
+    ask_enabled: bool = True
+    ask_use_mock: bool = True
+    ask_prompt_version: str = "10.5"
+    ask_cache_enabled: bool = True
+    ask_max_requests_per_call: int = 2
+    ask_max_tokens_per_call: int = 16_000
+    ask_max_estimated_cost_usd: float = 0.10
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]

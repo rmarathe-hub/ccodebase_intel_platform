@@ -12,6 +12,14 @@ from app.schemas.calls import (
     SymbolCallRead,
     SymbolNeighborsResponse,
 )
+from app.schemas.ask import (
+    AskAnalysisEcho,
+    AskCitation,
+    AskEvidenceItem,
+    AskRequest,
+    AskResponse,
+    AskValidationEcho,
+)
 from app.schemas.chunks import (
     ChunkSearchHit,
     ChunkSearchResponse,
@@ -40,6 +48,8 @@ from app.services.files_query import (
     list_repositories,
     list_source_files,
 )
+from app.services.rag.answer import run_ask
+from app.services.rag.citations import citation_key
 from app.services.github_url import GitHubURLValidationError
 from app.services.graph_filters import apply_graph_filters, filters_echo
 from app.services.graphs import (
@@ -1126,6 +1136,117 @@ def search_repository_chunks(
         offset=offset,
         search_mode=mode,
         hits=hits,
+    )
+
+
+@router.post(
+    "/repositories/{repository_id}/ask",
+    response_model=AskResponse,
+)
+def ask_repository(
+    repository_id: UUID,
+    body: AskRequest,
+    db: Session = Depends(get_db),
+) -> AskResponse:
+    """Grounded Ask: retrieve → optional LLM answer → citation post-validation."""
+    repo = db.get(Repository, repository_id)
+    if repo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+
+    if body.support_level is not None and body.support_level.lower() not in {
+        "deep",
+        "generic",
+        "skip",
+    }:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "invalid_support_level",
+                "message": "support_level must be deep, generic, or skip",
+            },
+        )
+
+    snapshot = latest_ready_snapshot(db, repository_id)
+    if snapshot is None:
+        return AskResponse(
+            repository_id=repository_id,
+            snapshot_id=None,
+            question=body.question.strip(),
+            answer="No ready snapshot is available for this repository yet.",
+            status="no_evidence",
+            citations=[],
+            evidence=[],
+            analysis=None,
+            validation=AskValidationEcho(ok=True, valid_count=0, dropped_count=0, errors=[]),
+            notes=["no_ready_snapshot"],
+        )
+
+    result = run_ask(
+        db,
+        snapshot_id=snapshot.id,
+        question=body.question,
+        language=body.language,
+        path_prefix=body.path_prefix,
+        support_level=body.support_level,
+        apply_rerank=body.apply_rerank,
+        expand=body.expand,
+    )
+
+    citations = [
+        AskCitation(
+            path=c.path,
+            start_line=c.start_line,
+            end_line=c.end_line,
+            chunk_id=c.chunk_id,
+            valid=c.valid,
+            reason=c.reason,
+            raw=c.raw,
+        )
+        for c in result.validation.valid_citations
+    ]
+    evidence = [
+        AskEvidenceItem(
+            chunk_id=u.chunk.id,
+            path=u.chunk.path,
+            start_line=u.chunk.start_line,
+            end_line=u.chunk.end_line,
+            support_level=u.chunk.support_level,
+            role=u.role,
+            depth=u.depth,
+            citation=citation_key(u.chunk.path, u.chunk.start_line, u.chunk.end_line),
+        )
+        for u in result.context.units
+    ]
+    analysis = AskAnalysisEcho(
+        kind=str(result.analysis.kind),
+        rewrite_applied=result.analysis.rewrite_applied,
+        retrieval_queries=list(result.analysis.retrieval_queries),
+        identifiers=list(result.analysis.identifiers),
+        paths=list(result.analysis.paths),
+    )
+    validation = AskValidationEcho(
+        ok=result.validation.ok,
+        valid_count=len(result.validation.valid_citations),
+        dropped_count=len(result.validation.dropped),
+        errors=list(result.validation.errors),
+    )
+    return AskResponse(
+        repository_id=repository_id,
+        snapshot_id=snapshot.id,
+        question=result.question,
+        answer=result.answer,
+        status=result.status,
+        citations=citations,
+        evidence=evidence,
+        analysis=analysis,
+        validation=validation,
+        context_depth=result.context.depth_used,
+        context_tokens_used=result.context.tokens_used,
+        context_token_budget=result.context.token_budget,
+        ranked_chunk_ids=list(result.ranked_chunk_ids),
+        model_provenance=result.model_provenance,
+        cached=result.cached,
+        notes=list(result.notes),
     )
 
 

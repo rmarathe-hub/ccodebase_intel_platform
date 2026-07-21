@@ -8,7 +8,7 @@
 | 2 | Phase B — LLM rerank (≤40 candidates, validated IDs) | Done |
 | 3 | Phase C — Query analysis / rewrite (NL only, ≤4) | Done |
 | 4 | Phase D — Context expansion (depth caps) | Done |
-| 5 | Phase D — Grounded `POST /ask` + citation validator | Planned |
+| 5 | Phase D — Grounded `POST /ask` + citation validator | Done |
 | 6 | Ask UI | Planned |
 | 7 | Phase E — Eval matrix (hybrid vs rewrite vs rerank vs full RAG) | Planned |
 
@@ -114,3 +114,13 @@ Week 9 Days 5–7 complete (Validating + Search UI + matrix).
 - Hard token budget (`ask_context_token_budget`) + chunk-id dedupe; deterministic only
 - `app/services/rag/pipeline.py` — `retrieve_ask_bundle` composes analyze → multi-query RRF → rerank → expand
 - Tests: `tests/test_rag_week10_day3_4.py`
+
+### Day 5 — Grounded Ask + citation validator
+
+- `POST /api/v1/repositories/{id}/ask` — retrieve → answer → post-validate citations
+- `app/services/rag/citations.py` — parse `path:start-end`; drop invented / out-of-evidence spans
+- `app/services/rag/answer.py` — mock default (`ask_use_mock=true`); Azure chat when mock off
+- Opt-in / kill-switch: `ask_enabled`, `llm_kill_switch`; budget via `EnrichmentBudget`
+- Cache answers by snapshot + question + prompt + evidence ids (`ask_cache_enabled`)
+- Response includes `answer`, validated `citations`, `evidence`, `analysis`, `validation`
+- Tests: `tests/test_rag_week10_day5.py`

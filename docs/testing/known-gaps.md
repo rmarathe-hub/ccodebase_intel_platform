@@ -6,7 +6,7 @@ Honest deferrals after Weeks 0–7. Update as Week 8+ lands.
 
 1. ~~Embedding / validating job stages~~ — Embedding + Validating wired Week 9 Days 1–2 + 5
 2. ~~Functional Search UI~~ — Search page (exact / semantic / hybrid) Week 9 Day 6
-3. Ask API / citation-validated answers (Week 10)
+3. ~~Ask API / citation-validated answers~~ — `POST .../ask` + citation validator (Week 10 Day 5)
 4. ~~Semantic / hybrid search modes (exact only until Week 9 Days 3–4)~~ — `search_mode=exact|semantic|hybrid` shipped Week 9 Days 3–4
 5. ~~Format-native configuration + Markdown AST chunking — Week 7 Days 3–4~~ (done)
 6. ~~Deterministic + LLM-enhanced repository summaries — Week 7 Day 5~~ (done)
