@@ -1,0 +1,10 @@
+{
+  "name": "demo",
+  "scripts": {
+    "test": "echo ok",
+    "build": "echo build"
+  },
+  "dependencies": {
+    "left-pad": "1.0.0"
+  }
+}

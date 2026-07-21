@@ -50,6 +50,27 @@ def _quarantine_other_jobs(db_session: Session) -> None:
     db_session.commit()
 
 
+def _force_local_embeddings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep worker pipeline tests offline even if apps/api/.env points at Azure."""
+    from pydantic_settings import SettingsConfigDict
+
+    from app.core.config import Settings
+
+    class _Local(Settings):
+        model_config = SettingsConfigDict(env_file=None, extra="ignore")
+        embedding_provider: str = "local"
+        embedding_model: str = "local-hash-v1"
+        embedding_version: str = "9.2"
+        embedding_dimensions: int = 1536
+        embeddings_enabled: bool = True
+
+    local = _Local()
+    monkeypatch.setattr("worker.__main__.settings", local)
+    monkeypatch.setattr("app.services.embeddings.persist.settings", local)
+    monkeypatch.setattr("app.services.snapshot_validation.settings", local)
+    monkeypatch.setattr("app.services.embeddings.factory.settings", local)
+
+
 def _enqueue_repo(db_session: Session) -> tuple[Repository, IndexingJob]:
     _quarantine_other_jobs(db_session)
     repo = Repository(
@@ -72,6 +93,7 @@ def test_worker_pipeline_succeeds_with_python_fixture(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _force_local_embeddings(monkeypatch)
     (tmp_path / "svc.py").write_text(
         "def helper():\n"
         "    return 1\n\n"
@@ -150,6 +172,7 @@ def test_worker_pipeline_succeeds_with_mixed_frontend_backend(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Week 5 Day 7 — worker indexes React + Python in one snapshot."""
+    _force_local_embeddings(monkeypatch)
     fixture = Path(__file__).resolve().parent / "fixtures" / "mixed_frontend_backend"
     # Copy fixture into tmp so worker clone root is isolated.
     mixed = tmp_path / "mixed"
@@ -205,6 +228,7 @@ def test_worker_pipeline_succeeds_with_spring_fixture(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Worker indexes Spring controller/service/impl stack in one snapshot."""
+    _force_local_embeddings(monkeypatch)
     fixture = Path(__file__).resolve().parent / "fixtures" / "spring_fixture"
     spring = tmp_path / "spring"
     shutil.copytree(fixture, spring)
@@ -266,6 +290,7 @@ def test_worker_pipeline_succeeds_with_generic_polyglot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Worker indexes polyglot generic fixture through chunking stage."""
+    _force_local_embeddings(monkeypatch)
     from app.models import Chunk
 
     fixture = Path(__file__).resolve().parent / "fixtures" / "generic_polyglot"

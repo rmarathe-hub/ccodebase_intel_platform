@@ -1,0 +1,120 @@
+{
+  "description": "Week 9 hybrid weight eval — identifier vs natural-language queries with path gold labels.",
+  "queries": [
+    {
+      "id": "id-ping",
+      "style": "identifier",
+      "q": "ping",
+      "relevant_paths": ["python/pkg/service.py"],
+      "content_contains_any": ["def ping"]
+    },
+    {
+      "id": "id-UserService",
+      "style": "identifier",
+      "q": "UserService",
+      "relevant_paths": ["java/com/example/users/UserService.java"],
+      "content_contains_any": ["class UserService"]
+    },
+    {
+      "id": "id-findById",
+      "style": "identifier",
+      "q": "findById",
+      "relevant_paths": [
+        "java/com/example/users/UserRepository.java",
+        "java/com/example/users/UserService.java"
+      ],
+      "content_contains_any": ["findById"]
+    },
+    {
+      "id": "id-Greeter",
+      "style": "identifier",
+      "q": "Greeter",
+      "relevant_paths": ["js_ts/pkg/greeter.ts"],
+      "content_contains_any": ["class Greeter", "Greeter"]
+    },
+    {
+      "id": "id-Hello-go",
+      "style": "identifier",
+      "q": "Hello",
+      "relevant_paths": ["polyglot/cmd/hello/main.go"],
+      "content_contains_any": ["func Hello"]
+    },
+    {
+      "id": "id-APIRouter",
+      "style": "identifier",
+      "q": "APIRouter",
+      "relevant_paths": ["python/pkg/service.py"],
+      "content_contains_any": ["APIRouter"]
+    },
+    {
+      "id": "id-helper-ts",
+      "style": "identifier",
+      "q": "helper",
+      "relevant_paths": ["js_ts/pkg/greeter.ts", "js_ts/pkg/helpers.ts"],
+      "content_contains_any": ["function helper", "export function helper"]
+    },
+    {
+      "id": "id-AuthService",
+      "style": "identifier",
+      "q": "AuthService",
+      "relevant_paths": ["java/com/example/auth/AuthService.java"],
+      "content_contains_any": ["AuthService"]
+    },
+    {
+      "id": "nl-async-fetch",
+      "style": "natural_language",
+      "q": "async function that returns ok true",
+      "relevant_paths": ["python/pkg/service.py"],
+      "content_contains_any": ["async def fetch", "\"ok\": True"]
+    },
+    {
+      "id": "nl-user-lookup",
+      "style": "natural_language",
+      "q": "how does the service look up a user by id",
+      "relevant_paths": ["java/com/example/users/UserService.java"],
+      "content_contains_any": ["findById", "public String find"]
+    },
+    {
+      "id": "nl-greeter-hello",
+      "style": "natural_language",
+      "q": "typescript class that returns hi greeting",
+      "relevant_paths": ["js_ts/pkg/greeter.ts"],
+      "content_contains_any": ["hello()", "\"hi\""]
+    },
+    {
+      "id": "nl-go-hello-world",
+      "style": "natural_language",
+      "q": "go main program greeting hello world",
+      "relevant_paths": ["polyglot/cmd/hello/main.go"],
+      "content_contains_any": ["func Hello", "func main"]
+    },
+    {
+      "id": "nl-architecture-docs",
+      "style": "natural_language",
+      "q": "documentation about system architecture and installation",
+      "relevant_paths": ["polyglot/docs/ARCHITECTURE.md"],
+      "content_contains_any": ["Architecture", "Installation"]
+    },
+    {
+      "id": "nl-nested-inner-method",
+      "style": "natural_language",
+      "q": "outer class with nested inner method calling util",
+      "relevant_paths": ["python/pkg/service.py"],
+      "content_contains_any": ["class Inner", "class Outer"]
+    },
+    {
+      "id": "nl-spring-user-api",
+      "style": "natural_language",
+      "q": "spring service implementing user api repository",
+      "relevant_paths": ["java/com/example/users/UserService.java"],
+      "content_contains_any": ["@Service", "implements UserApi"]
+    },
+    {
+      "id": "nl-fastapi-ping-route",
+      "style": "natural_language",
+      "q": "fastapi route that pings and uses Point model",
+      "relevant_paths": ["python/pkg/service.py"],
+      "content_contains_any": ["@router.get(\"/ping\")", "Point"]
+    }
+  ]
+}

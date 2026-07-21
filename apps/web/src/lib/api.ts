@@ -181,3 +181,20 @@ export function fetchRepositoryCallGraph(
     `/api/v1/repositories/${repositoryId}/graph/calls${graphQuery(params)}`,
   );
 }
+
+export function fetchRepositoryChunksSearch(
+  repositoryId: string,
+  params: import("./chunks").ChunkSearchParams,
+) {
+  const query = new URLSearchParams();
+  query.set("q", params.q);
+  if (params.search_mode) query.set("search_mode", params.search_mode);
+  if (params.language) query.set("language", params.language);
+  if (params.path_prefix) query.set("path_prefix", params.path_prefix);
+  if (params.support_level) query.set("support_level", params.support_level);
+  if (params.limit != null) query.set("limit", String(params.limit));
+  if (params.offset != null) query.set("offset", String(params.offset));
+  return request<import("./chunks").ChunkSearchResponse>(
+    `/api/v1/repositories/${repositoryId}/chunks/search?${query.toString()}`,
+  );
+}

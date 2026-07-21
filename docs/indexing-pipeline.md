@@ -139,6 +139,8 @@ a labeled final fallback (`extraction_method` records the fallback).
 - Embeddings: worker Embedding stage persists `chunk_embeddings` (pgvector);
   local-hash provider is the CI/default; Azure optional.
   Search modes: `exact` (default), `semantic`, `hybrid` (Week 9 Days 3–4).
+  Worker Validating stage checks citation readiness + embedding consistency (Day 5).
+  Functional Search UI: Week 9 Day 6. Ask / LLM RAG: Week 10.
 
 ### 10. Validate
 

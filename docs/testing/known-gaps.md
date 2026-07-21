@@ -4,9 +4,9 @@ Honest deferrals after Weeks 0–7. Update as Week 8+ lands.
 
 ## Product features not implemented (do not test as complete)
 
-1. ~~Embedding / validating job stages (chunking is wired; embedding not)~~ — Embedding stage wired Week 9 Days 1–2; Validating still deferred
-2. Functional Search UI (exact chunk search API exists)
-3. Ask API / citation-validated answers
+1. ~~Embedding / validating job stages~~ — Embedding + Validating wired Week 9 Days 1–2 + 5
+2. ~~Functional Search UI~~ — Search page (exact / semantic / hybrid) Week 9 Day 6
+3. Ask API / citation-validated answers (Week 10)
 4. ~~Semantic / hybrid search modes (exact only until Week 9 Days 3–4)~~ — `search_mode=exact|semantic|hybrid` shipped Week 9 Days 3–4
 5. ~~Format-native configuration + Markdown AST chunking — Week 7 Days 3–4~~ (done)
 6. ~~Deterministic + LLM-enhanced repository summaries — Week 7 Day 5~~ (done)
@@ -34,6 +34,10 @@ Honest deferrals after Weeks 0–7. Update as Week 8+ lands.
 - Week 8 Day 7: graph accuracy matrix (circular imports, ambiguous calls, implementations, mixed langs, directory scale)
 - Week 9 Day 1–2: `chunk_embeddings` (pgvector) + `EmbeddingProvider` + worker Embedding stage (local-hash default)
 - Week 9 Day 3–4: semantic + hybrid chunk search (`search_mode`, scores, filters)
+- Week 9 Day 5: worker Validating stage (`snapshot_validation.py`)
+- Week 9 Day 6: functional Search UI (exact / semantic / hybrid)
+- Week 9 Day 7: retrieval matrix / honesty / smoke (`test_week09_day7_matrix.py`)
+- Week 9 hybrid weight eval (30/70, 50/50, 70/30): see [week9-hybrid-eval/REPORT.md](./week9-hybrid-eval/REPORT.md)
 
 ## Architecture decisions locked for Week 7+
 

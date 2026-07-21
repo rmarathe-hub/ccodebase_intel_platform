@@ -1,0 +1,12 @@
+services:
+  api:
+    image: demo-api:latest
+    ports:
+      - "8000:8000"
+  db:
+    image: postgres:16
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

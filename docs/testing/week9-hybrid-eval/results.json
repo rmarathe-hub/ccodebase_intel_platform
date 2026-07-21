@@ -1,0 +1,927 @@
+{
+  "snapshot_id": "e9f44c0d-fab3-4270-9266-eb18eecfa78e",
+  "query_count": 16,
+  "embedding": {
+    "provider": "azure_openai",
+    "model": "text-embedding-3-small",
+    "version": "9.2",
+    "dimensions": 1536
+  },
+  "configs": {
+    "exact70_sem30": {
+      "w_exact": 0.7,
+      "w_semantic": 0.3,
+      "latency_ms_mean": 452.3,
+      "latency_ms_p95": 604.87,
+      "overall": {
+        "n": 16.0,
+        "recall_at_5": 0.8125,
+        "recall_at_10": 0.9375,
+        "mrr": 0.684
+      },
+      "identifier": {
+        "n": 8.0,
+        "recall_at_5": 0.875,
+        "recall_at_10": 0.875,
+        "mrr": 0.6458
+      },
+      "natural_language": {
+        "n": 8.0,
+        "recall_at_5": 0.75,
+        "recall_at_10": 1.0,
+        "mrr": 0.7222
+      },
+      "per_query": [
+        {
+          "id": "id-ping",
+          "style": "identifier",
+          "q": "ping",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 394.6,
+          "top_paths": [
+            "python/pkg/service.py",
+            "java/com/example/users/UserController.java",
+            "java/com/example/users/UserController.java",
+            "js_ts/server/app.js",
+            "js_ts/server/app.js"
+          ]
+        },
+        {
+          "id": "id-UserService",
+          "style": "identifier",
+          "q": "UserService",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 347.94,
+          "top_paths": [
+            "java/com/example/users/UserService.java",
+            "java/com/example/users/UserService.java",
+            "java/com/example/users/UserService.java",
+            "java/com/example/users/UserService.java",
+            "java/com/example/auth/AuthService.java"
+          ]
+        },
+        {
+          "id": "id-findById",
+          "style": "identifier",
+          "q": "findById",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 584.38,
+          "top_paths": [
+            "java/com/example/users/UserRepository.java",
+            "java/com/example/users/UserService.java",
+            "java/com/example/users/UserRepository.java",
+            "java/com/example/users/UserService.java",
+            "java/com/example/users/api/UserApi.java"
+          ]
+        },
+        {
+          "id": "id-Greeter",
+          "style": "identifier",
+          "q": "Greeter",
+          "first_relevant_rank": 3,
+          "mrr": 0.333333,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 604.87,
+          "top_paths": [
+            "polyglot/ruby/greeter.rb",
+            "polyglot/cpp/greeter.cpp",
+            "js_ts/pkg/greeter.ts",
+            "js_ts/pkg/service.ts",
+            "js_ts/pkg/service.ts"
+          ]
+        },
+        {
+          "id": "id-Hello-go",
+          "style": "identifier",
+          "q": "Hello",
+          "first_relevant_rank": 2,
+          "mrr": 0.5,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 390.09,
+          "top_paths": [
+            "polyglot/scripts/hello.sh",
+            "polyglot/cmd/hello/main.go",
+            "polyglot/cmd/hello/main.go",
+            "js_ts/pkg/greeter.ts",
+            "polyglot/ruby/greeter.rb"
+          ]
+        },
+        {
+          "id": "id-APIRouter",
+          "style": "identifier",
+          "q": "APIRouter",
+          "first_relevant_rank": null,
+          "mrr": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "latency_ms": 672.06,
+          "top_paths": [
+            "polyglot/docs/ARCHITECTURE.md",
+            "java/com/example/users/UserController.java",
+            "js_ts/server/app.js",
+            "java/com/example/users/UserService.java",
+            "java/com/example/common/BaseController.java"
+          ]
+        },
+        {
+          "id": "id-helper-ts",
+          "style": "identifier",
+          "q": "helper",
+          "first_relevant_rank": 3,
+          "mrr": 0.333333,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 449.67,
+          "top_paths": [
+            "java/com/example/users/UserService.java",
+            "java/util/FallbackHelper.java",
+            "js_ts/pkg/helpers.ts",
+            "js_ts/pkg/service.ts",
+            "js_ts/pkg/greeter.ts"
+          ]
+        },
+        {
+          "id": "id-AuthService",
+          "style": "identifier",
+          "q": "AuthService",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 523.34,
+          "top_paths": [
+            "java/com/example/auth/AuthService.java",
+            "java/com/example/auth/AuthService.java",
+            "polyglot/docs/ARCHITECTURE.md",
+            "java/com/example/auth/AuthService.java",
+            "java/com/example/users/UserService.java"
+          ]
+        },
+        {
+          "id": "nl-async-fetch",
+          "style": "natural_language",
+          "q": "async function that returns ok true",
+          "first_relevant_rank": 9,
+          "mrr": 0.111111,
+          "recall_at_5": 0.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 341.53,
+          "top_paths": [
+            "js_ts/pages/api/hello.ts",
+            "js_ts/server/app.js",
+            "js_ts/pkg/service.ts",
+            "js_ts/pkg/service.ts",
+            "js_ts/ui/Badge.tsx"
+          ]
+        },
+        {
+          "id": "nl-user-lookup",
+          "style": "natural_language",
+          "q": "how does the service look up a user by id",
+          "first_relevant_rank": 6,
+          "mrr": 0.166667,
+          "recall_at_5": 0.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 490.32,
+          "top_paths": [
+            "java/com/example/users/api/UserApi.java",
+            "java/com/example/users/UserRepository.java",
+            "java/com/example/users/api/UserApi.java",
+            "java/com/example/users/UserRepository.java",
+            "polyglot/db/schema.sql"
+          ]
+        },
+        {
+          "id": "nl-greeter-hello",
+          "style": "natural_language",
+          "q": "typescript class that returns hi greeting",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 347.84,
+          "top_paths": [
+            "js_ts/pkg/greeter.ts",
+            "js_ts/pkg/greeter.ts",
+            "js_ts/pkg/service.ts",
+            "polyglot/cpp/greeter.cpp",
+            "polyglot/ruby/greeter.rb"
+          ]
+        },
+        {
+          "id": "nl-go-hello-world",
+          "style": "natural_language",
+          "q": "go main program greeting hello world",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 573.64,
+          "top_paths": [
+            "polyglot/cmd/hello/main.go",
+            "polyglot/cpp/greeter.cpp",
+            "polyglot/ruby/greeter.rb",
+            "polyglot/scripts/hello.sh",
+            "js_ts/pkg/service.ts"
+          ]
+        },
+        {
+          "id": "nl-architecture-docs",
+          "style": "natural_language",
+          "q": "documentation about system architecture and installation",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 291.66,
+          "top_paths": [
+            "polyglot/docs/ARCHITECTURE.md",
+            "polyglot/docs/ARCHITECTURE.md",
+            "polyglot/pom.xml",
+            "polyglot/Cargo.toml",
+            "polyglot/docs/ARCHITECTURE.md"
+          ]
+        },
+        {
+          "id": "nl-nested-inner-method",
+          "style": "natural_language",
+          "q": "outer class with nested inner method calling util",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 393.53,
+          "top_paths": [
+            "python/pkg/service.py",
+            "java/com/example/users/UserService.java",
+            "python/pkg/service.py",
+            "python/pkg/service.py",
+            "python/pkg/service.py"
+          ]
+        },
+        {
+          "id": "nl-spring-user-api",
+          "style": "natural_language",
+          "q": "spring service implementing user api repository",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 410.23,
+          "top_paths": [
+            "java/com/example/users/UserService.java",
+            "java/com/example/users/UserService.java",
+            "java/com/example/auth/AuthService.java",
+            "java/com/example/users/UserController.java",
+            "java/com/example/auth/AuthService.java"
+          ]
+        },
+        {
+          "id": "nl-fastapi-ping-route",
+          "style": "natural_language",
+          "q": "fastapi route that pings and uses Point model",
+          "first_relevant_rank": 2,
+          "mrr": 0.5,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 421.11,
+          "top_paths": [
+            "polyglot/docs/ARCHITECTURE.md",
+            "python/pkg/service.py",
+            "js_ts/pkg/service.ts",
+            "polyglot/src/lib.rs",
+            "java/com/example/auth/Point.java"
+          ]
+        }
+      ]
+    },
+    "exact50_sem50": {
+      "w_exact": 0.5,
+      "w_semantic": 0.5,
+      "latency_ms_mean": 428.34,
+      "latency_ms_p95": 563.29,
+      "overall": {
+        "n": 16.0,
+        "recall_at_5": 0.8125,
+        "recall_at_10": 0.9375,
+        "mrr": 0.684
+      },
+      "identifier": {
+        "n": 8.0,
+        "recall_at_5": 0.875,
+        "recall_at_10": 0.875,
+        "mrr": 0.6458
+      },
+      "natural_language": {
+        "n": 8.0,
+        "recall_at_5": 0.75,
+        "recall_at_10": 1.0,
+        "mrr": 0.7222
+      },
+      "per_query": [
+        {
+          "id": "id-ping",
+          "style": "identifier",
+          "q": "ping",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 563.29,
+          "top_paths": [
+            "python/pkg/service.py",
+            "java/com/example/users/UserController.java",
+            "java/com/example/users/UserController.java",
+            "js_ts/server/app.js",
+            "js_ts/server/app.js"
+          ]
+        },
+        {
+          "id": "id-UserService",
+          "style": "identifier",
+          "q": "UserService",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 471.68,
+          "top_paths": [
+            "java/com/example/users/UserService.java",
+            "java/com/example/users/UserService.java",
+            "java/com/example/users/UserService.java",
+            "java/com/example/users/UserService.java",
+            "java/com/example/auth/AuthService.java"
+          ]
+        },
+        {
+          "id": "id-findById",
+          "style": "identifier",
+          "q": "findById",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 337.15,
+          "top_paths": [
+            "java/com/example/users/UserRepository.java",
+            "java/com/example/users/UserService.java",
+            "java/com/example/users/UserRepository.java",
+            "java/com/example/users/UserService.java",
+            "java/com/example/users/api/UserApi.java"
+          ]
+        },
+        {
+          "id": "id-Greeter",
+          "style": "identifier",
+          "q": "Greeter",
+          "first_relevant_rank": 3,
+          "mrr": 0.333333,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 484.52,
+          "top_paths": [
+            "polyglot/ruby/greeter.rb",
+            "polyglot/cpp/greeter.cpp",
+            "js_ts/pkg/greeter.ts",
+            "js_ts/pkg/service.ts",
+            "js_ts/pkg/service.ts"
+          ]
+        },
+        {
+          "id": "id-Hello-go",
+          "style": "identifier",
+          "q": "Hello",
+          "first_relevant_rank": 2,
+          "mrr": 0.5,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 366.63,
+          "top_paths": [
+            "polyglot/scripts/hello.sh",
+            "polyglot/cmd/hello/main.go",
+            "polyglot/cmd/hello/main.go",
+            "js_ts/pkg/greeter.ts",
+            "polyglot/ruby/greeter.rb"
+          ]
+        },
+        {
+          "id": "id-APIRouter",
+          "style": "identifier",
+          "q": "APIRouter",
+          "first_relevant_rank": null,
+          "mrr": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "latency_ms": 427.64,
+          "top_paths": [
+            "polyglot/docs/ARCHITECTURE.md",
+            "java/com/example/users/UserController.java",
+            "js_ts/server/app.js",
+            "java/com/example/users/UserService.java",
+            "java/com/example/common/BaseController.java"
+          ]
+        },
+        {
+          "id": "id-helper-ts",
+          "style": "identifier",
+          "q": "helper",
+          "first_relevant_rank": 3,
+          "mrr": 0.333333,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 353.07,
+          "top_paths": [
+            "java/com/example/users/UserService.java",
+            "java/util/FallbackHelper.java",
+            "js_ts/pkg/helpers.ts",
+            "js_ts/pkg/service.ts",
+            "js_ts/pkg/greeter.ts"
+          ]
+        },
+        {
+          "id": "id-AuthService",
+          "style": "identifier",
+          "q": "AuthService",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 339.29,
+          "top_paths": [
+            "java/com/example/auth/AuthService.java",
+            "java/com/example/auth/AuthService.java",
+            "polyglot/docs/ARCHITECTURE.md",
+            "java/com/example/users/UserService.java",
+            "js_ts/server/app.js"
+          ]
+        },
+        {
+          "id": "nl-async-fetch",
+          "style": "natural_language",
+          "q": "async function that returns ok true",
+          "first_relevant_rank": 9,
+          "mrr": 0.111111,
+          "recall_at_5": 0.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 300.48,
+          "top_paths": [
+            "js_ts/pages/api/hello.ts",
+            "js_ts/server/app.js",
+            "js_ts/pkg/service.ts",
+            "js_ts/pkg/service.ts",
+            "js_ts/ui/Badge.tsx"
+          ]
+        },
+        {
+          "id": "nl-user-lookup",
+          "style": "natural_language",
+          "q": "how does the service look up a user by id",
+          "first_relevant_rank": 6,
+          "mrr": 0.166667,
+          "recall_at_5": 0.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 401.29,
+          "top_paths": [
+            "java/com/example/users/api/UserApi.java",
+            "java/com/example/users/UserRepository.java",
+            "java/com/example/users/api/UserApi.java",
+            "java/com/example/users/UserRepository.java",
+            "polyglot/db/schema.sql"
+          ]
+        },
+        {
+          "id": "nl-greeter-hello",
+          "style": "natural_language",
+          "q": "typescript class that returns hi greeting",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 456.54,
+          "top_paths": [
+            "js_ts/pkg/greeter.ts",
+            "js_ts/pkg/greeter.ts",
+            "js_ts/pkg/service.ts",
+            "polyglot/cpp/greeter.cpp",
+            "polyglot/ruby/greeter.rb"
+          ]
+        },
+        {
+          "id": "nl-go-hello-world",
+          "style": "natural_language",
+          "q": "go main program greeting hello world",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 463.1,
+          "top_paths": [
+            "polyglot/cmd/hello/main.go",
+            "polyglot/cpp/greeter.cpp",
+            "polyglot/ruby/greeter.rb",
+            "polyglot/scripts/hello.sh",
+            "js_ts/pkg/service.ts"
+          ]
+        },
+        {
+          "id": "nl-architecture-docs",
+          "style": "natural_language",
+          "q": "documentation about system architecture and installation",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 586.31,
+          "top_paths": [
+            "polyglot/docs/ARCHITECTURE.md",
+            "polyglot/docs/ARCHITECTURE.md",
+            "polyglot/pom.xml",
+            "polyglot/Cargo.toml",
+            "polyglot/docs/ARCHITECTURE.md"
+          ]
+        },
+        {
+          "id": "nl-nested-inner-method",
+          "style": "natural_language",
+          "q": "outer class with nested inner method calling util",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 433.14,
+          "top_paths": [
+            "python/pkg/service.py",
+            "java/com/example/users/UserService.java",
+            "python/pkg/service.py",
+            "python/pkg/service.py",
+            "python/pkg/service.py"
+          ]
+        },
+        {
+          "id": "nl-spring-user-api",
+          "style": "natural_language",
+          "q": "spring service implementing user api repository",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 415.75,
+          "top_paths": [
+            "java/com/example/users/UserService.java",
+            "java/com/example/users/UserService.java",
+            "java/com/example/auth/AuthService.java",
+            "java/com/example/users/UserController.java",
+            "java/com/example/auth/AuthService.java"
+          ]
+        },
+        {
+          "id": "nl-fastapi-ping-route",
+          "style": "natural_language",
+          "q": "fastapi route that pings and uses Point model",
+          "first_relevant_rank": 2,
+          "mrr": 0.5,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 453.62,
+          "top_paths": [
+            "polyglot/docs/ARCHITECTURE.md",
+            "python/pkg/service.py",
+            "js_ts/pkg/service.ts",
+            "polyglot/src/lib.rs",
+            "java/com/example/auth/Point.java"
+          ]
+        }
+      ]
+    },
+    "exact30_sem70": {
+      "w_exact": 0.3,
+      "w_semantic": 0.7,
+      "latency_ms_mean": 411.68,
+      "latency_ms_p95": 510.86,
+      "overall": {
+        "n": 16.0,
+        "recall_at_5": 0.8125,
+        "recall_at_10": 0.9375,
+        "mrr": 0.6788
+      },
+      "identifier": {
+        "n": 8.0,
+        "recall_at_5": 0.875,
+        "recall_at_10": 0.875,
+        "mrr": 0.6354
+      },
+      "natural_language": {
+        "n": 8.0,
+        "recall_at_5": 0.75,
+        "recall_at_10": 1.0,
+        "mrr": 0.7222
+      },
+      "per_query": [
+        {
+          "id": "id-ping",
+          "style": "identifier",
+          "q": "ping",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 400.31,
+          "top_paths": [
+            "python/pkg/service.py",
+            "java/com/example/users/UserController.java",
+            "java/com/example/users/UserController.java",
+            "js_ts/server/app.js",
+            "js_ts/server/app.js"
+          ]
+        },
+        {
+          "id": "id-UserService",
+          "style": "identifier",
+          "q": "UserService",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 403.36,
+          "top_paths": [
+            "java/com/example/users/UserService.java",
+            "java/com/example/users/UserService.java",
+            "java/com/example/users/UserService.java",
+            "java/com/example/auth/AuthService.java",
+            "java/com/example/users/UserRepository.java"
+          ]
+        },
+        {
+          "id": "id-findById",
+          "style": "identifier",
+          "q": "findById",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 412.57,
+          "top_paths": [
+            "java/com/example/users/UserRepository.java",
+            "java/com/example/users/UserService.java",
+            "java/com/example/users/UserRepository.java",
+            "java/com/example/users/UserService.java",
+            "java/com/example/users/api/UserApi.java"
+          ]
+        },
+        {
+          "id": "id-Greeter",
+          "style": "identifier",
+          "q": "Greeter",
+          "first_relevant_rank": 3,
+          "mrr": 0.333333,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 348.25,
+          "top_paths": [
+            "polyglot/ruby/greeter.rb",
+            "polyglot/cpp/greeter.cpp",
+            "js_ts/pkg/greeter.ts",
+            "js_ts/pkg/service.ts",
+            "js_ts/pkg/service.ts"
+          ]
+        },
+        {
+          "id": "id-Hello-go",
+          "style": "identifier",
+          "q": "Hello",
+          "first_relevant_rank": 2,
+          "mrr": 0.5,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 394.36,
+          "top_paths": [
+            "polyglot/scripts/hello.sh",
+            "polyglot/cmd/hello/main.go",
+            "polyglot/cmd/hello/main.go",
+            "js_ts/pkg/greeter.ts",
+            "polyglot/ruby/greeter.rb"
+          ]
+        },
+        {
+          "id": "id-APIRouter",
+          "style": "identifier",
+          "q": "APIRouter",
+          "first_relevant_rank": null,
+          "mrr": 0.0,
+          "recall_at_5": 0.0,
+          "recall_at_10": 0.0,
+          "latency_ms": 356.83,
+          "top_paths": [
+            "polyglot/docs/ARCHITECTURE.md",
+            "java/com/example/users/UserController.java",
+            "js_ts/server/app.js",
+            "java/com/example/users/UserService.java",
+            "java/com/example/common/BaseController.java"
+          ]
+        },
+        {
+          "id": "id-helper-ts",
+          "style": "identifier",
+          "q": "helper",
+          "first_relevant_rank": 4,
+          "mrr": 0.25,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 312.11,
+          "top_paths": [
+            "java/com/example/users/UserService.java",
+            "java/util/FallbackHelper.java",
+            "js_ts/pkg/service.ts",
+            "js_ts/pkg/helpers.ts",
+            "js_ts/pkg/greeter.ts"
+          ]
+        },
+        {
+          "id": "id-AuthService",
+          "style": "identifier",
+          "q": "AuthService",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 350.08,
+          "top_paths": [
+            "java/com/example/auth/AuthService.java",
+            "java/com/example/auth/AuthService.java",
+            "polyglot/docs/ARCHITECTURE.md",
+            "java/com/example/users/UserService.java",
+            "js_ts/server/app.js"
+          ]
+        },
+        {
+          "id": "nl-async-fetch",
+          "style": "natural_language",
+          "q": "async function that returns ok true",
+          "first_relevant_rank": 9,
+          "mrr": 0.111111,
+          "recall_at_5": 0.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 510.86,
+          "top_paths": [
+            "js_ts/pages/api/hello.ts",
+            "js_ts/server/app.js",
+            "js_ts/pkg/service.ts",
+            "js_ts/pkg/service.ts",
+            "js_ts/ui/Badge.tsx"
+          ]
+        },
+        {
+          "id": "nl-user-lookup",
+          "style": "natural_language",
+          "q": "how does the service look up a user by id",
+          "first_relevant_rank": 6,
+          "mrr": 0.166667,
+          "recall_at_5": 0.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 509.52,
+          "top_paths": [
+            "java/com/example/users/api/UserApi.java",
+            "java/com/example/users/UserRepository.java",
+            "java/com/example/users/api/UserApi.java",
+            "java/com/example/users/UserRepository.java",
+            "polyglot/db/schema.sql"
+          ]
+        },
+        {
+          "id": "nl-greeter-hello",
+          "style": "natural_language",
+          "q": "typescript class that returns hi greeting",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 423.66,
+          "top_paths": [
+            "js_ts/pkg/greeter.ts",
+            "js_ts/pkg/greeter.ts",
+            "js_ts/pkg/service.ts",
+            "polyglot/cpp/greeter.cpp",
+            "polyglot/ruby/greeter.rb"
+          ]
+        },
+        {
+          "id": "nl-go-hello-world",
+          "style": "natural_language",
+          "q": "go main program greeting hello world",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 415.26,
+          "top_paths": [
+            "polyglot/cmd/hello/main.go",
+            "polyglot/cpp/greeter.cpp",
+            "polyglot/ruby/greeter.rb",
+            "polyglot/scripts/hello.sh",
+            "js_ts/pkg/service.ts"
+          ]
+        },
+        {
+          "id": "nl-architecture-docs",
+          "style": "natural_language",
+          "q": "documentation about system architecture and installation",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 281.04,
+          "top_paths": [
+            "polyglot/docs/ARCHITECTURE.md",
+            "polyglot/docs/ARCHITECTURE.md",
+            "polyglot/pom.xml",
+            "polyglot/Cargo.toml",
+            "polyglot/docs/ARCHITECTURE.md"
+          ]
+        },
+        {
+          "id": "nl-nested-inner-method",
+          "style": "natural_language",
+          "q": "outer class with nested inner method calling util",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 633.88,
+          "top_paths": [
+            "python/pkg/service.py",
+            "java/com/example/users/UserService.java",
+            "python/pkg/service.py",
+            "python/pkg/service.py",
+            "python/pkg/service.py"
+          ]
+        },
+        {
+          "id": "nl-spring-user-api",
+          "style": "natural_language",
+          "q": "spring service implementing user api repository",
+          "first_relevant_rank": 1,
+          "mrr": 1.0,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 442.58,
+          "top_paths": [
+            "java/com/example/users/UserService.java",
+            "java/com/example/users/UserService.java",
+            "java/com/example/auth/AuthService.java",
+            "java/com/example/users/UserController.java",
+            "java/com/example/auth/AuthService.java"
+          ]
+        },
+        {
+          "id": "nl-fastapi-ping-route",
+          "style": "natural_language",
+          "q": "fastapi route that pings and uses Point model",
+          "first_relevant_rank": 2,
+          "mrr": 0.5,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "latency_ms": 392.17,
+          "top_paths": [
+            "polyglot/docs/ARCHITECTURE.md",
+            "python/pkg/service.py",
+            "js_ts/pkg/service.ts",
+            "polyglot/src/lib.rs",
+            "java/com/example/auth/Point.java"
+          ]
+        }
+      ]
+    }
+  },
+  "ranking": [
+    "exact70_sem30",
+    "exact50_sem50",
+    "exact30_sem70"
+  ],
+  "winner": "exact70_sem30",
+  "default_config": "exact50_sem50",
+  "default_metrics": {
+    "n": 16.0,
+    "recall_at_5": 0.8125,
+    "recall_at_10": 0.9375,
+    "mrr": 0.684
+  },
+  "exact_heavy_metrics": {
+    "n": 16.0,
+    "recall_at_5": 0.8125,
+    "recall_at_10": 0.9375,
+    "mrr": 0.684
+  },
+  "recommendation": "Measured winner on this fixture corpus (azure_openai embeddings, 1536 dims): **exact70_sem30**. Identifier queries favor higher exact weight; natural-language quality depends on embedding model strength. **Default remains 50/50 exact/semantic** plus path exact-match boosts as a balanced baseline; **query-aware weighting** (identifier \u2192 raise exact, NL \u2192 raise semantic) is the strongest final design.",
+  "generated_at": "2026-07-20T07:12:15.688931+00:00"
+}

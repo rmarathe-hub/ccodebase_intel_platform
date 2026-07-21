@@ -29,7 +29,7 @@ Maps product areas to current implementation and primary tests.
 | W. Property-based | Partial | Hypothesis on URL/ids/classification | Deterministic profiles |
 | X. Concurrency | Partial | `test_concurrency_queue` | Claim race |
 | Y. Performance smoke | Yes | `test_*_perf`, `test_performance_smoke` | `@slow` generous budgets |
-| Z. Search / Ask / embed | **No** | OpenAPI asserts routes absent | Honesty |
+| Z. Search / embed | **Yes** (Ask deferred) | `test_search_week09`, `test_week09_day7_matrix`, SearchPage tests | Exact/semantic/hybrid + Validating; Ask = Week 10 |
 
 ## Scripts
 

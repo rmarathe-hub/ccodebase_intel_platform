@@ -1024,7 +1024,7 @@ def search_repository_chunks(
     q: str = Query(..., min_length=1, max_length=500, description="Search query"),
     search_mode: str = Query(
         default="exact",
-        description="exact | semantic | hybrid",
+        description="exact | semantic | hybrid | rrf | rerank",
     ),
     language: str | None = Query(default=None),
     path_prefix: str | None = Query(default=None),
@@ -1049,7 +1049,7 @@ def search_repository_chunks(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={
                 "code": "invalid_search_mode",
-                "message": "search_mode must be exact, semantic, or hybrid",
+                "message": "search_mode must be exact, semantic, hybrid, rrf, or rerank",
             },
         )
 

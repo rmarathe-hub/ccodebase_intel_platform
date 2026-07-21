@@ -299,4 +299,4 @@ def test_worker_pipeline_embeds_chunks(
     )
     assert len(embeddings) == len(chunks)
     assert all(e.embedding_provider == "local" for e in embeddings)
-    assert all(e.dimensions == 64 for e in embeddings)
+    assert all(e.dimensions == 1536 for e in embeddings)

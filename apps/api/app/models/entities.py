@@ -23,7 +23,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.session import Base
 
 # Must match alembic 0009_chunk_embeddings.EMBEDDING_DIMENSIONS and local provider.
-CHUNK_EMBEDDING_DIMENSIONS = 64
+CHUNK_EMBEDDING_DIMENSIONS = 1536
 
 
 class SnapshotStatus(enum.StrEnum):

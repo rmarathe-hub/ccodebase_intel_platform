@@ -7,6 +7,8 @@ import math
 import pytest
 from pydantic_settings import SettingsConfigDict
 
+from pydantic_settings import SettingsConfigDict
+
 from app.core.config import Settings
 from app.services.embeddings import (
     EMBEDDING_DIMENSIONS,
@@ -15,7 +17,12 @@ from app.services.embeddings import (
     get_embedding_provider,
     hash_embed_text,
 )
-from app.services.embeddings.azure_openai import _fit_dimensions
+
+
+class _LocalOnlySettings(Settings):
+    model_config = SettingsConfigDict(env_file=None, extra="ignore")
+    embedding_provider: str = "local"
+    embedding_dimensions: int = EMBEDDING_DIMENSIONS
 
 
 def test_hash_embed_text_deterministic_and_unit_length() -> None:
@@ -44,7 +51,7 @@ def test_null_provider_returns_empty() -> None:
 
 
 def test_factory_defaults_to_local() -> None:
-    provider = get_embedding_provider(Settings())
+    provider = get_embedding_provider(_LocalOnlySettings())
     assert isinstance(provider, LocalHashEmbeddingProvider)
 
 
@@ -66,12 +73,19 @@ def test_factory_none_provider_returns_null() -> None:
     assert isinstance(provider, NullEmbeddingProvider)
 
 
-def test_fit_dimensions_pad_and_truncate() -> None:
-    padded = _fit_dimensions([1.0, 0.0], 4)
-    assert len(padded) == 4
-    truncated = _fit_dimensions([1.0, 0.0, 0.0, 0.0, 0.5], 2)
-    assert len(truncated) == 2
-    assert abs(math.sqrt(sum(x * x for x in truncated)) - 1.0) < 1e-6
+def test_azure_provider_validates_dimensions() -> None:
+    from app.services.embeddings.azure_openai import _validate_vector
+
+    assert _validate_vector([1.0, 0.0, 0.0], 3) == [1.0, 0.0, 0.0]
+    with pytest.raises(RuntimeError):
+        _validate_vector([1.0], 3)
+
+
+def test_endpoint_type_detection() -> None:
+    from app.services.embeddings.azure_openai import endpoint_type
+
+    assert endpoint_type("https://foo.services.ai.azure.com") == "foundry_v1"
+    assert endpoint_type("https://foo.openai.azure.com/") == "legacy_azure_openai"
 
 
 def test_hash_embed_rejects_bad_dims() -> None:

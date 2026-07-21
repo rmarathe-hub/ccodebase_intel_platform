@@ -57,9 +57,32 @@ class Settings(BaseSettings):
     embeddings_enabled: bool = True
     embedding_provider: str = "local"  # local | azure_openai | none
     embedding_model: str = "local-hash-v1"
-    embedding_version: str = "9.1"
-    embedding_dimensions: int = 64
+    embedding_version: str = "9.2"
+    embedding_dimensions: int = 1536
     embedding_batch_size: int = 32
+    # Hybrid fusion weights (must sum to ~1.0 aside from path boost).
+    hybrid_w_exact: float = 0.50
+    hybrid_w_semantic: float = 0.50
+
+    # Week 10 Ask/RAG candidate retrieval + rerank (Days 1–2).
+    ask_candidate_exact_limit: int = 30
+    ask_candidate_semantic_limit: int = 30
+    ask_rrf_k: int = 60
+    ask_rerank_enabled: bool = True
+    ask_rerank_max_candidates: int = 40
+    ask_rerank_prompt_version: str = "10.1"
+    # CI/default: deterministic mock rerank unless Azure chat deployment is configured
+    # and ask_rerank_use_mock is explicitly false.
+    ask_rerank_use_mock: bool = True
+
+    # Week 10 Days 3–4: query rewrite + context expansion.
+    ask_query_rewrite_enabled: bool = True
+    ask_query_max_rewrites: int = 4
+    ask_context_token_budget: int = 6000
+    ask_expand_seed_limit: int = 5
+    ask_expand_neighbor_limit: int = 2
+    ask_expand_relation_limit: int = 4
+    ask_expand_low_confidence_score: float = 0.02
 
     @property
     def cors_origin_list(self) -> list[str]:

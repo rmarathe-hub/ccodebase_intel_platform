@@ -4,6 +4,7 @@ import {
   apiBase,
   fetchRepositories,
   fetchRepositoryCalls,
+  fetchRepositoryChunksSearch,
   fetchRepositoryDirectoryGraph,
   fetchRepositoryFiles,
   fetchRepositoryModuleGraph,
@@ -128,6 +129,31 @@ describe("api client", () => {
     expect(dirsUrl).toContain("/graph/directories?");
     expect(dirsUrl).toContain("path_prefix=docs");
     expect(dirsUrl).toContain("include_files=true");
+  });
+
+  it("builds chunk search query strings", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ hits: [], total: 0, search_mode: "hybrid" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await fetchRepositoryChunksSearch("repo-1", {
+      q: "UserService",
+      search_mode: "hybrid",
+      language: "python",
+      path_prefix: "src",
+      support_level: "deep",
+      limit: 25,
+    });
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toContain("/api/v1/repositories/repo-1/chunks/search?");
+    expect(url).toContain("q=UserService");
+    expect(url).toContain("search_mode=hybrid");
+    expect(url).toContain("language=python");
+    expect(url).toContain("path_prefix=src");
+    expect(url).toContain("support_level=deep");
+    expect(url).toContain("limit=25");
   });
 
   it("throws on non-ok responses without inventing success", async () => {

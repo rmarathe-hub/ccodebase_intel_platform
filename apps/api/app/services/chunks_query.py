@@ -13,7 +13,7 @@ from app.models import Chunk, ChunkEmbedding
 from app.services.embeddings.factory import get_embedding_provider
 from app.services.embeddings.null_provider import NullEmbeddingProvider
 
-VALID_SEARCH_MODES = frozenset({"exact", "semantic", "hybrid"})
+VALID_SEARCH_MODES = frozenset({"exact", "semantic", "hybrid", "rrf", "rerank"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,6 +112,8 @@ def search_chunks_ranked(
     limit: int = 50,
     offset: int = 0,
     cfg: Settings | None = None,
+    w_exact: float | None = None,
+    w_semantic: float | None = None,
 ) -> tuple[list[ChunkSearchResult], int]:
     """Search with exact | semantic | hybrid modes. Citations always from persisted chunks."""
     mode = (search_mode or "exact").strip().lower()
@@ -155,6 +157,44 @@ def search_chunks_ranked(
             offset=start,
             conf=conf,
         )
+    if mode == "rrf":
+        from app.services.rag.candidates import retrieve_rrf_candidates
+
+        return retrieve_rrf_candidates(
+            session,
+            snapshot_id=snapshot_id,
+            query=q,
+            language=language,
+            path_prefix=path_prefix,
+            support_level=support_level,
+            chunk_type=chunk_type,
+            extraction_method=extraction_method,
+            parser_name=parser_name,
+            llm_enriched=llm_enriched,
+            validation_status=validation_status,
+            limit=capped,
+            offset=start,
+            cfg=conf,
+        )
+    if mode == "rerank":
+        from app.services.rag.rerank import retrieve_and_rerank
+
+        return retrieve_and_rerank(
+            session,
+            snapshot_id=snapshot_id,
+            query=q,
+            language=language,
+            path_prefix=path_prefix,
+            support_level=support_level,
+            chunk_type=chunk_type,
+            extraction_method=extraction_method,
+            parser_name=parser_name,
+            llm_enriched=llm_enriched,
+            validation_status=validation_status,
+            limit=capped,
+            offset=start,
+            cfg=conf,
+        )
     return _hybrid_search(
         session,
         query=q,
@@ -163,6 +203,8 @@ def search_chunks_ranked(
         limit=capped,
         offset=start,
         conf=conf,
+        w_exact=w_exact,
+        w_semantic=w_semantic,
     )
 
 
@@ -322,6 +364,8 @@ def _hybrid_search(
     limit: int,
     offset: int,
     conf: Settings,
+    w_exact: float | None = None,
+    w_semantic: float | None = None,
 ) -> tuple[list[ChunkSearchResult], int]:
     """Fuse exact substring + semantic similarity with stable tie-break."""
     pattern = f"%{_escape_like(query)}%"
@@ -357,8 +401,8 @@ def _hybrid_search(
     if not candidates:
         return [], 0
 
-    w_exact = 0.45
-    w_semantic = 0.55
+    exact_w = conf.hybrid_w_exact if w_exact is None else float(w_exact)
+    semantic_w = conf.hybrid_w_semantic if w_semantic is None else float(w_semantic)
     scored: list[ChunkSearchResult] = []
     for cid, chunk in candidates.items():
         exact_score = 1.0 if cid in exact_ids else 0.0
@@ -369,14 +413,14 @@ def _hybrid_search(
             semantic_score = 0.0
             cosine_distance = None
         path_score = _path_boost(query, chunk.path)
-        fused = w_exact * exact_score + w_semantic * semantic_score + path_score
+        fused = exact_w * exact_score + semantic_w * semantic_score + path_score
         breakdown: dict[str, float] = {
             "exact": exact_score,
             "semantic": round(semantic_score, 6),
             "path_boost": path_score,
             "fused": round(fused, 6),
-            "w_exact": w_exact,
-            "w_semantic": w_semantic,
+            "w_exact": exact_w,
+            "w_semantic": semantic_w,
         }
         if cosine_distance is not None:
             breakdown["cosine_distance"] = round(cosine_distance, 6)

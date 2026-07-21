@@ -28,6 +28,10 @@ from app.services.embeddings import replace_embeddings_for_snapshot
 from app.services.java_symbols import replace_java_symbols_for_snapshot
 from app.services.js_ts_symbols import replace_js_ts_symbols_for_snapshot
 from app.services.relationships import replace_structural_relations_for_snapshot
+from app.services.snapshot_validation import (
+    SnapshotValidationError,
+    validate_snapshot_for_job,
+)
 from app.services.source_files import replace_source_files_for_snapshot
 from app.services.snapshots import create_or_update_snapshot
 from app.services.symbols import replace_python_symbols_for_snapshot
@@ -197,7 +201,22 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     snapshot_id=snapshot.id,
                 )
 
-                # Validating remains Week 9 Day 5+.
+                set_job_stage(job, JobStage.VALIDATING)
+                session.commit()
+                job = session.get(IndexingJob, job_id)
+                if job is None:
+                    raise RuntimeError(f"Job {job_id} disappeared during validating")
+                heartbeat_job(
+                    session,
+                    job_id=job_id,
+                    worker_id=worker_id,
+                    lease_seconds=settings.job_lease_seconds,
+                )
+                validation = validate_snapshot_for_job(
+                    session,
+                    snapshot_id=snapshot.id,
+                )
+
                 mark_job_succeeded(job)
                 session.commit()
                 logger.info(
@@ -205,7 +224,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     "parsed_js_ts=%s parsed_java=%s symbols=%s calls=%s "
                     "relations=%s import_edges=%s export_edges=%s contains_edges=%s "
                     "chunks=%s enriched=%s embeddings=%s embed_skipped=%s "
-                    "truncated=%s job=%s",
+                    "validated_chunks=%s validated_embeddings=%s truncated=%s job=%s",
                     snapshot.id,
                     repo_label,
                     cloned.commit_sha[:12],
@@ -224,12 +243,27 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     enriched_count,
                     embedded_count,
                     embedding_skipped,
+                    validation.chunk_count,
+                    validation.embedding_count,
                     discovery.truncated,
                     job_id,
                 )
             return True
         except GitCloneError as exc:
             logger.exception("Clone failed for job %s", job_id)
+            job = session.get(IndexingJob, job_id)
+            if job is not None:
+                schedule_retry(
+                    session,
+                    job,
+                    delay_seconds=settings.job_retry_delay_seconds,
+                    error_code=exc.code,
+                    error_message=str(exc),
+                )
+                session.commit()
+            return True
+        except SnapshotValidationError as exc:
+            logger.exception("Validation failed for job %s", job_id)
             job = session.get(IndexingJob, job_id)
             if job is not None:
                 schedule_retry(

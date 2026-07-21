@@ -1,0 +1,183 @@
+API=http://127.0.0.1:8001 repos=['flask', 'click', 'javalin', 'axios', 'zod', 'chi', 'clap', 'fmt', 'humanizer', 'awesome-selfhosted']
+health={'status': 'ok'} ready={'status': 'ready', 'database': True}
+UI static: {'loads_from_api': True, 'no_fixture_data_in_page': True, 'has_relation_filters': True, 'has_language_filter': True, 'has_support_level_filter': True, 'has_depth_control': True, 'has_generic_honesty_notice': True, 'has_inferred_edge_styling': True, 'selection_detail_panel': True, 'uses_xyflow': True}
+
+=== Import flask ===
+Imported flask: repo=380d1380-a6e9-4d54-b857-6643e108e610 job=e5291fb5-e7fa-414b-821d-ce1bab461d7d
+  [flask] job=e5291fb5… status=QUEUED stage=queued progress=0
+  [flask] job=e5291fb5… status=SUCCEEDED stage=completed progress=100
+
+=== Import click ===
+Imported click: repo=4fc27f23-574f-411f-a4ca-55e69d697b25 job=ecc370fe-4876-4de0-b412-e881632b829a
+  [click] job=ecc370fe… status=QUEUED stage=queued progress=0
+  [click] job=ecc370fe… status=SUCCEEDED stage=completed progress=100
+
+=== Import javalin ===
+Imported javalin: repo=14e539f1-2704-479a-8ac4-c8678546f6c9 job=4acbd5d7-3a1f-40f3-846b-38c374bb0828
+  [javalin] job=4acbd5d7… status=QUEUED stage=queued progress=0
+  [javalin] job=4acbd5d7… status=SUCCEEDED stage=completed progress=100
+
+=== Import axios ===
+Imported axios: repo=b2895b93-3e0c-4673-9e07-b403d5a906e0 job=f77c65e9-2003-45c4-bc02-47b64a33c0eb
+  [axios] job=f77c65e9… status=QUEUED stage=queued progress=0
+  [axios] job=f77c65e9… status=SUCCEEDED stage=completed progress=100
+
+=== Import zod ===
+Imported zod: repo=608d359f-8a79-4b9f-aa92-31fd9c6a6fe4 job=4c4e66f4-d489-4a0a-9e99-3c0fd2239304
+  [zod] job=4c4e66f4… status=QUEUED stage=queued progress=0
+  [zod] job=4c4e66f4… status=RUNNING stage=building_relationships progress=60
+  [zod] job=4c4e66f4… status=SUCCEEDED stage=completed progress=100
+
+=== Import chi ===
+Imported chi: repo=3e1c1fb4-ca53-4495-ab45-a7cd9346d601 job=ded4fcda-8335-4b19-b82c-31cdf81d5a87
+  [chi] job=ded4fcda… status=QUEUED stage=queued progress=0
+  [chi] job=ded4fcda… status=SUCCEEDED stage=completed progress=100
+
+=== Import clap ===
+Imported clap: repo=c0e8754a-d06b-48be-a146-a1634a763bfe job=9c60260e-2af1-402f-830c-810e0ce585e7
+  [clap] job=9c60260e… status=QUEUED stage=queued progress=0
+  [clap] job=9c60260e… status=SUCCEEDED stage=completed progress=100
+
+=== Import fmt ===
+Imported fmt: repo=5efde7f2-bd6c-4acb-9a0c-547adf03db2e job=fa136c74-52e0-474e-985b-4edc6e0032ea
+  [fmt] job=fa136c74… status=QUEUED stage=queued progress=0
+  [fmt] job=fa136c74… status=SUCCEEDED stage=completed progress=100
+
+=== Import humanizer ===
+Imported humanizer: repo=10497f4e-c9a0-4ef2-89a2-848a1b755adb job=f9a4d54f-79bb-4dbd-8e05-aac686709424
+  [humanizer] job=f9a4d54f… status=QUEUED stage=queued progress=0
+  [humanizer] job=f9a4d54f… status=RUNNING stage=chunking progress=75
+  [humanizer] job=f9a4d54f… status=SUCCEEDED stage=completed progress=100
+
+=== Import awesome-selfhosted ===
+Imported awesome-selfhosted: repo=c10a8cfe-ba5f-4948-a108-4d5424ff2ae9 job=ac369728-abb9-4aa4-a7b4-f3a1abd328df
+  [awesome-selfhosted] job=ac369728… status=QUEUED stage=queued progress=0
+  [awesome-selfhosted] job=ac369728… status=SUCCEEDED stage=completed progress=100
+
+=== Validate flask ===
+=== Re-index flask ===
+Imported flask-reindex: repo=380d1380-a6e9-4d54-b857-6643e108e610 job=74e4e938-a8e7-4115-acc6-bd895569ec7b
+  [flask-reindex] job=74e4e938… status=QUEUED stage=queued progress=0
+  [flask-reindex] job=74e4e938… status=SUCCEEDED stage=completed progress=100
+Wrote /Users/rohitmarathe/codebase_intel_platform/docs/testing/generalization-validation/report-flask.md
+
+=== Validate click ===
+=== Re-index click ===
+Imported click-reindex: repo=4fc27f23-574f-411f-a4ca-55e69d697b25 job=7951d9b7-4474-4ba3-a41d-5b01c3091fff
+  [click-reindex] job=7951d9b7… status=QUEUED stage=queued progress=0
+  [click-reindex] job=7951d9b7… status=RUNNING stage=building_relationships progress=60
+  [click-reindex] job=7951d9b7… status=SUCCEEDED stage=completed progress=100
+Wrote /Users/rohitmarathe/codebase_intel_platform/docs/testing/generalization-validation/report-click.md
+
+=== Validate javalin ===
+=== Re-index javalin ===
+Imported javalin-reindex: repo=14e539f1-2704-479a-8ac4-c8678546f6c9 job=11607ddd-0ef0-4ef0-854f-fd88bab409e3
+  [javalin-reindex] job=11607ddd… status=QUEUED stage=queued progress=0
+  [javalin-reindex] job=11607ddd… status=SUCCEEDED stage=completed progress=100
+Wrote /Users/rohitmarathe/codebase_intel_platform/docs/testing/generalization-validation/report-javalin.md
+
+=== Validate axios ===
+=== Re-index axios ===
+Imported axios-reindex: repo=b2895b93-3e0c-4673-9e07-b403d5a906e0 job=f840fd27-f9c4-4332-8777-209301463b0d
+  [axios-reindex] job=f840fd27… status=QUEUED stage=queued progress=0
+  [axios-reindex] job=f840fd27… status=RUNNING stage=chunking progress=75
+  [axios-reindex] job=f840fd27… status=SUCCEEDED stage=completed progress=100
+Wrote /Users/rohitmarathe/codebase_intel_platform/docs/testing/generalization-validation/report-axios.md
+
+=== Validate zod ===
+=== Re-index zod ===
+Imported zod-reindex: repo=608d359f-8a79-4b9f-aa92-31fd9c6a6fe4 job=befeeec6-760e-4916-9432-83dda8c2b543
+  [zod-reindex] job=befeeec6… status=QUEUED stage=queued progress=0
+  [zod-reindex] job=befeeec6… status=RUNNING stage=discovering_files progress=25
+  [zod-reindex] job=befeeec6… status=RUNNING stage=chunking progress=75
+  [zod-reindex] job=befeeec6… status=SUCCEEDED stage=completed progress=100
+Wrote /Users/rohitmarathe/codebase_intel_platform/docs/testing/generalization-validation/report-zod.md
+
+=== Validate chi ===
+=== Re-index chi ===
+Imported chi-reindex: repo=3e1c1fb4-ca53-4495-ab45-a7cd9346d601 job=8a95d414-617a-4703-9dae-ffc73a1300fa
+  [chi-reindex] job=8a95d414… status=QUEUED stage=queued progress=0
+  [chi-reindex] job=8a95d414… status=SUCCEEDED stage=completed progress=100
+Wrote /Users/rohitmarathe/codebase_intel_platform/docs/testing/generalization-validation/report-chi.md
+
+=== Validate clap ===
+=== Re-index clap ===
+Imported clap-reindex: repo=c0e8754a-d06b-48be-a146-a1634a763bfe job=34ddeb24-c6fd-4566-92a8-a35fd267bbbd
+  [clap-reindex] job=34ddeb24… status=QUEUED stage=queued progress=0
+  [clap-reindex] job=34ddeb24… status=SUCCEEDED stage=completed progress=100
+Wrote /Users/rohitmarathe/codebase_intel_platform/docs/testing/generalization-validation/report-clap.md
+
+=== Validate fmt ===
+=== Re-index fmt ===
+Imported fmt-reindex: repo=5efde7f2-bd6c-4acb-9a0c-547adf03db2e job=90cf751c-36a5-40d7-aabd-21f8b00bf997
+  [fmt-reindex] job=90cf751c… status=QUEUED stage=queued progress=0
+  [fmt-reindex] job=90cf751c… status=SUCCEEDED stage=completed progress=100
+Wrote /Users/rohitmarathe/codebase_intel_platform/docs/testing/generalization-validation/report-fmt.md
+
+=== Validate humanizer ===
+=== Re-index humanizer ===
+Imported humanizer-reindex: repo=10497f4e-c9a0-4ef2-89a2-848a1b755adb job=dbeab08a-2de4-4f6a-a8b3-cefb3569c410
+  [humanizer-reindex] job=dbeab08a… status=QUEUED stage=queued progress=0
+  [humanizer-reindex] job=dbeab08a… status=RUNNING stage=chunking progress=75
+  [humanizer-reindex] job=dbeab08a… status=SUCCEEDED stage=completed progress=100
+Wrote /Users/rohitmarathe/codebase_intel_platform/docs/testing/generalization-validation/report-humanizer.md
+
+=== Validate awesome-selfhosted ===
+=== Re-index awesome-selfhosted ===
+Imported awesome-selfhosted-reindex: repo=c10a8cfe-ba5f-4948-a108-4d5424ff2ae9 job=ff178438-c805-4cd8-8520-12948bd0409d
+  [awesome-selfhosted-reindex] job=ff178438… status=QUEUED stage=queued progress=0
+  [awesome-selfhosted-reindex] job=ff178438… status=SUCCEEDED stage=completed progress=100
+Wrote /Users/rohitmarathe/codebase_intel_platform/docs/testing/generalization-validation/report-awesome-selfhosted.md
+Wrote /Users/rohitmarathe/codebase_intel_platform/docs/testing/generalization-validation/REPORT.md
+VERDICT=FAIL
+API=--only=fmt,humanizer repos=['flask', 'click', 'javalin', 'axios', 'zod', 'chi', 'clap', 'fmt', 'humanizer', 'awesome-selfhosted']
+Traceback (most recent call last):
+  File "/Users/rohitmarathe/codebase_intel_platform/docs/testing/generalization-validation/run_validation.py", line 1920, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "/Users/rohitmarathe/codebase_intel_platform/docs/testing/generalization-validation/run_validation.py", line 1701, in main
+    health = http_json("GET", "/health")
+  File "/Users/rohitmarathe/codebase_intel_platform/docs/testing/generalization-validation/run_validation.py", line 202, in http_json
+    req = urllib.request.Request(
+        f"{API}{path}", data=data, headers=headers, method=method
+    )
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 290, in __init__
+    self.full_url = url
+    ^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 316, in full_url
+    self._parse()
+    ~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/urllib/request.py", line 345, in _parse
+    raise ValueError("unknown url type: %r" % self.full_url)
+ValueError: unknown url type: '--only=fmt,humanizer/health'
+API=http://127.0.0.1:8001 repos=['fmt', 'humanizer']
+health={'status': 'ok'} ready={'status': 'ready', 'database': True}
+UI static: {'loads_from_api': True, 'no_fixture_data_in_page': True, 'has_relation_filters': True, 'has_language_filter': True, 'has_support_level_filter': True, 'has_depth_control': True, 'has_generic_honesty_notice': True, 'has_inferred_edge_styling': True, 'selection_detail_panel': True, 'uses_xyflow': True}
+
+=== Import fmt ===
+Imported fmt: repo=5efde7f2-bd6c-4acb-9a0c-547adf03db2e job=e9171f9f-a906-4707-a59f-c87caefc4405
+  [fmt] job=e9171f9f… status=QUEUED stage=queued progress=0
+  [fmt] job=e9171f9f… status=SUCCEEDED stage=completed progress=100
+
+=== Import humanizer ===
+Imported humanizer: repo=10497f4e-c9a0-4ef2-89a2-848a1b755adb job=185b3480-3743-4352-841a-752a25a4aaa1
+  [humanizer] job=185b3480… status=QUEUED stage=queued progress=0
+  [humanizer] job=185b3480… status=RUNNING stage=chunking progress=75
+  [humanizer] job=185b3480… status=SUCCEEDED stage=completed progress=100
+
+=== Validate fmt ===
+=== Re-index fmt ===
+Imported fmt-reindex: repo=5efde7f2-bd6c-4acb-9a0c-547adf03db2e job=af7a7d95-08ec-43b6-b87f-49cb3e2d1ff9
+  [fmt-reindex] job=af7a7d95… status=QUEUED stage=queued progress=0
+  [fmt-reindex] job=af7a7d95… status=SUCCEEDED stage=completed progress=100
+Wrote /Users/rohitmarathe/codebase_intel_platform/docs/testing/generalization-validation/report-fmt.md
+
+=== Validate humanizer ===
+=== Re-index humanizer ===
+Imported humanizer-reindex: repo=10497f4e-c9a0-4ef2-89a2-848a1b755adb job=2adc54b6-06c9-4514-a456-161d42ea2a94
+  [humanizer-reindex] job=2adc54b6… status=QUEUED stage=queued progress=0
+  [humanizer-reindex] job=2adc54b6… status=RUNNING stage=chunking progress=75
+  [humanizer-reindex] job=2adc54b6… status=SUCCEEDED stage=completed progress=100
+Wrote /Users/rohitmarathe/codebase_intel_platform/docs/testing/generalization-validation/report-humanizer.md
+Wrote /Users/rohitmarathe/codebase_intel_platform/docs/testing/generalization-validation/REPORT.md
+VERDICT=PASS

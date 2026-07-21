@@ -1,18 +1,11 @@
-// Stub page honesty: Search / Ask / Repository overview remain non-functional shells.
+// Stub page honesty: Ask / Repository overview remain non-functional shells.
+// Search is functional as of Week 9 Day 6 (covered by SearchPage.test.tsx).
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { AskPage } from "../pages/AskPage";
 import { RepositoryOverviewPage } from "../pages/RepositoryOverviewPage";
-import { SearchPage } from "../pages/SearchPage";
 
 describe("stub pages", () => {
-  it("Search page does not claim a working search form", () => {
-    render(<SearchPage />);
-    expect(screen.getByRole("heading", { name: "Search" })).toBeInTheDocument();
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /search/i })).not.toBeInTheDocument();
-  });
-
   it("Ask page does not claim a working ask form", () => {
     render(<AskPage />);
     expect(screen.getByRole("heading", { name: "Ask" })).toBeInTheDocument();

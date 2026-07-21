@@ -25,6 +25,7 @@ EXPECTED_REVISIONS = (
     "0007_symbol_relations.py",
     "0008_chunks.py",
     "0009_chunk_embeddings.py",
+    "0010_embedding_dimensions_1536.py",
 )
 
 
@@ -56,6 +57,10 @@ def test_migration_chain_revision_ids() -> None:
     assert 'down_revision: str | None = "0008_chunks"' in texts["0009_chunk_embeddings.py"]
     assert "chunk_embeddings" in texts["0009_chunk_embeddings.py"]
     assert "Vector" in texts["0009_chunk_embeddings.py"]
+    assert 'down_revision: str | None = "0009_chunk_embeddings"' in texts[
+        "0010_embedding_dimensions_1536.py"
+    ]
+    assert "1536" in texts["0010_embedding_dimensions_1536.py"]
 
 
 def test_live_schema_has_week3_and_week4_tables() -> None:
@@ -157,15 +162,15 @@ def test_live_schema_has_week3_and_week4_tables() -> None:
 
     with engine.connect() as conn:
         head = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-    assert head == "0009_chunk_embeddings"
+    assert head == "0010_embedding_dimensions_1536"
     engine.dispose()
 
 
-def test_alembic_heads_cli_matches_0009() -> None:
+def test_alembic_heads_cli_matches_0010() -> None:
     from alembic.config import Config
     from alembic.script import ScriptDirectory
 
     cfg = Config(str(ROOT / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
     heads = script.get_heads()
-    assert heads == ["0009_chunk_embeddings"]
+    assert heads == ["0010_embedding_dimensions_1536"]

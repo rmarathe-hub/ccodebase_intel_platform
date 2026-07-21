@@ -36,6 +36,10 @@ _POSTGRES_NODE_HINTS = (
     "test_migrations_week04",
     "test_embeddings_persist_week09",
     "test_search_week09",
+    "test_hybrid_weight_eval_week09",
+    "test_week09_day7_matrix",
+    "test_snapshot_validation_week09",
+    "test_rag_week10_day1_2",
     "test_java_symbols_persist",
   "test_mixed_frontend_backend",
 )
