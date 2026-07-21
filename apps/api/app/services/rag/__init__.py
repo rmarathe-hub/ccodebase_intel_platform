@@ -1,6 +1,7 @@
 """Week 10 Ask/RAG retrieval helpers (candidates, rewrite, rerank, expand, ask)."""
 
 from app.services.rag.answer import run_ask
+from app.services.rag.ask_eval import run_ask_eval
 from app.services.rag.candidates import retrieve_rrf_candidates
 from app.services.rag.citations import parse_citations, validate_citations
 from app.services.rag.context_expand import expand_context
@@ -16,5 +17,6 @@ __all__ = [
     "retrieve_rrf_candidates",
     "rerank_candidates",
     "run_ask",
+    "run_ask_eval",
     "validate_citations",
 ]

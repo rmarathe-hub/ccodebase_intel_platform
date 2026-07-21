@@ -10,7 +10,7 @@
 | 4 | Phase D — Context expansion (depth caps) | Done |
 | 5 | Phase D — Grounded `POST /ask` + citation validator | Done |
 | 6 | Ask UI | Done |
-| 7 | Phase E — Eval matrix (hybrid vs rewrite vs rerank vs full RAG) | Planned |
+| 7 | Phase E — Eval matrix (hybrid vs rewrite vs rerank vs full RAG) | Done |
 
 ## Architecture (locked)
 
@@ -133,8 +133,13 @@ Week 9 Days 5–7 complete (Validating + Search UI + matrix).
 - Tests: `AskPage.test.tsx`, `lib/ask.test.ts`
 - Search page honesty note points to Ask for grounded NL answers
 
-## Day 7 planned
-
 ### Day 7 — Eval matrix
 
-Compare hybrid vs rewrite vs rerank vs full RAG (Recall@k, MRR, citation correctness, latency/cost).
+- `app/services/rag/ask_eval.py` — hybrid vs rewrite vs rerank vs full_rag
+- Metrics: Recall@5, Recall@10, MRR; full RAG adds citation correctness + unsupported-claim rate
+- Script: `apps/api/scripts/run_ask_eval.py` → `docs/testing/week10-ask-eval/`
+- Tests: `tests/test_rag_week10_day7_eval.py`
+- Report: [week10-ask-eval/REPORT.md](../testing/week10-ask-eval/REPORT.md)
+- Gate: keep LLM Ask opt-in for grounded NL answers; Search/hybrid remains the cheap lookup path
+
+## Status: Week 10 complete (Days 1–7)
