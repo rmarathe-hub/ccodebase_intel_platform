@@ -3,6 +3,7 @@ export type AskStatus =
   | "partial"
   | "no_evidence"
   | "ask_disabled"
+  | "budget_exceeded"
   | "error"
   | string;
 
@@ -42,6 +43,18 @@ export interface AskValidationEcho {
   errors: string[];
 }
 
+export interface AskBudgetEcho {
+  requests_used: number;
+  requests_limit: number;
+  tokens_used: number;
+  tokens_limit: number;
+  estimated_cost_usd: number;
+  cost_limit_usd: number;
+  exhausted: boolean;
+  skipped_reason: string | null;
+  remaining_requests: number;
+}
+
 export interface AskRequestBody {
   question: string;
   language?: string;
@@ -68,6 +81,7 @@ export interface AskResponse {
   model_provenance: Record<string, unknown> | null;
   cached: boolean;
   notes: string[];
+  budget: AskBudgetEcho | null;
 }
 
 export function askCitationLabel(cite: {
@@ -88,6 +102,8 @@ export function askStatusLabel(status: string): string {
       return "No evidence";
     case "ask_disabled":
       return "Ask disabled";
+    case "budget_exceeded":
+      return "Repo Ask budget exhausted";
     case "error":
       return "Error";
     default:

@@ -45,14 +45,20 @@ def set_job_stage(job: IndexingJob, stage: JobStage) -> None:
     job.heartbeat_at = datetime.now(UTC)
 
 
-def mark_job_succeeded(job: IndexingJob) -> None:
+def mark_job_succeeded(
+    job: IndexingJob,
+    *,
+    info_code: str | None = None,
+    info_message: str | None = None,
+) -> None:
     job.status = JobStatus.SUCCEEDED
     set_job_stage(job, JobStage.COMPLETED)
     job.locked_by = None
     job.locked_until = None
     job.completed_at = datetime.now(UTC)
-    job.error_code = None
-    job.error_message = None
+    # Optional non-error outcome (e.g. index_unchanged / index_incremental).
+    job.error_code = info_code
+    job.error_message = info_message
 
 
 def mark_job_failed(job: IndexingJob, *, error_code: str, error_message: str) -> None:

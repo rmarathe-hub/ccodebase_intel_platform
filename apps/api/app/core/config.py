@@ -92,6 +92,15 @@ class Settings(BaseSettings):
     ask_max_requests_per_call: int = 2
     ask_max_tokens_per_call: int = 16_000
     ask_max_estimated_cost_usd: float = 0.10
+    # Per-repository Ask budget (process-local tracker; demo/local reliability).
+    ask_max_requests_per_repository: int = 40
+    ask_max_tokens_per_repository: int = 200_000
+    ask_max_estimated_cost_usd_per_repository: float = 2.0
+
+    # Week 11 Day 5: best-effort incremental indexing (full re-index fallback).
+    incremental_indexing_enabled: bool = True
+    incremental_max_change_ratio: float = 0.35
+    incremental_max_changed_files: int = 200
 
     @property
     def cors_origin_list(self) -> list[str]:

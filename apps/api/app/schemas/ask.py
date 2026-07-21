@@ -53,6 +53,18 @@ class AskValidationEcho(BaseModel):
     errors: list[str] = Field(default_factory=list)
 
 
+class AskBudgetEcho(BaseModel):
+    requests_used: int
+    requests_limit: int
+    tokens_used: int
+    tokens_limit: int
+    estimated_cost_usd: float
+    cost_limit_usd: float
+    exhausted: bool = False
+    skipped_reason: str | None = None
+    remaining_requests: int = 0
+
+
 class AskResponse(BaseModel):
     repository_id: UUID
     snapshot_id: UUID | None
@@ -70,3 +82,4 @@ class AskResponse(BaseModel):
     model_provenance: dict[str, Any] | None = None
     cached: bool = False
     notes: list[str] = Field(default_factory=list)
+    budget: AskBudgetEcho | None = None

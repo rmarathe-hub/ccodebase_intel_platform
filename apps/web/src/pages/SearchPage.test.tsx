@@ -2,6 +2,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SearchPage } from "./SearchPage";
 
@@ -58,7 +59,11 @@ function wrap(ui: ReactNode) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  );
 }
 
 afterEach(() => {
@@ -76,7 +81,14 @@ describe("SearchPage", () => {
     fireEvent.change(screen.getByLabelText("Search query"), {
       target: { value: "UserService" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /search/i }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Repository")).toHaveValue("repo-1");
+    });
+
+    const form = screen.getByLabelText("Search query").closest("form");
+    expect(form).not.toBeNull();
+    fireEvent.submit(form!);
 
     await waitFor(() => {
       expect(screen.getByText("src/UserService.py:10-20")).toBeInTheDocument();

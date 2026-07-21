@@ -19,6 +19,10 @@ from app.services.embeddings.azure_openai import (
     endpoint_type,
 )
 from app.services.llm.budget import EnrichmentBudget, EnrichmentBudgetExceeded
+from app.services.rag.ask_repo_budget import (
+    consume_repository_ask_budget,
+    snapshot_repository_ask_budget,
+)
 from app.services.rag.citations import (
     CitationRef,
     CitationValidationResult,
@@ -41,7 +45,7 @@ MAX_EVIDENCE_CHARS = 900
 class AskAnswerResult:
     question: str
     answer: str
-    status: str  # ok | partial | no_evidence | ask_disabled | error
+    status: str  # ok | partial | no_evidence | ask_disabled | budget_exceeded | error
     analysis: QueryAnalysis
     context: ExpandedContext
     ranked_chunk_ids: tuple[UUID, ...]
@@ -49,6 +53,7 @@ class AskAnswerResult:
     model_provenance: dict[str, Any]
     cached: bool = False
     notes: tuple[str, ...] = ()
+    repo_budget: dict[str, Any] | None = None
 
 
 def _clip(text: str, n: int = MAX_EVIDENCE_CHARS) -> str:
@@ -285,6 +290,23 @@ def _store_cache(
     session.flush()
 
 
+def _budget_dict(repository_id: UUID | None, conf: Settings) -> dict[str, Any] | None:
+    if repository_id is None:
+        return None
+    snap = snapshot_repository_ask_budget(repository_id, conf=conf)
+    return {
+        "requests_used": snap.requests_used,
+        "requests_limit": snap.requests_limit,
+        "tokens_used": snap.tokens_used,
+        "tokens_limit": snap.tokens_limit,
+        "estimated_cost_usd": snap.estimated_cost_usd,
+        "cost_limit_usd": snap.cost_limit_usd,
+        "exhausted": snap.exhausted,
+        "skipped_reason": snap.skipped_reason,
+        "remaining_requests": snap.remaining_requests,
+    }
+
+
 def run_ask(
     session: Session,
     *,
@@ -298,6 +320,7 @@ def run_ask(
     expand: bool = True,
     llm_callable: object | None = None,
     budget: EnrichmentBudget | None = None,
+    repository_id: UUID | None = None,
 ) -> AskAnswerResult:
     """Retrieve evidence, generate grounded answer, post-validate citations."""
     conf = cfg or settings
@@ -334,7 +357,48 @@ def run_ask(
             ),
             model_provenance={"provider": "none", "mode": "disabled"},
             notes=("ask_disabled",),
+            repo_budget=_budget_dict(repository_id, conf),
         )
+
+    if repository_id is not None:
+        try:
+            consume_repository_ask_budget(repository_id, requests=1, conf=conf)
+        except EnrichmentBudgetExceeded:
+            empty_analysis = QueryAnalysis(
+                original=q,
+                kind=classify_query(q) if q else QueryKind.NATURAL_LANGUAGE,
+                retrieval_queries=(q,) if q else (),
+            )
+            return AskAnswerResult(
+                question=q,
+                answer=(
+                    "Per-repository Ask budget exhausted. "
+                    "Use Search for more lookups, or raise "
+                    "ASK_MAX_REQUESTS_PER_REPOSITORY for local demos."
+                ),
+                status="budget_exceeded",
+                analysis=empty_analysis,
+                context=ExpandedContext(
+                    units=(),
+                    depth_used=0,
+                    low_confidence=False,
+                    tokens_used=0,
+                    token_budget=conf.ask_context_token_budget,
+                    truncated=False,
+                    notes=("repo_budget_exceeded",),
+                ),
+                ranked_chunk_ids=(),
+                validation=CitationValidationResult(
+                    citations=(),
+                    valid_citations=(),
+                    dropped=(),
+                    ok=True,
+                    errors=(),
+                ),
+                model_provenance={"provider": "none", "mode": "repo_budget"},
+                notes=("repo_budget_exceeded",),
+                repo_budget=_budget_dict(repository_id, conf),
+            )
 
     bundle: AskRetrievalBundle = retrieve_ask_bundle(
         session,
@@ -387,6 +451,7 @@ def run_ask(
             ),
             model_provenance={"provider": "none", "mode": "no_evidence"},
             notes=tuple(notes + ["no_evidence"]),
+            repo_budget=_budget_dict(repository_id, conf),
         )
 
     evidence_payload = _evidence_payload(units)
@@ -413,6 +478,7 @@ def run_ask(
             model_provenance=dict(cached_payload.get("model_provenance") or {}),
             cached=True,
             notes=tuple(notes + ["cache_hit"]),
+            repo_budget=_budget_dict(repository_id, conf),
         )
 
     use_mock = llm_callable is None and (
@@ -442,6 +508,7 @@ def run_ask(
             validation=validation,
             model_provenance={"provider": "mock", "mode": "budget_fallback"},
             notes=tuple(notes + ["budget_exceeded_mock"]),
+            repo_budget=_budget_dict(repository_id, conf),
         )
 
     model_prov: dict[str, Any]
@@ -525,4 +592,5 @@ def run_ask(
         model_provenance=model_prov,
         cached=False,
         notes=tuple(notes),
+        repo_budget=_budget_dict(repository_id, conf),
     )

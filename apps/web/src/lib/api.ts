@@ -236,3 +236,9 @@ export function askRepository(
     body: JSON.stringify(body),
   });
 }
+
+export function fetchAskBudget(repositoryId: string) {
+  return request<import("./ask").AskBudgetEcho>(
+    `/api/v1/repositories/${repositoryId}/ask/budget`,
+  );
+}

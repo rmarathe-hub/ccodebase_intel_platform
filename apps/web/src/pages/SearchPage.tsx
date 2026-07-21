@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { PageShell } from "../components/PageShell";
 import { fetchRepositories, fetchRepositoryChunksSearch } from "../lib/api";
 import {
@@ -28,12 +28,16 @@ export function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const repoFromUrl = searchParams.get("repo") ?? "";
   const [repositoryId, setRepositoryId] = useState(repoFromUrl);
-  const [query, setQuery] = useState("");
-  const [submittedQuery, setSubmittedQuery] = useState("");
-  const [searchMode, setSearchMode] = useState<SearchMode>("exact");
-  const [level, setLevel] = useState<"all" | SupportLevel>("all");
-  const [pathPrefix, setPathPrefix] = useState("");
-  const [language, setLanguage] = useState("");
+  const [query, setQuery] = useState(searchParams.get("q") ?? "");
+  const [submittedQuery, setSubmittedQuery] = useState(searchParams.get("q") ?? "");
+  const [searchMode, setSearchMode] = useState<SearchMode>(
+    (searchParams.get("mode") as SearchMode) || "exact",
+  );
+  const [level, setLevel] = useState<"all" | SupportLevel>(
+    (searchParams.get("level") as "all" | SupportLevel) || "all",
+  );
+  const [pathPrefix, setPathPrefix] = useState(searchParams.get("path") ?? "");
+  const [language, setLanguage] = useState(searchParams.get("lang") ?? "");
 
   const reposQuery = useQuery({
     queryKey: ["repositories"],
@@ -41,13 +45,50 @@ export function SearchPage() {
   });
 
   const selectedId = repositoryId || repoFromUrl || reposQuery.data?.[0]?.id || "";
+  const hasRepos = (reposQuery.data?.length ?? 0) > 0;
+  const filtersActive =
+    level !== "all" || Boolean(pathPrefix.trim()) || Boolean(language.trim());
+
+  function syncParams(next: {
+    repo?: string;
+    q?: string;
+    mode?: SearchMode;
+    level?: "all" | SupportLevel;
+    path?: string;
+    lang?: string;
+  }) {
+    const params = new URLSearchParams(searchParams);
+    const repo = next.repo ?? selectedId;
+    if (repo) params.set("repo", repo);
+    else params.delete("repo");
+    const q = next.q ?? submittedQuery;
+    if (q) params.set("q", q);
+    else params.delete("q");
+    const mode = next.mode ?? searchMode;
+    if (mode && mode !== "exact") params.set("mode", mode);
+    else params.delete("mode");
+    const lvl = next.level ?? level;
+    if (lvl && lvl !== "all") params.set("level", lvl);
+    else params.delete("level");
+    const path = (next.path ?? pathPrefix).trim();
+    if (path) params.set("path", path);
+    else params.delete("path");
+    const lang = (next.lang ?? language).trim();
+    if (lang) params.set("lang", lang);
+    else params.delete("lang");
+    setSearchParams(params, { replace: true });
+  }
 
   function selectRepository(nextId: string) {
     setRepositoryId(nextId);
-    const next = new URLSearchParams(searchParams);
-    if (nextId) next.set("repo", nextId);
-    else next.delete("repo");
-    setSearchParams(next, { replace: true });
+    syncParams({ repo: nextId });
+  }
+
+  function clearFilters() {
+    setLevel("all");
+    setPathPrefix("");
+    setLanguage("");
+    syncParams({ level: "all", path: "", lang: "" });
   }
 
   const searchQuery = useQuery({
@@ -86,11 +127,23 @@ export function SearchPage() {
       />
 
       <section className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-6">
+        {!reposQuery.isLoading && !hasRepos && (
+          <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+            No repositories indexed yet.{" "}
+            <Link className="underline" to="/">
+              Import a public GitHub URL
+            </Link>{" "}
+            first.
+          </div>
+        )}
+
         <form
           className="flex flex-col gap-3"
           onSubmit={(event) => {
             event.preventDefault();
-            setSubmittedQuery(query.trim());
+            const next = query.trim();
+            setSubmittedQuery(next);
+            syncParams({ q: next, mode: searchMode, level, path: pathPrefix, lang: language });
           }}
         >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
@@ -118,7 +171,11 @@ export function SearchPage() {
               <select
                 className="rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg)_70%,black)] px-3 py-2 outline-none ring-[var(--accent)] focus:ring-2"
                 value={searchMode}
-                onChange={(event) => setSearchMode(event.target.value as SearchMode)}
+                onChange={(event) => {
+                  const mode = event.target.value as SearchMode;
+                  setSearchMode(mode);
+                  syncParams({ mode });
+                }}
                 aria-label="Search mode"
               >
                 {SEARCH_MODES.map((mode) => (
@@ -175,14 +232,27 @@ export function SearchPage() {
                     ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
                     : "border-[var(--border)]",
                 ].join(" ")}
-                onClick={() => setLevel(item.id)}
+                onClick={() => {
+                  setLevel(item.id);
+                  syncParams({ level: item.id });
+                }}
               >
                 {item.label}
               </button>
             ))}
+            {filtersActive && (
+              <button
+                type="button"
+                className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--muted)] hover:text-[var(--text)]"
+                onClick={clearFilters}
+              >
+                Clear filters
+              </button>
+            )}
             <button
               type="submit"
-              className="ml-auto rounded-md border border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] px-4 py-1.5 text-sm font-medium"
+              disabled={!selectedId || !query.trim()}
+              className="ml-auto rounded-md border border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] px-4 py-1.5 text-sm font-medium disabled:opacity-50"
             >
               Search
             </button>
@@ -200,10 +270,15 @@ export function SearchPage() {
       </section>
 
       <section className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)]">
-        {!submittedQuery.trim() ? (
+        {!hasRepos && !reposQuery.isLoading ? (
+          <p className="p-6 text-sm text-[var(--muted)]">
+            Nothing to search yet. Import a repository from the Dashboard, wait until Ready, then
+            come back.
+          </p>
+        ) : !submittedQuery.trim() ? (
           <p className="p-6 text-sm text-[var(--muted)]">
             Enter a query and press Search. Exact works without embeddings; semantic and hybrid
-            need the Embedding stage.
+            need the Embedding stage. Narrow with path / language / deep-vs-generic filters.
           </p>
         ) : reposQuery.isLoading || searchQuery.isLoading ? (
           <p className="p-6 text-sm text-[var(--muted)]">Searching…</p>
@@ -211,10 +286,20 @@ export function SearchPage() {
           <p className="p-6 text-sm text-rose-300">{(reposQuery.error as Error).message}</p>
         ) : searchQuery.isError ? (
           <p className="p-6 text-sm text-rose-300">{(searchQuery.error as Error).message}</p>
-        ) : (searchQuery.data?.hits.length ?? 0) === 0 ? (
-          <p className="p-6 text-sm text-[var(--muted)]">
-            No chunks matched. Try exact mode for identifiers, or widen filters.
+        ) : searchQuery.data?.snapshot_id == null ? (
+          <p className="p-6 text-sm text-amber-200">
+            No ready snapshot for this repository yet. Open Jobs or Repository overview and wait
+            for Ready, or re-index.
           </p>
+        ) : (searchQuery.data?.hits.length ?? 0) === 0 ? (
+          <div className="space-y-2 p-6 text-sm text-[var(--muted)]">
+            <p>No chunks matched.</p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>Try exact mode for identifiers / symbol names.</li>
+              <li>Clear path or language filters if they are too narrow.</li>
+              <li>Generic languages still return honest non-deep hits.</li>
+            </ul>
+          </div>
         ) : (
           <ul className="divide-y divide-[var(--border)]/70">
             {searchQuery.data?.hits.map((hit) => (
@@ -264,7 +349,7 @@ export function SearchPage() {
             ))}
           </ul>
         )}
-        {searchQuery.data && (
+        {searchQuery.data && searchQuery.data.snapshot_id && (
           <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted)]">
             Showing {searchQuery.data.hits.length} of {searchQuery.data.total} hits
           </p>

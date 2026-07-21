@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { askRepository } from "../lib/api";
 import { AskPage } from "./AskPage";
@@ -18,6 +19,17 @@ vi.mock("../lib/api", () => ({
       updated_at: "2026-01-01T00:00:00Z",
     },
   ]),
+  fetchAskBudget: vi.fn(async () => ({
+    requests_used: 1,
+    requests_limit: 40,
+    tokens_used: 0,
+    tokens_limit: 200000,
+    estimated_cost_usd: 0,
+    cost_limit_usd: 2,
+    exhausted: false,
+    skipped_reason: null,
+    remaining_requests: 39,
+  })),
   askRepository: vi.fn(async () => ({
     repository_id: "repo-1",
     snapshot_id: "snap-1",
@@ -68,6 +80,17 @@ vi.mock("../lib/api", () => ({
     model_provenance: { provider: "mock", mode: "deterministic" },
     cached: false,
     notes: [],
+    budget: {
+      requests_used: 2,
+      requests_limit: 40,
+      tokens_used: 0,
+      tokens_limit: 200000,
+      estimated_cost_usd: 0,
+      cost_limit_usd: 2,
+      exhausted: false,
+      skipped_reason: null,
+      remaining_requests: 38,
+    },
   })),
 }));
 
@@ -75,7 +98,11 @@ function wrap(ui: ReactNode) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  );
 }
 
 afterEach(() => {
@@ -112,5 +139,6 @@ describe("AskPage", () => {
     expect(screen.getByText(/Based on retrieved repository evidence/i)).toBeInTheDocument();
     expect(screen.getByText(/kind=natural_language/i)).toBeInTheDocument();
     expect(screen.getByText(/Prefer Search for cheap deterministic/i)).toBeInTheDocument();
+    expect(screen.getByText(/Per-repo Ask budget/i)).toBeInTheDocument();
   });
 });

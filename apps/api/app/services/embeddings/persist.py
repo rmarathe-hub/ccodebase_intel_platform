@@ -23,12 +23,16 @@ def replace_embeddings_for_snapshot(
     snapshot_id: uuid.UUID,
     provider: EmbeddingProvider | None = None,
     cfg: Settings | None = None,
+    prior_snapshot_id: uuid.UUID | None = None,
 ) -> tuple[int, int]:
     """Embed chunks for a snapshot.
 
     Returns ``(embedded_count, skipped_count)``.
     When embeddings are disabled / null provider, deletes existing rows for the
     snapshot (clean slate) and returns ``(0, chunk_count)``.
+
+    When ``prior_snapshot_id`` is set, vectors are reused by matching
+    ``content_hash`` + model/version (best-effort incremental).
     """
     conf = cfg or settings
     emb = provider or get_embedding_provider(conf)
@@ -91,12 +95,53 @@ def replace_embeddings_for_snapshot(
     session.flush()
 
     to_embed: list[Chunk] = [c for c in chunks if c.id not in reusable]
+
+    # Best-effort: copy vectors from a prior snapshot by content hash.
+    prior_by_hash: dict[str, ChunkEmbedding] = {}
+    if prior_snapshot_id is not None and to_embed:
+        needed = {c.content_hash for c in to_embed}
+        prior_rows = list(
+            session.scalars(
+                select(ChunkEmbedding).where(
+                    ChunkEmbedding.snapshot_id == prior_snapshot_id,
+                    ChunkEmbedding.embedding_model == emb.model_name,
+                    ChunkEmbedding.embedding_version == conf.embedding_version,
+                    ChunkEmbedding.content_hash.in_(needed),
+                )
+            ).all()
+        )
+        for row in prior_rows:
+            prior_by_hash.setdefault(row.content_hash, row)
+
+    still_needed: list[Chunk] = []
+    copied = 0
+    for chunk in to_embed:
+        prior = prior_by_hash.get(chunk.content_hash)
+        if prior is None:
+            still_needed.append(chunk)
+            continue
+        session.add(
+            ChunkEmbedding(
+                chunk_id=chunk.id,
+                snapshot_id=snapshot_id,
+                content_hash=chunk.content_hash,
+                embedding_provider=prior.embedding_provider,
+                embedding_model=prior.embedding_model,
+                embedding_version=prior.embedding_version,
+                dimensions=prior.dimensions,
+                embedding=list(prior.embedding) if prior.embedding is not None else None,
+            )
+        )
+        copied += 1
+    if copied:
+        session.flush()
+
     embedded = 0
-    skipped = len(reusable)
+    skipped = len(reusable) + copied
     batch_size = max(1, conf.embedding_batch_size)
 
-    for start in range(0, len(to_embed), batch_size):
-        batch = to_embed[start : start + batch_size]
+    for start in range(0, len(still_needed), batch_size):
+        batch = still_needed[start : start + batch_size]
         vectors = emb.embed_texts([c.content for c in batch])
         if len(vectors) != len(batch):
             raise RuntimeError(
@@ -123,10 +168,12 @@ def replace_embeddings_for_snapshot(
         session.flush()
 
     logger.info(
-        "Embedded snapshot %s embedded=%s skipped=%s provider=%s model=%s",
+        "Embedded snapshot %s embedded=%s skipped=%s copied_from_prior=%s "
+        "provider=%s model=%s",
         snapshot_id,
         embedded,
         skipped,
+        copied,
         emb.provider_name,
         emb.model_name,
     )

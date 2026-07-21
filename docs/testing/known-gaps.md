@@ -13,7 +13,7 @@ Honest deferrals after Weeks 0–7. Update as Week 8+ lands.
 7. ~~Interactive graph visualization~~ — React Flow + accuracy matrix shipped Week 8 Days 6–7
 8. Authentication / multi-tenancy
 9. Private repository import / non-GitHub hosts
-10. Incremental indexing (Week 11 Day 5 — full re-index path exists via `/reindex`)
+10. ~~Incremental indexing~~ — best-effort Week 11 Day 5 (unchanged short-circuit + embedding reuse; full re-index fallback)
 11. `packages/parser-core` deep pipeline (Python / JS-TS / Java logic lives under `apps/api/app/services`)
 
 ## Implemented and no longer gaps
@@ -40,6 +40,7 @@ Honest deferrals after Weeks 0–7. Update as Week 8+ lands.
 - Week 9 hybrid weight eval (30/70, 50/50, 70/30): see [week9-hybrid-eval/REPORT.md](./week9-hybrid-eval/REPORT.md)
 - Week 10 Days 1–7: RRF/rerank/rewrite/expand, grounded Ask API + UI, eval matrix — see [week10-ask-eval/REPORT.md](./week10-ask-eval/REPORT.md)
 - Week 11 Days 1–4: import UX → Ready, repo history/switch/re-index, cancel + failure UX
+- Week 11 Days 5–6: incremental index plan + Search/Ask polish + per-repo Ask budget
 
 ## Architecture decisions locked for Week 7+
 

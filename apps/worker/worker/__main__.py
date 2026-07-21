@@ -16,6 +16,7 @@ from app.models.entities import IndexingJob, JobStatus, Repository, SnapshotStat
 from app.models.job_stages import JobStage
 from app.services.discovery import discover_repository
 from app.services.git_clone import GitCloneError, secure_clone
+from app.services.incremental_index import plan_index
 from app.services.job_queue import (
     claim_next_job,
     get_repository_for_job,
@@ -120,6 +121,37 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     lease_seconds=settings.job_lease_seconds,
                 )
 
+                index_plan = plan_index(
+                    session,
+                    repository_id=repository_id,
+                    commit_sha=cloned.commit_sha,
+                    discovery=discovery,
+                )
+                logger.info(
+                    "Index plan for %s@%s: %s",
+                    repo_label,
+                    cloned.commit_sha[:12],
+                    index_plan.summary(),
+                )
+
+                if index_plan.mode == "unchanged" and index_plan.prior_snapshot_id is not None:
+                    job.snapshot_id = index_plan.prior_snapshot_id
+                    set_job_stage(job, JobStage.VALIDATING)
+                    session.commit()
+                    job = _reload_active_job(session, job_id)
+                    mark_job_succeeded(
+                        job,
+                        info_code="index_unchanged",
+                        info_message=index_plan.summary(),
+                    )
+                    session.commit()
+                    logger.info(
+                        "Skipped re-index for %s (same commit); job=%s",
+                        repo_label,
+                        job_id,
+                    )
+                    return True
+
                 snapshot = create_or_update_snapshot(
                     session,
                     repository_id=repository_id,
@@ -208,6 +240,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                 embedded_count, embedding_skipped = replace_embeddings_for_snapshot(
                     session,
                     snapshot_id=snapshot.id,
+                    prior_snapshot_id=index_plan.prior_snapshot_id,
                 )
 
                 set_job_stage(job, JobStage.VALIDATING)
@@ -225,14 +258,19 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                 )
 
                 job = _reload_active_job(session, job_id)
-                mark_job_succeeded(job)
+                mark_job_succeeded(
+                    job,
+                    info_code=f"index_{index_plan.mode}",
+                    info_message=index_plan.summary(),
+                )
                 session.commit()
                 logger.info(
                     "Indexed snapshot %s for %s@%s files=%s deep=%s parsed_py=%s "
                     "parsed_js_ts=%s parsed_java=%s symbols=%s calls=%s "
                     "relations=%s import_edges=%s export_edges=%s contains_edges=%s "
                     "chunks=%s enriched=%s embeddings=%s embed_skipped=%s "
-                    "validated_chunks=%s validated_embeddings=%s truncated=%s job=%s",
+                    "validated_chunks=%s validated_embeddings=%s truncated=%s "
+                    "index_mode=%s job=%s",
                     snapshot.id,
                     repo_label,
                     cloned.commit_sha[:12],
@@ -254,6 +292,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     validation.chunk_count,
                     validation.embedding_count,
                     discovery.truncated,
+                    index_plan.mode,
                     job_id,
                 )
             return True

@@ -118,6 +118,12 @@ export function JobProgress({
           <p className="text-sm font-medium text-emerald-100">
             Repository is Ready — open a workspace surface
           </p>
+          {job.error_code?.startsWith("index_") && (
+            <p className="mt-1 text-xs text-emerald-100/80">
+              {job.error_code.replaceAll("_", " ")}
+              {job.error_message ? ` · ${job.error_message}` : ""}
+            </p>
+          )}
           <div className="mt-3 flex flex-wrap gap-2">
             {(
               [
@@ -157,6 +163,13 @@ export function JobProgress({
             <p className="mt-2 text-xs opacity-70">{jobErrorHint(job.error_code)}</p>
           ) : null}
         </div>
+      )}
+
+      {ready && !showWorkspaceLinks && job.error_code?.startsWith("index_") && (
+        <p className="text-xs text-[var(--muted)]">
+          {job.error_code.replaceAll("_", " ")}
+          {job.error_message ? ` · ${job.error_message}` : ""}
+        </p>
       )}
     </div>
   );

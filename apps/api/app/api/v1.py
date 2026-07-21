@@ -9,6 +9,7 @@ from app.models.entities import IndexingJob, Repository, Symbol, SymbolCall, Sym
 from app.models.relation_kinds import ALL_RELATION_KINDS, RELATION_CONFIDENCES
 from app.schemas.ask import (
     AskAnalysisEcho,
+    AskBudgetEcho,
     AskCitation,
     AskEvidenceItem,
     AskRequest,
@@ -64,6 +65,7 @@ from app.services.import_repository import (
     retry_indexing_job,
 )
 from app.services.rag.answer import run_ask
+from app.services.rag.ask_repo_budget import snapshot_repository_ask_budget
 from app.services.rag.citations import citation_key
 from app.services.relations_query import list_symbol_relations
 from app.services.repository_summary import build_repository_summary
@@ -1170,6 +1172,20 @@ def ask_repository(
             },
         )
 
+    def _budget_echo() -> AskBudgetEcho:
+        snap = snapshot_repository_ask_budget(repository_id)
+        return AskBudgetEcho(
+            requests_used=snap.requests_used,
+            requests_limit=snap.requests_limit,
+            tokens_used=snap.tokens_used,
+            tokens_limit=snap.tokens_limit,
+            estimated_cost_usd=snap.estimated_cost_usd,
+            cost_limit_usd=snap.cost_limit_usd,
+            exhausted=snap.exhausted,
+            skipped_reason=snap.skipped_reason,
+            remaining_requests=snap.remaining_requests,
+        )
+
     snapshot = latest_ready_snapshot(db, repository_id)
     if snapshot is None:
         return AskResponse(
@@ -1183,6 +1199,7 @@ def ask_repository(
             analysis=None,
             validation=AskValidationEcho(ok=True, valid_count=0, dropped_count=0, errors=[]),
             notes=["no_ready_snapshot"],
+            budget=_budget_echo(),
         )
 
     result = run_ask(
@@ -1194,6 +1211,7 @@ def ask_repository(
         support_level=body.support_level,
         apply_rerank=body.apply_rerank,
         expand=body.expand,
+        repository_id=repository_id,
     )
 
     citations = [
@@ -1234,6 +1252,11 @@ def ask_repository(
         dropped_count=len(result.validation.dropped),
         errors=list(result.validation.errors),
     )
+    budget = (
+        AskBudgetEcho.model_validate(result.repo_budget)
+        if result.repo_budget
+        else _budget_echo()
+    )
     return AskResponse(
         repository_id=repository_id,
         snapshot_id=snapshot.id,
@@ -1251,6 +1274,33 @@ def ask_repository(
         model_provenance=result.model_provenance,
         cached=result.cached,
         notes=list(result.notes),
+        budget=budget,
+    )
+
+
+@router.get(
+    "/repositories/{repository_id}/ask/budget",
+    response_model=AskBudgetEcho,
+)
+def get_repository_ask_budget(
+    repository_id: UUID,
+    db: Session = Depends(get_db),
+) -> AskBudgetEcho:
+    """Current per-repository Ask budget usage (process-local)."""
+    repo = db.get(Repository, repository_id)
+    if repo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+    snap = snapshot_repository_ask_budget(repository_id)
+    return AskBudgetEcho(
+        requests_used=snap.requests_used,
+        requests_limit=snap.requests_limit,
+        tokens_used=snap.tokens_used,
+        tokens_limit=snap.tokens_limit,
+        estimated_cost_usd=snap.estimated_cost_usd,
+        cost_limit_usd=snap.cost_limit_usd,
+        exhausted=snap.exhausted,
+        skipped_reason=snap.skipped_reason,
+        remaining_requests=snap.remaining_requests,
     )
 
 

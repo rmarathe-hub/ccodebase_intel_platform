@@ -1,11 +1,12 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { PageShell } from "../components/PageShell";
-import { askRepository, fetchRepositories } from "../lib/api";
+import { askRepository, fetchAskBudget, fetchRepositories } from "../lib/api";
 import {
   askCitationLabel,
   askStatusLabel,
+  type AskBudgetEcho,
   type AskResponse,
 } from "../lib/ask";
 import { supportLevelLabel, type SupportLevel } from "../lib/files";
@@ -16,14 +17,48 @@ const LEVEL_FILTERS: Array<{ id: "all" | SupportLevel; label: string }> = [
   { id: "generic", label: "Generic" },
 ];
 
+function BudgetMeter({ budget }: { budget: AskBudgetEcho }) {
+  const pct =
+    budget.requests_limit > 0
+      ? Math.min(100, Math.round((budget.requests_used / budget.requests_limit) * 100))
+      : 0;
+  return (
+    <div className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-[var(--muted)]">Per-repo Ask budget</span>
+        <span className={budget.exhausted ? "text-rose-300" : "text-[var(--text)]"}>
+          {budget.requests_used}/{budget.requests_limit} requests · {budget.remaining_requests}{" "}
+          left
+        </span>
+      </div>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--border)_80%,black)]">
+        <div
+          className={[
+            "h-full rounded-full transition-[width]",
+            budget.exhausted || pct >= 90 ? "bg-rose-400" : "bg-[var(--accent)]",
+          ].join(" ")}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="mt-1 text-[var(--muted)]">
+        Context token budget is separate (shown on each answer). Search stays free and
+        deterministic.
+      </p>
+    </div>
+  );
+}
+
 export function AskPage() {
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const repoFromUrl = searchParams.get("repo") ?? "";
   const [repositoryId, setRepositoryId] = useState(repoFromUrl);
-  const [question, setQuestion] = useState("");
-  const [level, setLevel] = useState<"all" | SupportLevel>("all");
-  const [pathPrefix, setPathPrefix] = useState("");
-  const [language, setLanguage] = useState("");
+  const [question, setQuestion] = useState(searchParams.get("q") ?? "");
+  const [level, setLevel] = useState<"all" | SupportLevel>(
+    (searchParams.get("level") as "all" | SupportLevel) || "all",
+  );
+  const [pathPrefix, setPathPrefix] = useState(searchParams.get("path") ?? "");
+  const [language, setLanguage] = useState(searchParams.get("lang") ?? "");
   const [applyRerank, setApplyRerank] = useState(true);
   const [expand, setExpand] = useState(true);
   const [result, setResult] = useState<AskResponse | null>(null);
@@ -34,14 +69,54 @@ export function AskPage() {
   });
 
   const selectedId = repositoryId || repoFromUrl || reposQuery.data?.[0]?.id || "";
+  const hasRepos = (reposQuery.data?.length ?? 0) > 0;
+  const filtersActive =
+    level !== "all" || Boolean(pathPrefix.trim()) || Boolean(language.trim());
+
+  function syncParams(next: {
+    repo?: string;
+    q?: string;
+    level?: "all" | SupportLevel;
+    path?: string;
+    lang?: string;
+  }) {
+    const params = new URLSearchParams(searchParams);
+    const repo = next.repo ?? selectedId;
+    if (repo) params.set("repo", repo);
+    else params.delete("repo");
+    const q = (next.q ?? question).trim();
+    if (q) params.set("q", q);
+    else params.delete("q");
+    const lvl = next.level ?? level;
+    if (lvl && lvl !== "all") params.set("level", lvl);
+    else params.delete("level");
+    const path = (next.path ?? pathPrefix).trim();
+    if (path) params.set("path", path);
+    else params.delete("path");
+    const lang = (next.lang ?? language).trim();
+    if (lang) params.set("lang", lang);
+    else params.delete("lang");
+    setSearchParams(params, { replace: true });
+  }
 
   function selectRepository(nextId: string) {
     setRepositoryId(nextId);
-    const next = new URLSearchParams(searchParams);
-    if (nextId) next.set("repo", nextId);
-    else next.delete("repo");
-    setSearchParams(next, { replace: true });
+    setResult(null);
+    syncParams({ repo: nextId });
   }
+
+  function clearFilters() {
+    setLevel("all");
+    setPathPrefix("");
+    setLanguage("");
+    syncParams({ level: "all", path: "", lang: "" });
+  }
+
+  const budgetQuery = useQuery({
+    queryKey: ["ask-budget", selectedId],
+    queryFn: () => fetchAskBudget(selectedId),
+    enabled: Boolean(selectedId),
+  });
 
   const askMutation = useMutation({
     mutationFn: (body: {
@@ -52,13 +127,19 @@ export function AskPage() {
       apply_rerank: boolean;
       expand: boolean;
     }) => askRepository(selectedId, body),
-    onSuccess: (data) => setResult(data),
+    onSuccess: (data) => {
+      setResult(data);
+      void queryClient.invalidateQueries({ queryKey: ["ask-budget", selectedId] });
+    },
   });
 
   const selectedRepo = useMemo(
     () => reposQuery.data?.find((repo) => repo.id === selectedId),
     [reposQuery.data, selectedId],
   );
+
+  const liveBudget = result?.budget ?? budgetQuery.data ?? null;
+  const budgetBlocked = Boolean(liveBudget?.exhausted);
 
   return (
     <div className="space-y-4">
@@ -68,16 +149,29 @@ export function AskPage() {
       />
 
       <section className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-6">
+        {!reposQuery.isLoading && !hasRepos && (
+          <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+            No repositories indexed yet.{" "}
+            <Link className="underline" to="/">
+              Import a public GitHub URL
+            </Link>{" "}
+            first.
+          </div>
+        )}
+
+        {liveBudget && <div className="mb-4"><BudgetMeter budget={liveBudget} /></div>}
+
         <form
           className="flex flex-col gap-3"
           onSubmit={(event) => {
             event.preventDefault();
-            if (!selectedId) return;
+            if (!selectedId || budgetBlocked) return;
             const fd = new FormData(event.currentTarget);
             const q = String(fd.get("question") ?? question).trim();
             if (!q) return;
             setQuestion(q);
             setResult(null);
+            syncParams({ q, level, path: pathPrefix, lang: language });
             askMutation.mutate({
               question: q,
               support_level: level === "all" ? undefined : level,
@@ -156,11 +250,23 @@ export function AskPage() {
                     ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
                     : "border-[var(--border)]",
                 ].join(" ")}
-                onClick={() => setLevel(item.id)}
+                onClick={() => {
+                  setLevel(item.id);
+                  syncParams({ level: item.id });
+                }}
               >
                 {item.label}
               </button>
             ))}
+            {filtersActive && (
+              <button
+                type="button"
+                className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--muted)]"
+                onClick={clearFilters}
+              >
+                Clear filters
+              </button>
+            )}
             <label className="flex items-center gap-2 text-sm text-[var(--muted)]">
               <input
                 type="checkbox"
@@ -181,10 +287,12 @@ export function AskPage() {
             </label>
             <button
               type="submit"
-              disabled={!selectedId || !question.trim() || askMutation.isPending}
+              disabled={
+                !selectedId || !question.trim() || askMutation.isPending || budgetBlocked
+              }
               className="ml-auto rounded-md border border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_25%,transparent)] px-4 py-1.5 text-sm font-medium disabled:opacity-50"
             >
-              {askMutation.isPending ? "Asking…" : "Ask"}
+              {askMutation.isPending ? "Asking…" : budgetBlocked ? "Budget exhausted" : "Ask"}
             </button>
           </div>
         </form>
@@ -201,7 +309,16 @@ export function AskPage() {
       </section>
 
       <section className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)]">
-        {reposQuery.isLoading ? (
+        {!hasRepos && !reposQuery.isLoading ? (
+          <p className="p-6 text-sm text-[var(--muted)]">
+            Nothing to ask yet. Import a repository, wait until Ready, then ask grounded questions
+            here — or use{" "}
+            <Link className="text-[var(--accent)] underline" to="/search">
+              Search
+            </Link>{" "}
+            for free deterministic lookup.
+          </p>
+        ) : reposQuery.isLoading ? (
           <p className="p-6 text-sm text-[var(--muted)]">Loading repositories…</p>
         ) : reposQuery.isError ? (
           <p className="p-6 text-sm text-rose-300">{(reposQuery.error as Error).message}</p>
@@ -212,7 +329,7 @@ export function AskPage() {
         ) : !result ? (
           <p className="p-6 text-sm text-[var(--muted)]">
             Enter a question and press Ask. Answers cite only retrieved evidence; invented
-            citations are stripped.
+            citations are stripped. Prefer Search when you only need a cheap identifier lookup.
           </p>
         ) : (
           <div className="space-y-4 p-4">
@@ -234,10 +351,17 @@ export function AskPage() {
                 </span>
               )}
               <span className="text-xs text-[var(--muted)]">
-                depth {result.context_depth} · tokens {result.context_tokens_used}/
+                depth {result.context_depth} · context tokens {result.context_tokens_used}/
                 {result.context_token_budget}
               </span>
             </div>
+
+            {result.status === "budget_exceeded" && (
+              <p className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-100">
+                This repository&apos;s Ask budget is exhausted. Use Search, or raise
+                ASK_MAX_REQUESTS_PER_REPOSITORY locally.
+              </p>
+            )}
 
             <div>
               <h2 className="mb-2 text-sm font-medium">Answer</h2>
@@ -339,10 +463,10 @@ export function AskPage() {
       </section>
 
       <p className="text-xs text-[var(--muted)]">
-        Honesty: Ask is opt-in and budgeted. Default CI mode uses a deterministic mock answer over
-        retrieved evidence. Live Azure chat is used only when configured and mock is off. Citations
-        that are not in retrieved evidence are dropped. Prefer Search for cheap deterministic
-        lookup; Ask for grounded NL answers.
+        Honesty: Ask is opt-in and budgeted per repository. Default CI mode uses a deterministic
+        mock answer over retrieved evidence. Live Azure chat is used only when configured and mock
+        is off. Citations that are not in retrieved evidence are dropped. Prefer Search for cheap
+        deterministic lookup; Ask for grounded NL answers.
       </p>
     </div>
   );

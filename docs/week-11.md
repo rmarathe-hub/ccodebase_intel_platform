@@ -7,8 +7,8 @@
 | 1–2 | Repository import UX (paste URL → live stages → Ready) | Done |
 | 3 | Repo history / switch previously indexed repos; re-index | Done |
 | 4 | Failure UX (clone limits, partial support, cancel) | Done |
-| 5 | Incremental indexing best-effort (full re-index fallback OK) | Planned |
-| 6 | Search + Ask polish (filters, empty states, per-repo Ask budget) | Planned |
+| 5 | Incremental indexing best-effort (full re-index fallback OK) | Done |
+| 6 | Search + Ask polish (filters, empty states, per-repo Ask budget) | Done |
 | 7 | End-to-end dry run (import → search → ask → graph) | Planned |
 
 ## Theme
@@ -60,3 +60,16 @@ You can paste a public GitHub URL, watch stages, then search / graph / ask with 
 - Failure UX: human titles/hints for `repo_too_large`, `clone_timeout`, `clone_failed`, cancel
 - Partial-support honesty callout when generic/skip files are present
 - Tests: `test_cancel_reindex_week11.py`, `RepositoryOverviewPage.test.tsx`, `jobErrors.test.ts`
+
+## Days 5–6 shipped
+
+- Best-effort incremental indexing:
+  - Same commit → short-circuit (`index_unchanged`)
+  - Small change set → `index_incremental` + embed reuse from prior snapshot by `content_hash`
+  - Large diffs / disabled → full re-index (`index_full`)
+- Config: `INCREMENTAL_INDEXING_ENABLED`, `INCREMENTAL_MAX_CHANGE_RATIO`, `INCREMENTAL_MAX_CHANGED_FILES`
+- Search polish: empty states, clear filters, URL-synced `q`/`mode`/`level`/`path`/`lang`
+- Ask polish: empty states, clear filters, URL sync, per-repo Ask budget meter
+- `GET /repositories/{id}/ask/budget` + `budget` echo on Ask responses
+- Config: `ASK_MAX_REQUESTS_PER_REPOSITORY` (and tokens/cost companions)
+- Tests: `test_incremental_index_week11.py`, `test_ask_repo_budget_week11.py`
