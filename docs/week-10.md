@@ -9,7 +9,7 @@
 | 3 | Phase C — Query analysis / rewrite (NL only, ≤4) | Done |
 | 4 | Phase D — Context expansion (depth caps) | Done |
 | 5 | Phase D — Grounded `POST /ask` + citation validator | Done |
-| 6 | Ask UI | Planned |
+| 6 | Ask UI | Done |
 | 7 | Phase E — Eval matrix (hybrid vs rewrite vs rerank vs full RAG) | Planned |
 
 ## Architecture (locked)
@@ -124,3 +124,17 @@ Week 9 Days 5–7 complete (Validating + Search UI + matrix).
 - Cache answers by snapshot + question + prompt + evidence ids (`ask_cache_enabled`)
 - Response includes `answer`, validated `citations`, `evidence`, `analysis`, `validation`
 - Tests: `tests/test_rag_week10_day5.py`
+
+### Day 6 — Ask UI
+
+- `apps/web/src/pages/AskPage.tsx` — repo select, question, filters, rerank/expand toggles
+- Shows answer, validated citations, query analysis, evidence units, status/provenance
+- Client: `lib/ask.ts` + `askRepository()` POST in `lib/api.ts`
+- Tests: `AskPage.test.tsx`, `lib/ask.test.ts`
+- Search page honesty note points to Ask for grounded NL answers
+
+## Day 7 planned
+
+### Day 7 — Eval matrix
+
+Compare hybrid vs rewrite vs rerank vs full RAG (Recall@k, MRR, citation correctness, latency/cost).

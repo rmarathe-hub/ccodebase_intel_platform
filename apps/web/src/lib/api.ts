@@ -198,3 +198,13 @@ export function fetchRepositoryChunksSearch(
     `/api/v1/repositories/${repositoryId}/chunks/search?${query.toString()}`,
   );
 }
+
+export function askRepository(
+  repositoryId: string,
+  body: import("./ask").AskRequestBody,
+) {
+  return request<import("./ask").AskResponse>(`/api/v1/repositories/${repositoryId}/ask`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}

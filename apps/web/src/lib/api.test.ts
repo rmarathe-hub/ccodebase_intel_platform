@@ -156,6 +156,46 @@ describe("api client", () => {
     expect(url).toContain("limit=25");
   });
 
+  it("posts ask payloads", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        repository_id: "repo-1",
+        snapshot_id: "snap-1",
+        question: "hello",
+        answer: "hi",
+        status: "ok",
+        citations: [],
+        evidence: [],
+        analysis: null,
+        validation: { ok: true, valid_count: 0, dropped_count: 0, errors: [] },
+        context_depth: 1,
+        context_tokens_used: 0,
+        context_token_budget: 6000,
+        ranked_chunk_ids: [],
+        model_provenance: null,
+        cached: false,
+        notes: [],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { askRepository } = await import("./api");
+    await askRepository("repo-1", {
+      question: "how does greeting work?",
+      apply_rerank: true,
+      expand: false,
+    });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/api/v1/repositories/repo-1/ask");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(String(init.body))).toEqual({
+      question: "how does greeting work?",
+      apply_rerank: true,
+      expand: false,
+    });
+  });
+
   it("throws on non-ok responses without inventing success", async () => {
     vi.stubGlobal(
       "fetch",

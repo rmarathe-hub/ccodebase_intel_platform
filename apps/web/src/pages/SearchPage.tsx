@@ -264,7 +264,7 @@ export function SearchPage() {
         Honesty: exact search is LLM-independent. Semantic/hybrid use stored embeddings (local-hash
         in CI; Azure when configured). RRF merges exact∥semantic for Ask candidates; Rerank may
         use a mock or Azure chat (falls back to RRF). Generic hits are never verified-deep.
-        Full Ask answers are Week 10 Days 5–6 — not this page.
+        For grounded NL answers with citation validation, use the Ask page.
       </p>
     </div>
   );

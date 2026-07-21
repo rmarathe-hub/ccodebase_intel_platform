@@ -83,7 +83,7 @@ describe("SearchPage", () => {
     });
     expect(screen.getByText(/verified deep/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Full Ask answers are Week 10/i),
+      screen.getByText(/For grounded NL answers with citation validation/i),
     ).toBeInTheDocument();
   });
 });
