@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import Any, cast
 
 from app.services.llm.schemas import (
     ConstructLabel,
@@ -166,14 +166,17 @@ class AzureOpenAIProvider:
                     "content": json.dumps(items, ensure_ascii=False),
                 },
             ],
-            response_format={  # type: ignore[arg-type]
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "EnrichmentBatchResult",
-                    "schema": schema,
-                    "strict": False,
+            response_format=cast(
+                Any,
+                {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "EnrichmentBatchResult",
+                        "schema": schema,
+                        "strict": False,
+                    },
                 },
-            },
+            ),
             temperature=self.temperature,
         )
         raw = completion.choices[0].message.content or "{}"
@@ -289,14 +292,17 @@ class AzureOpenAIProvider:
                 },
                 {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
             ],
-            response_format={  # type: ignore[arg-type]
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "RepositoryLlmSummary",
-                    "schema": schema,
-                    "strict": False,
+            response_format=cast(
+                Any,
+                {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "RepositoryLlmSummary",
+                        "schema": schema,
+                        "strict": False,
+                    },
                 },
-            },
+            ),
             temperature=self.temperature,
         )
         raw = completion.choices[0].message.content or "{}"
