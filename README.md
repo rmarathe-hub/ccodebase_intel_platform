@@ -1,41 +1,43 @@
 # Codebase Intelligence Platform
 
-**Import a public GitHub repo. Index it. Search it. Ask grounded questions with file-and-line citations.**
+Import a public GitHub repository. Index it as structured evidence. Search with hybrid retrieval. Ask questions that cite real `path:start–end` ranges — or refuse to invent them.
 
-A local-first monorepo that turns unfamiliar codebases into searchable structure and citation-validated answers — without treating an LLM as the source of truth.
-
-Built as a full-stack systems project: async indexing workers, language-aware parsers, hybrid retrieval over Postgres + pgvector, and a React product UI with an honest support model (deep vs generic languages).
+This is a **local-first** full-stack system for codebase understanding: async workers, language-aware parsing, Postgres + pgvector retrieval, and a React product surface. The LLM is optional orchestration. **Persisted chunks and parser ranges are the source of truth.**
 
 ---
 
-## Why this exists
+## Thesis
 
-Keyword search misses intent. Chatbots invent paths and line numbers. This platform sits in between:
-
-1. **Index** — clone, discover, parse, chunk, embed, validate (async job pipeline)
-2. **Search** — exact, semantic, and hybrid retrieval with filters and citations
-3. **Ask** — optional LLM answers that only cite evidence the retriever actually returned
-
-Parser ranges and persisted chunks are authoritative. The model may rank and phrase; it may not invent sources.
-
----
-
-## What you can do
-
-| Surface | Capability |
+| Approach | Failure mode |
 | --- | --- |
-| **Import** | Paste a public `https://github.com/{owner}/{repo}` URL → live stages → Ready |
-| **Search** | Exact / semantic / hybrid over chunks; language & support-level filters |
-| **Ask** | Grounded Q&A with post-validated `path:start-end` citations |
-| **Symbols & graph** | Deep symbols/relationships for Python, Java, TypeScript, JavaScript |
-| **Honesty** | Generic languages stay searchable but never claimed as verified deep |
+| Keyword search | Misses intent and structure |
+| Unconstrained chat over code | Hallucinates paths, symbols, and line numbers |
+| **This platform** | Retrieve first, answer second — citations validated against evidence |
 
-**Deep support:** Python, Java, TypeScript, JavaScript  
-**Generic (structural/searchable, not verified deep):** Go, Rust, C/C++, Ruby, SQL, Shell, docs, config, and more — see [docs/language-support.md](docs/language-support.md)
+**Index** → clone, discover, parse, chunk, embed, validate  
+**Search** → exact · semantic · hybrid, with filters and citations  
+**Ask** → optional LLM answers bound to retrieved evidence only  
+
+The model may rank and phrase. It may not invent sources.
 
 ---
 
-## Architecture at a glance
+## Product surface
+
+| | |
+| --- | --- |
+| **Import** | Public `https://github.com/{owner}/{repo}` → live pipeline stages → Ready |
+| **Search** | Exact / semantic / hybrid over chunks; language & support-level filters |
+| **Ask** | Grounded Q&A; citations post-validated before display |
+| **Symbols / Graph** | Deep extraction for Python, Java, TypeScript, JavaScript |
+| **Honesty** | Generic languages remain searchable — never promoted to verified deep |
+
+**Deep:** Python · Java · TypeScript · JavaScript  
+**Generic (searchable structure, not verified deep):** Go, Rust, C/C++, Ruby, SQL, Shell, docs, config, and more — [language contract](docs/language-support.md)
+
+---
+
+## System design
 
 ```text
 React + TypeScript (Vite)
@@ -45,115 +47,101 @@ React + TypeScript (Vite)
       ┌─────┴──────┐
       ▼            ▼
  PostgreSQL    Background worker
- + pgvector    (Postgres job queue)
+ + pgvector    (durable job queue)
       │            │
       └─────┬──────┘
             ▼
-   Snapshots → parse → chunks → embeddings → validate
+   Snapshot → parse → chunk → embed → validate
             │
             ▼
    Hybrid retrieval → citation-validated Ask
 ```
 
-| Layer | Stack |
+| Layer | Choice |
 | --- | --- |
-| API | Python 3.12+, FastAPI, SQLAlchemy, Alembic |
-| Worker | Same codebase; staged indexing jobs with progress |
-| Data | PostgreSQL + **pgvector** |
-| Retrieval | Exact + semantic + hybrid fusion; optional LLM rerank |
-| LLM / embeddings | Local defaults ($0); optional Azure OpenAI |
-| Web | React, TypeScript, Vite |
-| Ops | Docker Compose, Makefile, GitHub Actions CI |
+| API | Python 3.12+ · FastAPI · SQLAlchemy · Alembic |
+| Worker | Staged indexing jobs with progress & failure UX |
+| Store | PostgreSQL + **pgvector** |
+| Retrieval | Exact + semantic fusion · optional LLM rerank |
+| Providers | Local defaults ($0) · optional Azure OpenAI |
+| UI | React · TypeScript · Vite |
+| Delivery | Docker Compose · Makefile · GitHub Actions |
 
-Details: [docs/system-architecture.md](docs/system-architecture.md) · [docs/indexing-pipeline.md](docs/indexing-pipeline.md)
+Architecture & pipeline: [system-architecture.md](docs/system-architecture.md) · [indexing-pipeline.md](docs/indexing-pipeline.md)
 
 ---
 
-## Repository layout
+## Monorepo
 
 ```text
-apps/
-  api/       FastAPI app, migrations, indexing & RAG services
-  worker/    Background job runner (clone → index → embed → validate)
-  web/       Product UI (import, search, ask, symbols, graph)
-packages/    Shared parser packages & fixtures
-docs/        PRD, architecture, language contract, weekly build notes
-infrastructure/
-scripts/     Dev helpers (e.g. worker watch / auto-reload)
+apps/api        HTTP API, migrations, indexing & RAG services
+apps/worker     Job runner — clone → index → embed → validate
+apps/web        Product UI — import, search, ask, symbols, graph
+packages/       Shared parsers & fixtures
+docs/           PRD, contracts, security, architecture
+scripts/        Dev ergonomics (worker watch, etc.)
 ```
 
 ---
 
-## Quick start
+## Run it
 
-### Option A — Docker Compose (recommended)
+**Compose (fastest):**
 
 ```bash
-make dev          # postgres + api + worker + web
+make dev    # postgres + api + worker + web
 ```
 
-Postgres is published on host port **5434** (avoids clashing with a local 5432).
+Postgres on host **5434** (avoids clashing with local 5432).
 
-### Option B — Local processes
+**Local processes:**
 
 ```bash
-make api-install
-make web-install
-make reset-db                 # postgres + migrate
+make api-install && make web-install && make reset-db
 
-# terminal 1 — API
+# API
 cd apps/api && . .venv/bin/activate && uvicorn app.main:app --reload --port 8001
 
-# terminal 2 — worker (auto-restarts on code changes)
+# Worker (reloads on code change)
 make worker-watch
 
-# terminal 3 — UI
+# UI
 cd apps/web && npm run dev
 ```
 
-Open the Vite URL (typically `http://localhost:5173`), paste a public GitHub HTTPS URL, wait for indexing, then use **Search** and **Ask**.
+Open the Vite app → paste a public GitHub HTTPS URL → wait for Ready → Search / Ask.
 
-Optional Azure embeddings / LLM: copy `apps/api/.env.example` → `.env` and set provider keys. Exact search and local embeddings work without cloud credentials.
-
----
-
-## Engineering highlights
-
-- **Durable async indexing** — staged jobs (clone → discover → parse → relationships → chunk → embed → validate → complete) with failure UX and re-index
-- **Language honesty contract** — deep vs generic support levels persisted and surfaced in API/UI; no regex “fake structure”
-- **Hybrid retrieval** — exact + semantic fusion over chunk embeddings; Search stays usable when embeddings/LLM are off
-- **Grounded Ask pipeline** — candidate merge → optional rewrite/rerank → context expansion → answer with citation validation
-- **Index freshness** — pipeline version stamped on snapshots; stale indexes can force a full reindex so answers match current chunking/retrieval
-- **Local-first cost model** — deterministic local embeddings by default; paid SDKs optional and isolated
-- **CI as a product** — Ruff, MyPy, Pytest, TypeScript, ESLint, Vitest, and Docker image builds on every `main` push/PR
+Cloud embeddings and LLM are optional (`apps/api/.env.example`). Exact search and local embeddings run with no paid credentials.
 
 ---
 
-## Quality & CI
+## Engineering signal
+
+What this repo is meant to demonstrate:
+
+- **Durable async indexing** — clone → discover → parse → relationships → chunk → embed → validate → complete, with re-index and failure paths
+- **Support-level contract** — deep vs generic persisted end-to-end; no regex cosplay as structure
+- **Retrieval that degrades honestly** — Search works when embeddings/LLM are off; Ask stays evidence-bound when they are on
+- **Grounded Ask** — merge candidates → optional rewrite/rerank → expand context → generate → **validate citations**
+- **Index freshness** — pipeline version stamped on snapshots; stale indexes force full reindex
+- **Cost & trust boundaries** — local-first defaults; paid SDKs isolated; import never executes repo code
+- **CI as gate** — Ruff · MyPy · Pytest · TypeScript · ESLint · Vitest · Docker image builds on `main`
 
 ```bash
-make ci           # lint + tests + local Docker image builds
+make ci
 ```
-
-GitHub Actions runs the same class of checks:
-
-- **Python** — Ruff, MyPy, Pytest  
-- **Frontend** — typecheck, ESLint, Vitest, production build  
-- **Docker** — api / worker / web image builds  
-
-Product and language contracts live under `docs/` (requirements, non-goals, security model, discovery policy).
 
 ---
 
-## Docs map
+## Documentation
 
-| Doc | What it covers |
+| | |
 | --- | --- |
-| [product-requirements.md](docs/product-requirements.md) | Problem, workflow, functional requirements |
-| [system-architecture.md](docs/system-architecture.md) | Components and data model |
+| [product-requirements.md](docs/product-requirements.md) | Problem, workflow, requirements |
+| [system-architecture.md](docs/system-architecture.md) | Components & data model |
 | [language-support.md](docs/language-support.md) | Deep vs generic contract |
-| [indexing-pipeline.md](docs/indexing-pipeline.md) | Job stages and invariants |
-| [security-model.md](docs/security-model.md) | Import/trust boundaries |
+| [indexing-pipeline.md](docs/indexing-pipeline.md) | Stages & invariants |
+| [security-model.md](docs/security-model.md) | Import & trust boundaries |
 | [non-goals.md](docs/non-goals.md) | Explicit scope cuts |
 
 ---
