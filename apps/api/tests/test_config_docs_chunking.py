@@ -130,4 +130,8 @@ def test_persist_config_and_docs_chunks(db_session: Session) -> None:
     assert any(r.chunk_type == "documentation_section" for r in rows)
     assert any(r.path == "package.json" for r in rows)
     assert any(r.path.endswith("ARCHITECTURE.md") for r in rows)
-    assert all(r.verified_deep is False for r in rows if r.language in {"configuration", "documentation"})
+    assert all(
+        r.verified_deep is False
+        for r in rows
+        if r.language in {"configuration", "documentation"}
+    )

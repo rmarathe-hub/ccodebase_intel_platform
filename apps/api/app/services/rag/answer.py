@@ -24,7 +24,6 @@ from app.services.rag.ask_repo_budget import (
     consume_repository_ask_budget,
     snapshot_repository_ask_budget,
 )
-from app.services.rag.evidence_policy import normalize_repo_path
 from app.services.rag.citations import (
     CitationRef,
     CitationValidationResult,
@@ -40,6 +39,7 @@ from app.services.rag.evidence_policy import (
     classify_evidence_path,
     is_file_walk_query,
     is_negative_infra_query,
+    normalize_repo_path,
 )
 from app.services.rag.pipeline import AskRetrievalBundle, retrieve_ask_bundle
 from app.services.rag.query_analysis import QueryAnalysis, QueryKind, classify_query

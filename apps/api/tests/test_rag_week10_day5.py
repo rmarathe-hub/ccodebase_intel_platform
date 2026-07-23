@@ -220,7 +220,9 @@ def test_ask_disabled(db_session: Session) -> None:
     assert result.status == "ask_disabled"
 
 
-def test_ask_api_endpoint(client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_ask_api_endpoint(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
     cfg = _AskSettings()
     monkeypatch.setattr("app.services.rag.answer.settings", cfg)
     monkeypatch.setattr("app.services.rag.pipeline.settings", cfg)

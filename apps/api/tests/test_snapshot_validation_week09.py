@@ -14,11 +14,11 @@ from app.models import Chunk, ChunkEmbedding, Repository, SnapshotStatus
 from app.services.chunking import replace_chunks_for_snapshot
 from app.services.discovery import discover_repository
 from app.services.embeddings import replace_embeddings_for_snapshot
-from app.services.snapshots import create_or_update_snapshot
 from app.services.snapshot_validation import (
     SnapshotValidationError,
     validate_snapshot_for_job,
 )
+from app.services.snapshots import create_or_update_snapshot
 from app.services.source_files import replace_source_files_for_snapshot
 from app.services.symbols import replace_python_symbols_for_snapshot
 from tests.conftest import requires_postgres

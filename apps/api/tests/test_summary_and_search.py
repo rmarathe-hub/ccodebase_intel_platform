@@ -123,7 +123,7 @@ def test_summary_api_with_mock_llm(
     )
 
     repo = _index_polyglot(db_session)
-    # build_repository_summary uses settings from module — patch cfg via monkeypatch on build call path
+    # build_repository_summary uses module settings — patch via monkeypatch.
     from app.services.files_query import latest_ready_snapshot
 
     snap = latest_ready_snapshot(db_session, repo.id)

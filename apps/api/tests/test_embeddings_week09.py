@@ -7,8 +7,6 @@ import math
 import pytest
 from pydantic_settings import SettingsConfigDict
 
-from pydantic_settings import SettingsConfigDict
-
 from app.core.config import Settings
 from app.services.embeddings import (
     EMBEDDING_DIMENSIONS,

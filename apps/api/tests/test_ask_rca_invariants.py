@@ -186,7 +186,10 @@ def test_multi_file_flow_retrieves_all_explicit_paths(
 ) -> None:
     root = tmp_path / "repo"
     files = {
-        "shell.html": "<!doctype html><script type=\"module\" src=\"/client_bootstrap_47.ts\"></script>\n",
+        "shell.html": (
+            '<!doctype html><script type="module" '
+            'src="/client_bootstrap_47.ts"></script>\n'
+        ),
         "client_bootstrap_47.ts": 'export const boot = () => "ok";\n',
         "RootShell91.tsx": "export function RootShell91() { return null; }\n",
         "package.json": '{"name":"flow"}\n',

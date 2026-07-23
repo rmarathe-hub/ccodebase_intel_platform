@@ -19,6 +19,7 @@ from app.services.chunking import replace_chunks_for_snapshot
 from app.services.discovery import discover_repository
 from app.services.embeddings import replace_embeddings_for_snapshot
 from app.services.files_query import latest_ready_snapshot
+from app.services.js_ts_symbols import replace_js_ts_symbols_for_snapshot
 from app.services.rag.answer import _evidence_payload, run_ask
 from app.services.rag.evidence_policy import (
     EvidenceTier,
@@ -34,7 +35,6 @@ from app.services.rag.query_analysis import analyze_query
 from app.services.snapshots import create_or_update_snapshot
 from app.services.source_files import replace_source_files_for_snapshot
 from app.services.symbols import replace_python_symbols_for_snapshot
-from app.services.js_ts_symbols import replace_js_ts_symbols_for_snapshot
 from tests.conftest import requires_postgres
 
 pytestmark = requires_postgres
@@ -147,8 +147,20 @@ def test_coverage_reports_missing_ranges() -> None:
     from app.services.rag.evidence_policy import compute_file_coverage
 
     chunks = [
-        SimpleNamespace(path="x.py", start_line=1, end_line=10, language="python", support_level="deep"),
-        SimpleNamespace(path="x.py", start_line=20, end_line=30, language="python", support_level="deep"),
+        SimpleNamespace(
+            path="x.py",
+            start_line=1,
+            end_line=10,
+            language="python",
+            support_level="deep",
+        ),
+        SimpleNamespace(
+            path="x.py",
+            start_line=20,
+            end_line=30,
+            language="python",
+            support_level="deep",
+        ),
     ]
     sf = SimpleNamespace(path="x.py", line_count=30, language="python", support_level="deep")
     cov = compute_file_coverage(chunks, source_file=sf)
@@ -575,7 +587,13 @@ def test_missing_symbol_build_fct_flights(
     assert any("symbol_missing:build_fct_flights" in n for n in bundle.routing_notes)
 
     result = run_ask(db_session, snapshot_id=snap.id, question=q, cfg=cfg)
-    assert "build_fct_flights" in " ".join(result.notes) or "not found" in result.answer.lower() or "symbol_missing" in " ".join(result.notes)
+    notes = " ".join(result.notes)
+    answer_l = result.answer.lower()
+    assert (
+        "build_fct_flights" in notes
+        or "not found" in answer_l
+        or "symbol_missing" in notes
+    )
 
 
 def test_no_plan_dominance_when_source_exists(

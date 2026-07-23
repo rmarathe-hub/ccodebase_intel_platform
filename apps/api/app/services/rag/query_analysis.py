@@ -120,7 +120,9 @@ def _extract_paths(q: str) -> list[str]:
             # Drop shorter basename collisions already covered by multi-dot specials
             # e.g. avoid adding config.ts when vite.config.ts is present.
             if any(
-                existing.endswith("/" + token) or existing == token or existing.endswith("." + token)
+                existing.endswith("/" + token)
+                or existing == token
+                or existing.endswith("." + token)
                 or (existing.endswith(token) and len(existing) > len(token))
                 for existing in found
             ):

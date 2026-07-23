@@ -18,8 +18,8 @@ from app.services.discovery import discover_repository
 from app.services.embeddings import replace_embeddings_for_snapshot
 from app.services.files_query import latest_ready_snapshot
 from app.services.rag.context_expand import (
-    expand_context,
     estimate_tokens,
+    expand_context,
     retrieval_confidence_is_low,
 )
 from app.services.rag.pipeline import retrieve_ask_bundle

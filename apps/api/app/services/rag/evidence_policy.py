@@ -731,11 +731,18 @@ def compute_file_coverage(
         covered=retrieved,
     )
     complete = indexed_end >= indexed_start and not missing and bool(retrieved)
+    indexed = bool(
+        chunks
+        or (source_file is not None and source_file.support_level != "skip")
+    )
+    indexed_range = (
+        [indexed_start, indexed_end] if indexed_end >= indexed_start else None
+    )
     return {
         "path": path,
-        "indexed": True if chunks or (source_file is not None and source_file.support_level != "skip") else False,
+        "indexed": indexed,
         "coverage_complete": complete,
-        "indexed_line_range": [indexed_start, indexed_end] if indexed_end >= indexed_start else None,
+        "indexed_line_range": indexed_range,
         "retrieved_line_ranges": [[s, e] for s, e in retrieved],
         "missing_ranges": [[s, e] for s, e in missing],
         "chunk_count": len(chunks),
@@ -840,8 +847,12 @@ def detect_project_ecosystems(paths: list[str] | tuple[str, ...]) -> tuple[Proje
         b.startswith("vite.config.") or b.startswith("next.config.") for b in basenames
     ):
         bump(ProjectEcosystem.NODE, 2)
-    if any(p.startswith("src/") or p.startswith("app/") or p.startswith("pages/") for p in lowers):
-        if "package.json" in basenames or any(p.endswith((".ts", ".tsx", ".js", ".jsx")) for p in lowers):
+    if any(
+        p.startswith("src/") or p.startswith("app/") or p.startswith("pages/")
+        for p in lowers
+    ):
+        js_ext = any(p.endswith((".ts", ".tsx", ".js", ".jsx")) for p in lowers)
+        if "package.json" in basenames or js_ext:
             bump(ProjectEcosystem.NODE, 1)
 
     if basenames & {"pyproject.toml", "requirements.txt", "setup.py", "setup.cfg", "pipfile"}:

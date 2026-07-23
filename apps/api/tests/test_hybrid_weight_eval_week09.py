@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from sqlalchemy.orm import Session
-
 from pydantic_settings import SettingsConfigDict
+from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.services.hybrid_weight_eval import (

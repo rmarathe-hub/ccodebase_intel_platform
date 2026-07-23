@@ -16,7 +16,6 @@ from app.services.chunks_query import ChunkSearchResult
 from app.services.rag.candidates import retrieve_rrf_candidates
 from app.services.rag.context_expand import ExpandedContext, expand_context
 from app.services.rag.evidence_policy import (
-    normalize_repo_path,
     EvidenceTier,
     apply_evidence_priors,
     build_path_retrieval_diagnostic,
@@ -27,6 +26,7 @@ from app.services.rag.evidence_policy import (
     is_onboarding_query,
     lookup_source_file,
     merge_routed_ahead,
+    normalize_repo_path,
     resolve_deployment_chunks,
     resolve_onboarding_chunks,
     resolve_path_chunks,

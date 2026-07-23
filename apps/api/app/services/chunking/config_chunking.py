@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import tomllib
+from io import StringIO
 from pathlib import Path
 from xml.sax import ContentHandler, handler
 from xml.sax.xmlreader import InputSource
@@ -11,7 +12,6 @@ from xml.sax.xmlreader import InputSource
 import defusedxml.sax
 import yaml
 from dockerfile_parse import DockerfileParser
-from io import StringIO
 from yaml.nodes import MappingNode, ScalarNode
 
 from app.core.language_contract import SupportLevel

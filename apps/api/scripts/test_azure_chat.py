@@ -19,7 +19,6 @@ import time
 from pathlib import Path
 from urllib.parse import urlparse
 
-
 PROMPT = "Reply with exactly the word: pong"
 OPT_IN_FLAG = "RUN_AZURE_INTEGRATION_TESTS"
 

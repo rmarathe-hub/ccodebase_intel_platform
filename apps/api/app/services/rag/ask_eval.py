@@ -359,7 +359,10 @@ def render_ask_eval_report(result: dict[str, Any]) -> str:
         "",
         "## Overall",
         "",
-        "| Mode | Recall@5 | Recall@10 | MRR | mean latency (ms) | p95 (ms) | cite OK | unsupported |",
+        (
+            "| Mode | Recall@5 | Recall@10 | MRR | mean latency (ms) "
+            "| p95 (ms) | cite OK | unsupported |"
+        ),
         "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for mode in MODES:

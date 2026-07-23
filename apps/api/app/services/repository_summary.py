@@ -147,7 +147,10 @@ def build_deterministic_summary(
         "configuration_files": sorted(config_files)[:100],
         "documentation_files": sorted(doc_files)[:100],
         "entry_point_candidates": sorted(entry_candidates)[:50],
-        "chunk_counts": {"total": chunk_total, "by_type": {str(k): int(v) for k, v in chunk_by_type.items()}},
+        "chunk_counts": {
+            "total": chunk_total,
+            "by_type": {str(k): int(v) for k, v in chunk_by_type.items()},
+        },
         "parser_coverage": dict(parser_coverage.most_common()),
         "skipped_file_counts": dict(skip_reasons),
         "file_count": len(files),
@@ -232,7 +235,12 @@ def build_repository_summary(
     ]
     allowed_ranges = [(c.start_line, c.end_line) for c in evidence_chunks]
     result["evidence"] = [
-        {"path": c.path, "start_line": c.start_line, "end_line": c.end_line} for c in evidence_chunks
+        {
+            "path": c.path,
+            "start_line": c.start_line,
+            "end_line": c.end_line,
+        }
+        for c in evidence_chunks
     ]
 
     try:

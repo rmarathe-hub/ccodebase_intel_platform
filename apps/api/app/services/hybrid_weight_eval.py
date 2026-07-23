@@ -326,7 +326,10 @@ def render_report_markdown(result: dict[str, Any]) -> str:
         "",
         "## Overall",
         "",
-        "| Config | exact | semantic | Recall@5 | Recall@10 | MRR | mean latency (ms) | p95 latency (ms) |",
+        (
+            "| Config | exact | semantic | Recall@5 | Recall@10 | MRR "
+            "| mean latency (ms) | p95 latency (ms) |"
+        ),
         "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for name, w_exact, w_semantic in WEIGHT_CONFIGS:

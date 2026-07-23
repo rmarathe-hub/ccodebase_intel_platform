@@ -3,8 +3,10 @@
 
 Usage (from repo root or apps/api):
 
-  PYTHONPATH=apps/api apps/api/.venv/bin/python apps/api/scripts/cleanup_test_repositories.py
-  PYTHONPATH=apps/api apps/api/.venv/bin/python apps/api/scripts/cleanup_test_repositories.py --dry-run
+  PYTHONPATH=apps/api apps/api/.venv/bin/python \\
+    apps/api/scripts/cleanup_test_repositories.py
+  PYTHONPATH=apps/api apps/api/.venv/bin/python \\
+    apps/api/scripts/cleanup_test_repositories.py --dry-run
 """
 
 from __future__ import annotations

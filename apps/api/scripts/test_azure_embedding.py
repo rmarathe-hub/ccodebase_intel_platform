@@ -20,7 +20,6 @@ import time
 from pathlib import Path
 from urllib.parse import urlparse
 
-
 INPUT_TEXT = "Find authentication middleware"
 OPT_IN_FLAG = "RUN_AZURE_INTEGRATION_TESTS"
 

@@ -133,7 +133,13 @@ def test_deep_symbol_chunks_from_python_java(
     root = tmp_path / "mixed"
     (root / "pkg").mkdir(parents=True)
     (root / "pkg" / "svc.py").write_text(
-        "def helper(x):\n    return x\n\nclass Box:\n    def run(self):\n        return helper(1)\n",
+        (
+            "def helper(x):\n"
+            "    return x\n\n"
+            "class Box:\n"
+            "    def run(self):\n"
+            "        return helper(1)\n"
+        ),
         encoding="utf-8",
     )
     (root / "Main.java").write_text(

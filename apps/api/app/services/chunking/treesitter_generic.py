@@ -4,16 +4,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from tree_sitter import Language, Node, Parser
-
 # Import grammars; package names vary slightly.
 import tree_sitter_bash as ts_bash
 import tree_sitter_c as ts_c
-import tree_sitter_cpp as ts_cpp
 import tree_sitter_c_sharp as ts_csharp
+import tree_sitter_cpp as ts_cpp
 import tree_sitter_go as ts_go
 import tree_sitter_ruby as ts_ruby
 import tree_sitter_rust as ts_rust
+from tree_sitter import Language, Node, Parser
 
 from app.core.language_contract import SupportLevel
 from app.services.chunking.types import ExtractedChunk

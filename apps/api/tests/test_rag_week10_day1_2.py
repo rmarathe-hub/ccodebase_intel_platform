@@ -247,12 +247,14 @@ def test_rerank_llm_callable_reorders(db_session: Session) -> None:
     assert out[0].score_breakdown.get("rerank_applied") == 1.0
 
 
-def test_search_mode_rerank_api(client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_search_mode_rerank_api(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
     cfg = _LocalSettings()
     repo = _index_and_embed(db_session, cfg)
     import app.services.chunks_query as cq
-    import app.services.rag.rerank as rr
     import app.services.rag.candidates as cand
+    import app.services.rag.rerank as rr
 
     monkeypatch.setattr(cq, "settings", cfg)
     monkeypatch.setattr(rr, "settings", cfg)
