@@ -90,7 +90,7 @@ def test_python_parser_stamp_documented_shape() -> None:
 
 
 def test_no_paid_sdk_imports_in_app() -> None:
-    """Infra SDKs banned everywhere; LLM SDKs only under app/services/llm/."""
+    """Infra SDKs banned everywhere; LLM SDKs only under llm/, embeddings/, rag/."""
     app_root = ROOT / "apps" / "api" / "app"
     banned_everywhere = ("azure", "boto3", "redis", "kubernetes")
     llm_only = ("openai", "anthropic", "langchain", "langchain_openai", "langchain_core")
@@ -98,6 +98,9 @@ def test_no_paid_sdk_imports_in_app() -> None:
         text = path.read_text(encoding="utf-8")
         rel = path.relative_to(app_root)
         in_llm = rel.parts[:2] == ("services", "llm")
+        in_embeddings = rel.parts[:2] == ("services", "embeddings")
+        in_rag = rel.parts[:2] == ("services", "rag")
+        allow_llm_sdk = in_llm or in_embeddings or in_rag
         for token in banned_everywhere:
             # azure_openai module name is ours; ban azure.* cloud SDK imports only.
             if token == "azure":
@@ -106,7 +109,7 @@ def test_no_paid_sdk_imports_in_app() -> None:
                 continue
             assert f"import {token}" not in text
             assert f"from {token}" not in text
-        if not in_llm:
+        if not allow_llm_sdk:
             for token in llm_only:
                 assert f"import {token}" not in text
                 assert f"from {token}" not in text

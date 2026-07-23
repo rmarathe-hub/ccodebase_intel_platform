@@ -162,15 +162,15 @@ def test_live_schema_has_week3_and_week4_tables() -> None:
 
     with engine.connect() as conn:
         head = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-    assert head == "0010_embedding_dimensions_1536"
+    assert head == "0011_index_pipeline_version"
     engine.dispose()
 
 
-def test_alembic_heads_cli_matches_0010() -> None:
+def test_alembic_heads_cli_matches_0011() -> None:
     from alembic.config import Config
     from alembic.script import ScriptDirectory
 
     cfg = Config(str(ROOT / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
     heads = script.get_heads()
-    assert heads == ["0010_embedding_dimensions_1536"]
+    assert heads == ["0011_index_pipeline_version"]

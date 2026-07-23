@@ -60,11 +60,16 @@ def client() -> Generator[TestClient, None, None]:
 def test_health_and_ready(client: TestClient) -> None:
     health = client.get("/health")
     assert health.status_code == 200
-    assert health.json() == {"status": "ok"}
+    body = health.json()
+    assert body["status"] == "ok"
+    assert "index_pipeline_version" in body
+    assert "build" in body
     ready = client.get("/ready")
     assert ready.status_code == 200
-    body = ready.json()
-    assert "status" in body and "database" in body
+    ready_body = ready.json()
+    assert "status" in ready_body and "database" in ready_body
+    assert "index_pipeline_version" in ready_body
+    assert "build" in ready_body
 
 
 def test_openapi_exposes_week2_paths(client: TestClient) -> None:
