@@ -1,0 +1,10 @@
+name: aerodelay
+profile: aerodelay
+models:
+  aerodelay:
+    staging:
+      +materialized: view
+    intermediate:
+      +schema: intermediate
+    marts:
+      +schema: marts

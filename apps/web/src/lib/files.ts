@@ -38,6 +38,30 @@ export interface SourceFileListResponse {
   files: SourceFile[];
 }
 
+export interface SourceFileContentChunk {
+  chunk_id: string;
+  start_line: number;
+  end_line: number;
+  content: string;
+  support_level: string;
+  symbol_id: string | null;
+}
+
+export interface SourceFileContentResponse {
+  repository_id: string;
+  snapshot_id: string | null;
+  path: string;
+  indexed: boolean;
+  language: string | null;
+  support_level: string | null;
+  line_count: number | null;
+  content: string;
+  chunks: SourceFileContentChunk[];
+  coverage_complete: boolean;
+  missing_ranges: number[][];
+  message: string | null;
+}
+
 export function supportLevelLabel(level: string): string {
   switch (level) {
     case "deep":

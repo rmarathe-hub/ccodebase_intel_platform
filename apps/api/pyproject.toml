@@ -48,6 +48,7 @@ dev = [
   "mypy>=1.13.0",
   "types-setuptools",
   "mutmut>=2.4.0",
+  "watchfiles>=0.24.0",
 ]
 # Optional enrichment stack — never required for CI or deterministic indexing.
 llm = [

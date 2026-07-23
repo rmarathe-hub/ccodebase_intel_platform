@@ -17,12 +17,14 @@ from app.models import LlmEnrichmentCache
 from app.services.embeddings.azure_openai import (
     _foundry_v1_base_url,
     endpoint_type,
+    normalize_azure_resource_endpoint,
 )
 from app.services.llm.budget import EnrichmentBudget, EnrichmentBudgetExceeded
 from app.services.rag.ask_repo_budget import (
     consume_repository_ask_budget,
     snapshot_repository_ask_budget,
 )
+from app.services.rag.evidence_policy import normalize_repo_path
 from app.services.rag.citations import (
     CitationRef,
     CitationValidationResult,
@@ -33,12 +35,19 @@ from app.services.rag.citations import (
     validate_citations,
 )
 from app.services.rag.context_expand import ContextUnit, ExpandedContext
+from app.services.rag.evidence_policy import (
+    assemble_file_lines,
+    classify_evidence_path,
+    is_file_walk_query,
+    is_negative_infra_query,
+)
 from app.services.rag.pipeline import AskRetrievalBundle, retrieve_ask_bundle
 from app.services.rag.query_analysis import QueryAnalysis, QueryKind, classify_query
 
 logger = logging.getLogger(__name__)
 
 MAX_EVIDENCE_CHARS = 900
+MAX_FILE_AGGREGATE_CHARS = 14_000
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +63,10 @@ class AskAnswerResult:
     cached: bool = False
     notes: tuple[str, ...] = ()
     repo_budget: dict[str, Any] | None = None
+    evidence_diagnostics: tuple[dict[str, Any], ...] = ()
+    file_coverage: tuple[dict[str, Any], ...] = ()
+    file_diagnostics: tuple[dict[str, Any], ...] = ()
+    exact_file_mode: bool = False
 
 
 def _clip(text: str, n: int = MAX_EVIDENCE_CHARS) -> str:
@@ -62,30 +75,189 @@ def _clip(text: str, n: int = MAX_EVIDENCE_CHARS) -> str:
     return text[:n] + "…"
 
 
-def _evidence_payload(units: tuple[ContextUnit, ...] | list[ContextUnit]) -> list[dict[str, Any]]:
+def _path_key(path: str) -> str:
+    return normalize_repo_path(path)
+
+
+def _append_evidence_item(
+    out: list[dict[str, Any]],
+    diagnostics: list[dict[str, Any]],
+    *,
+    chunk_id: str,
+    path: str,
+    start_line: int,
+    end_line: int,
+    support_level: str,
+    role: str,
+    depth: int,
+    content: str,
+    chars_stored: int,
+    chars_sent: int,
+    truncated: bool,
+    evidence_tier: int,
+) -> None:
+    item = {
+        "chunk_id": chunk_id,
+        "path": path,
+        "start_line": start_line,
+        "end_line": end_line,
+        "support_level": support_level,
+        "role": role,
+        "depth": depth,
+        "citation": citation_key(path, start_line, end_line),
+        "content": content,
+        "evidence_tier": evidence_tier,
+        "chars_stored": chars_stored,
+        "chars_sent": chars_sent,
+        "content_truncated": truncated,
+        "estimated_tokens_sent": max(1, (chars_sent + 3) // 4),
+    }
+    out.append(item)
+    diagnostics.append(
+        {
+            "path": path,
+            "start_line": start_line,
+            "end_line": end_line,
+            "chunk_id": chunk_id,
+            "role": role,
+            "chars_stored": chars_stored,
+            "chars_sent": chars_sent,
+            "content_truncated": truncated,
+            "estimated_tokens_sent": item["estimated_tokens_sent"],
+            "evidence_tier": evidence_tier,
+        }
+    )
+
+
+def _evidence_payload(
+    units: tuple[ContextUnit, ...] | list[ContextUnit],
+    *,
+    mandatory_paths: tuple[str, ...] | set[str] | None = None,
+    file_walk: bool = False,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Build LLM evidence + diagnostics (chars stored/sent, truncation).
+
+    Mandatory / exact-file paths are aggregated in source order so the model
+    sees consecutive file content instead of a silent 900-char clip.
+    """
+    mandatory = {_path_key(p) for p in (mandatory_paths or ())}
     out: list[dict[str, Any]] = []
+    diagnostics: list[dict[str, Any]] = []
+
+    # Group units that should be aggregated (exact-file / file-walk mandatory).
+    aggregate_groups: dict[str, list[ContextUnit]] = {}
+    passthrough: list[ContextUnit] = []
     for unit in units:
-        c = unit.chunk
-        out.append(
-            {
-                "chunk_id": str(c.id),
-                "path": c.path,
-                "start_line": c.start_line,
-                "end_line": c.end_line,
-                "support_level": c.support_level,
-                "role": unit.role,
-                "depth": unit.depth,
-                "citation": citation_key(c.path, c.start_line, c.end_line),
-                "content": _clip(c.content),
-            }
+        path_key = _path_key(unit.chunk.path)
+        if path_key in mandatory or (file_walk and unit.role == "file_mandatory"):
+            aggregate_groups.setdefault(path_key, []).append(unit)
+        else:
+            passthrough.append(unit)
+
+    # Preserve first-seen path order from original units.
+    seen_agg: set[str] = set()
+    ordered_agg_paths: list[str] = []
+    for unit in units:
+        pk = _path_key(unit.chunk.path)
+        if pk in aggregate_groups and pk not in seen_agg:
+            seen_agg.add(pk)
+            ordered_agg_paths.append(pk)
+
+    for path_key in ordered_agg_paths:
+        group = aggregate_groups[path_key]
+        chunks = [u.chunk for u in group]
+        chunks_sorted = sorted(chunks, key=lambda c: (c.start_line, c.end_line, str(c.id)))
+        text, stored, sent, trunc, covered = assemble_file_lines(
+            chunks_sorted, max_chars=MAX_FILE_AGGREGATE_CHARS
         )
-    return out
+        first = chunks_sorted[0]
+        if covered:
+            start_line = covered[0][0]
+            end_line = covered[-1][1]
+        else:
+            start_line = first.start_line
+            end_line = chunks_sorted[-1].end_line
+        tier = classify_evidence_path(first.path)
+        _append_evidence_item(
+            out,
+            diagnostics,
+            chunk_id=str(first.id),
+            path=first.path,
+            start_line=start_line,
+            end_line=end_line,
+            support_level=first.support_level,
+            role="file_aggregate",
+            depth=min(u.depth for u in group),
+            content=text,
+            chars_stored=stored,
+            chars_sent=sent,
+            truncated=trunc,
+            evidence_tier=int(tier),
+        )
+        diagnostics[-1]["retrieved_line_ranges"] = [[s, e] for s, e in covered]
+        diagnostics[-1]["content_truncated"] = trunc
+
+    for unit in passthrough:
+        c = unit.chunk
+        path_key = _path_key(c.path)
+        if path_key in seen_agg:
+            continue  # already emitted as aggregate
+        tier = classify_evidence_path(c.path)
+        stored = len(c.content)
+        prefer_full = unit.role in {"file_mandatory", "file_aggregate"}
+        limit = MAX_FILE_AGGREGATE_CHARS if prefer_full else MAX_EVIDENCE_CHARS
+        if prefer_full and stored <= limit:
+            content = c.content
+            sent = stored
+            trunc = False
+        else:
+            content = _clip(c.content, limit)
+            trunc = stored > limit
+            sent = stored if not trunc else limit
+            if trunc:
+                # Avoid claiming a larger line span than the clipped text covers.
+                _append_evidence_item(
+                    out,
+                    diagnostics,
+                    chunk_id=str(c.id),
+                    path=c.path,
+                    start_line=c.start_line,
+                    end_line=c.start_line,
+                    support_level=c.support_level,
+                    role=unit.role,
+                    depth=unit.depth,
+                    content=content,
+                    chars_stored=stored,
+                    chars_sent=sent,
+                    truncated=True,
+                    evidence_tier=int(tier),
+                )
+                continue
+
+        _append_evidence_item(
+            out,
+            diagnostics,
+            chunk_id=str(c.id),
+            path=c.path,
+            start_line=c.start_line,
+            end_line=c.end_line,
+            support_level=c.support_level,
+            role=unit.role,
+            depth=unit.depth,
+            content=content,
+            chars_stored=stored,
+            chars_sent=sent,
+            truncated=trunc,
+            evidence_tier=int(tier),
+        )
+    return out, diagnostics
 
 
 def mock_grounded_answer(
     question: str,
     *,
     units: tuple[ContextUnit, ...] | list[ContextUnit],
+    coverage_notes: tuple[str, ...] | list[str] | None = None,
 ) -> tuple[str, list[CitationRef]]:
     """Deterministic evidence-only answer for CI / kill-switch-safe defaults."""
     if not units:
@@ -98,6 +270,10 @@ def mock_grounded_answer(
         f"Based on retrieved repository evidence for: {question.strip()}",
         "",
     ]
+    if coverage_notes:
+        for note in coverage_notes:
+            lines.append(f"Coverage note: {note}")
+        lines.append("")
     citations: list[CitationRef] = []
     for unit in list(units)[:8]:
         c = unit.chunk
@@ -132,7 +308,18 @@ def _system_prompt() -> str:
         "Never invent files, symbols, line ranges, or relationships. "
         "Every substantive claim MUST include a citation in the form path:start-end "
         "that exactly matches a supplied evidence citation. "
-        "If evidence is insufficient, say so clearly. "
+        "Prefer shipped source code, SQL models, README, and architecture docs over "
+        "DAY*_CHECKLIST / WEEK*_PLAN / FLAGSHIP_PLAN / proposed ML docs. "
+        "When evidence includes plan/checklist docs, label those features as proposed/planned, "
+        "not as implemented. "
+        "When a file_aggregate or file_mandatory evidence item includes SQL/code content, "
+        "enumerate columns, fields, or logic from that content — do NOT claim the content is "
+        "unavailable if it appears in the evidence. "
+        "If coverage notes say coverage is partial or list missing_ranges, you MUST disclose "
+        "that the retrieved portion is incomplete and must NOT imply the whole file was read. "
+        "If a symbol is marked missing in notes, say it was not found and mention the closest "
+        "real symbol when provided. "
+        "If evidence is truly insufficient after checking supplied content, say so clearly. "
         "Respond with JSON: "
         '{"answer": string, "claims": [{"text": string, "citation": "path:start-end"}]}.'
     )
@@ -143,14 +330,20 @@ def _call_azure_ask(
     conf: Settings,
     question: str,
     evidence: list[dict[str, Any]],
+    coverage_notes: list[str] | None = None,
 ) -> dict[str, Any]:
-    endpoint = conf.azure_openai_endpoint.strip()
+    endpoint = normalize_azure_resource_endpoint(conf.azure_openai_endpoint.strip())
     api_key = (conf.azure_openai_api_key or conf.llm_api_key).strip()
     deployment = conf.azure_openai_deployment.strip()
     kind = endpoint_type(endpoint)
 
+    coverage_block = ""
+    if coverage_notes:
+        coverage_block = "Coverage notes:\n" + "\n".join(coverage_notes) + "\n\n"
+
     user = (
         f"Question:\n{question}\n\n"
+        f"{coverage_block}"
         f"Evidence (JSON):\n{json.dumps(evidence, ensure_ascii=False)}\n\n"
         f"Prompt version: {conf.ask_prompt_version}."
     )
@@ -433,11 +626,47 @@ def run_ask(
 
     evidence_chunks = evidence_chunks_from_units(units)
     ranked_ids = tuple(r.chunk.id for r in bundle.ranked)
+    notes.extend(bundle.routing_notes)
+    coverage_notes: list[str] = []
+    for cov in bundle.file_coverage:
+        path = str(cov.get("path") or cov.get("requested_file") or "")
+        if cov.get("coverage_complete"):
+            coverage_notes.append(f"{path}: coverage complete")
+        else:
+            missing = cov.get("missing_ranges") or []
+            miss_s = ", ".join(f"{a}-{b}" for a, b in missing) if missing else "unknown"
+            coverage_notes.append(
+                f"{path}: coverage PARTIAL — retrieved does not represent the whole file; "
+                f"missing ranges: {miss_s}"
+            )
+            notes.append(f"coverage_disclosed_partial:{path}")
+    if bundle.exact_file_mode:
+        notes.append("exact_file_mode")
 
     if not evidence_chunks:
+        missing_symbol_notes = [
+            n for n in bundle.routing_notes if n.startswith("symbol_missing:")
+        ]
+        answer = "No indexed evidence matched this question in the latest ready snapshot."
+        if missing_symbol_notes:
+            answer = (
+                "Requested symbol was not found in the indexed snapshot. "
+                + "; ".join(missing_symbol_notes)
+                + "."
+            )
+        no_chunk_notes = [
+            n for n in bundle.routing_notes if n.startswith("file_indexed_no_chunks:")
+        ]
+        if no_chunk_notes:
+            answer = (
+                "The requested file is present in the snapshot index but has no searchable "
+                "chunks (not chunked or skipped). "
+                + "; ".join(no_chunk_notes)
+                + "."
+            )
         return AskAnswerResult(
             question=q,
-            answer="No indexed evidence matched this question in the latest ready snapshot.",
+            answer=answer,
             status="no_evidence",
             analysis=bundle.analysis,
             context=bundle.context,
@@ -452,10 +681,20 @@ def run_ask(
             model_provenance={"provider": "none", "mode": "no_evidence"},
             notes=tuple(notes + ["no_evidence"]),
             repo_budget=_budget_dict(repository_id, conf),
+            file_coverage=bundle.file_coverage,
+            file_diagnostics=bundle.file_diagnostics,
+            exact_file_mode=bundle.exact_file_mode,
         )
 
-    evidence_payload = _evidence_payload(units)
-    evidence_ids = [str(c.id) for c in evidence_chunks]
+    if is_negative_infra_query(q):
+        notes.append("negative_infra_query")
+
+    evidence_payload, diagnostics = _evidence_payload(
+        units,
+        mandatory_paths=bundle.mandatory_paths,
+        file_walk=is_file_walk_query(q) or bundle.exact_file_mode,
+    )
+    evidence_ids = [str(item.get("chunk_id") or "") for item in evidence_payload]
     cache_key = _cache_key(
         snapshot_id=snapshot_id,
         question=q,
@@ -479,6 +718,10 @@ def run_ask(
             cached=True,
             notes=tuple(notes + ["cache_hit"]),
             repo_budget=_budget_dict(repository_id, conf),
+            evidence_diagnostics=tuple(diagnostics),
+            file_coverage=bundle.file_coverage,
+            file_diagnostics=bundle.file_diagnostics,
+            exact_file_mode=bundle.exact_file_mode,
         )
 
     use_mock = llm_callable is None and (
@@ -494,7 +737,9 @@ def run_ask(
     try:
         ask_budget.consume(requests=1, tokens=0, cost_usd=0.0)
     except EnrichmentBudgetExceeded:
-        answer, declared = mock_grounded_answer(q, units=units)
+        answer, declared = mock_grounded_answer(
+            q, units=units, coverage_notes=coverage_notes
+        )
         validation = validate_citations(
             answer, evidence=evidence_chunks, declared=declared
         )
@@ -509,6 +754,10 @@ def run_ask(
             model_provenance={"provider": "mock", "mode": "budget_fallback"},
             notes=tuple(notes + ["budget_exceeded_mock"]),
             repo_budget=_budget_dict(repository_id, conf),
+            evidence_diagnostics=tuple(diagnostics),
+            file_coverage=bundle.file_coverage,
+            file_diagnostics=bundle.file_diagnostics,
+            exact_file_mode=bundle.exact_file_mode,
         )
 
     model_prov: dict[str, Any]
@@ -521,14 +770,21 @@ def run_ask(
             declared = _declared_from_llm_payload(data)
             model_prov = {"provider": "test_hook", "mode": "llm_callable"}
         elif use_mock:
-            answer, declared = mock_grounded_answer(q, units=units)
+            answer, declared = mock_grounded_answer(
+                q, units=units, coverage_notes=coverage_notes
+            )
             model_prov = {
                 "provider": "mock",
                 "mode": "deterministic",
                 "prompt_version": conf.ask_prompt_version,
             }
         else:
-            data = _call_azure_ask(conf=conf, question=q, evidence=evidence_payload)
+            data = _call_azure_ask(
+                conf=conf,
+                question=q,
+                evidence=evidence_payload,
+                coverage_notes=coverage_notes,
+            )
             answer = str(data.get("answer") or "")
             declared = _declared_from_llm_payload(data)
             model_prov = {
@@ -538,7 +794,9 @@ def run_ask(
             }
     except Exception as exc:  # noqa: BLE001
         logger.exception("Ask generation failed: %s", type(exc).__name__)
-        answer, declared = mock_grounded_answer(q, units=units)
+        answer, declared = mock_grounded_answer(
+            q, units=units, coverage_notes=coverage_notes
+        )
         model_prov = {"provider": "mock", "mode": "error_fallback"}
         notes.append(f"generation_error:{type(exc).__name__}")
 
@@ -559,7 +817,9 @@ def run_ask(
         status = "ok" if validation.valid_citations else "partial"
         if not validation.valid_citations:
             # Force evidence-only mock if model produced no valid cites.
-            answer, declared = mock_grounded_answer(q, units=units)
+            answer, declared = mock_grounded_answer(
+                q, units=units, coverage_notes=coverage_notes
+            )
             validation = validate_citations(
                 answer, evidence=evidence_chunks, declared=declared
             )
@@ -593,4 +853,8 @@ def run_ask(
         cached=False,
         notes=tuple(notes),
         repo_budget=_budget_dict(repository_id, conf),
+        evidence_diagnostics=tuple(diagnostics),
+        file_coverage=bundle.file_coverage,
+        file_diagnostics=bundle.file_diagnostics,
+        exact_file_mode=bundle.exact_file_mode,
     )

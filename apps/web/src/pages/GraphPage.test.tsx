@@ -1,9 +1,12 @@
 // Graph page: interactive React Flow canvas with graph-type filters.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { GraphPage } from "./GraphPage";
+
+const navigateMock = vi.fn();
 
 beforeAll(() => {
   class ResizeObserverStub {
@@ -14,9 +17,38 @@ beforeAll(() => {
   vi.stubGlobal("ResizeObserver", ResizeObserverStub);
 });
 
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+  };
+});
+
 vi.mock("@xyflow/react", () => ({
-  ReactFlow: ({ children }: { children?: ReactNode }) => (
-    <div data-testid="react-flow-mock">{children}</div>
+  ReactFlow: ({
+    children,
+    onNodeClick,
+    nodes,
+  }: {
+    children?: ReactNode;
+    onNodeClick?: (event: unknown, node: { data: Record<string, unknown> }) => void;
+    nodes?: Array<{ data: Record<string, unknown> }>;
+  }) => (
+    <div data-testid="react-flow-mock">
+      <button
+        type="button"
+        data-testid="click-module-node"
+        onClick={() =>
+          onNodeClick?.(null, {
+            data: nodes?.[0]?.data ?? { path: "pkg/a.py", symbolId: null },
+          })
+        }
+      >
+        Open node
+      </button>
+      {children}
+    </div>
   ),
   ReactFlowProvider: ({ children }: { children?: ReactNode }) => <>{children}</>,
   Background: () => null,
@@ -136,7 +168,11 @@ function wrap(ui: ReactNode) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  return render(
+    <MemoryRouter>
+      <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+    </MemoryRouter>,
+  );
 }
 
 afterEach(() => {
@@ -158,5 +194,18 @@ describe("GraphPage", () => {
     expect(screen.getByTestId("react-flow-mock")).toBeInTheDocument();
     expect(screen.getByLabelText("Language")).toBeInTheDocument();
     expect(screen.getByLabelText("Support level")).toBeInTheDocument();
+  });
+
+  it("opens file viewer when a graph node with a path is clicked", async () => {
+    wrap(<GraphPage />);
+    await waitFor(() => {
+      expect(screen.getByTestId("click-module-node")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("click-module-node"));
+    expect(navigateMock).toHaveBeenCalled();
+    const target = String(navigateMock.mock.calls[0]?.[0] ?? "");
+    expect(target).toContain("/files/view?");
+    expect(target).toContain("repo=repo-1");
+    expect(target).toContain("path=pkg%2Fa.py");
   });
 });

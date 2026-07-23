@@ -11,6 +11,7 @@ from app.services.chunks_query import ChunkSearchResult
 from app.services.embeddings.azure_openai import (
     _foundry_v1_base_url,
     endpoint_type,
+    normalize_azure_resource_endpoint,
 )
 from app.services.rag.schemas import RerankBatchResult, RerankItem
 
@@ -131,7 +132,7 @@ def _call_azure_rerank(
     query: str,
     payload: list[dict[str, object]],
 ) -> RerankBatchResult:
-    endpoint = conf.azure_openai_endpoint.strip()
+    endpoint = normalize_azure_resource_endpoint(conf.azure_openai_endpoint.strip())
     api_key = conf.azure_openai_api_key.strip() or conf.llm_api_key.strip()
     deployment = conf.azure_openai_deployment.strip()
     if not endpoint or not api_key or not deployment:

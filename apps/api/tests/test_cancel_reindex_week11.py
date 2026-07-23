@@ -99,6 +99,27 @@ def test_cancel_rejects_succeeded(client: TestClient) -> None:
     engine.dispose()
 
 
+def test_reindex_force_sets_request_marker(client: TestClient) -> None:
+    from app.services.import_repository import FORCE_FULL_REINDEX_CODE
+
+    imported = client.post(
+        "/api/v1/repositories/import",
+        json={"url": "https://github.com/octocat/Hello-World"},
+    )
+    assert imported.status_code == 202
+    repo_id = imported.json()["repository"]["id"]
+    job_id = imported.json()["job"]["id"]
+    # Finish the active import job so reindex can queue.
+    cancelled = client.post(f"/api/v1/jobs/{job_id}/cancel")
+    assert cancelled.status_code == 200
+
+    reindexed = client.post(f"/api/v1/repositories/{repo_id}/reindex?force=true")
+    assert reindexed.status_code == 202
+    body = reindexed.json()
+    assert body["created_new_job"] is True
+    assert body["job"]["error_code"] == FORCE_FULL_REINDEX_CODE
+
+
 def test_reindex_queues_new_job(client: TestClient) -> None:
     imported = client.post("/api/v1/repositories/import", json={"url": RETAIL})
     assert imported.status_code == 202
@@ -174,3 +195,73 @@ def test_cancel_and_reindex_service_helpers() -> None:
         assert repo2.id == repo.id
         assert job2.status == JobStatus.QUEUED
     engine.dispose()
+
+
+def test_delete_repository_and_cleanup_test(client: TestClient) -> None:
+    imported = client.post(
+        "/api/v1/repositories/import",
+        json={"url": f"https://github.com/week10/ask-{uuid4().hex[:8]}"},
+    )
+    assert imported.status_code == 202
+    repo_id = imported.json()["repository"]["id"]
+    job_id = imported.json()["job"]["id"]
+
+    engine = create_engine(settings.database_url, pool_pre_ping=True)
+    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    with SessionLocal() as session:
+        job = session.get(IndexingJob, job_id)
+        assert job is not None
+        job.status = JobStatus.CANCELLED
+        session.commit()
+    engine.dispose()
+
+    deleted = client.delete(f"/api/v1/repositories/{repo_id}")
+    assert deleted.status_code == 200
+    assert deleted.json()["deleted"] is True
+    assert deleted.json()["id"] == repo_id
+    assert client.delete(f"/api/v1/repositories/{repo_id}").status_code == 404
+
+    # Create another test repo for bulk cleanup.
+    again = client.post(
+        "/api/v1/repositories/import",
+        json={"url": f"https://github.com/week10/ask-{uuid4().hex[:8]}"},
+    )
+    assert again.status_code == 202
+    again_id = again.json()["repository"]["id"]
+    engine = create_engine(settings.database_url, pool_pre_ping=True)
+    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    with SessionLocal() as session:
+        job = session.get(IndexingJob, again.json()["job"]["id"])
+        assert job is not None
+        job.status = JobStatus.CANCELLED
+        session.commit()
+    engine.dispose()
+
+    cleaned = client.post("/api/v1/repositories/cleanup-test")
+    assert cleaned.status_code == 200
+    body = cleaned.json()
+    assert body["deleted_count"] >= 1
+    assert any(row["id"] == again_id for row in body["deleted"])
+
+    # Import a real-looking repo, then wipe everything via cleanup-all.
+    keep = client.post(
+        "/api/v1/repositories/import",
+        json={"url": "https://github.com/rmarathe-hub/rmarathe-hub.github.io"},
+    )
+    assert keep.status_code == 202
+    keep_id = keep.json()["repository"]["id"]
+    engine = create_engine(settings.database_url, pool_pre_ping=True)
+    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    with SessionLocal() as session:
+        job = session.get(IndexingJob, keep.json()["job"]["id"])
+        assert job is not None
+        job.status = JobStatus.CANCELLED
+        session.commit()
+    engine.dispose()
+
+    wiped = client.post("/api/v1/repositories/cleanup-all")
+    assert wiped.status_code == 200
+    wipe_body = wiped.json()
+    assert wipe_body["deleted_count"] >= 1
+    assert any(row["id"] == keep_id for row in wipe_body["deleted"])
+    assert client.get("/api/v1/repositories").json() == []

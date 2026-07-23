@@ -215,6 +215,8 @@ SPECIAL_FILENAMES: dict[str, str] = {
     "gemfile": "configuration",
     "rakefile": "configuration",
     "procfile": "configuration",
+    "go.mod": "configuration",
+    "go.sum": "configuration",
     "license": "documentation",
     "licence": "documentation",
     "readme": "documentation",

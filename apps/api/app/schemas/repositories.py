@@ -57,3 +57,15 @@ class RepositoryRead(BaseModel):
     name: str
     default_branch: str
     clone_url: str
+
+
+class RepositoryDeleteResponse(BaseModel):
+    id: UUID
+    owner_name: str
+    name: str
+    deleted: bool = True
+
+
+class RepositoryCleanupResponse(BaseModel):
+    deleted_count: int
+    deleted: list[RepositoryDeleteResponse]

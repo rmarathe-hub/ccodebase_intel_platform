@@ -31,6 +31,22 @@ def endpoint_type(endpoint: str) -> str:
     return "unknown"
 
 
+def normalize_azure_resource_endpoint(endpoint: str) -> str:
+    """Return Azure OpenAI resource root (scheme://host) for *.openai.azure.com URLs.
+
+    Accepts pasted deployment/embeddings URLs with path/query and strips them so
+    AzureOpenAI(azure_endpoint=...) receives the resource root only.
+    """
+    raw = (endpoint or "").strip()
+    if not raw:
+        return raw
+    parsed = urlparse(raw if "://" in raw else f"https://{raw}")
+    host = (parsed.hostname or "").lower()
+    if host.endswith("openai.azure.com") and parsed.scheme and parsed.netloc:
+        return f"{parsed.scheme}://{parsed.netloc}"
+    return raw.rstrip("/")
+
+
 def _foundry_v1_base_url(endpoint: str) -> str:
     base = endpoint.rstrip("/")
     if base.endswith("/openai/v1"):
@@ -65,7 +81,7 @@ class AzureOpenAIEmbeddingProvider:
         timeout_seconds: float = 60.0,
         max_retries: int = 2,
     ) -> None:
-        self._endpoint = endpoint.rstrip("/")
+        self._endpoint = normalize_azure_resource_endpoint(endpoint)
         self._api_key = api_key
         self._api_version = api_version
         self._deployment = deployment

@@ -299,6 +299,63 @@ def replace_chunks_for_snapshot(
         ).all()
     }
 
+    def _physical_end(text: str) -> int:
+        return max(1, text.count("\n") + (0 if text.endswith("\n") else 1))
+
+    def _covered_complete(path: str, end_line: int) -> bool:
+        ranges = [
+            (ch.start_line, ch.end_line)
+            for ch in extracted
+            if ch.path == path and ch.end_line >= ch.start_line
+        ]
+        if not ranges or end_line < 1:
+            return False
+        ranges.sort()
+        cursor = 1
+        for start, end in ranges:
+            if start > cursor:
+                return False
+            cursor = max(cursor, end + 1)
+        return cursor > end_line
+
+    # Coverage-complete safety net: any non-skip text file whose chunks do not
+    # cover physical lines 1..N gets a whole-file fallback (even if some symbol
+    # or section chunks already exist). Exact-file Ask depends on this.
+    for path, file_row in files_by_path.items():
+        if file_row.support_level == SupportLevel.SKIP.value:
+            continue
+        if file_row.is_binary:
+            continue
+        text = _read_text(repo_root / path)
+        if text is None or not text.strip():
+            continue
+        end_line = _physical_end(text)
+        if _covered_complete(path, end_line):
+            continue
+        extracted.append(
+            ExtractedChunk.make(
+                path=path,
+                language=file_row.language,
+                support_level=file_row.support_level,
+                chunk_type="file",
+                start_line=1,
+                end_line=end_line,
+                content=text,
+                parent_context=path,
+                extraction_method="whole_file_fallback",
+                parser_name=file_row.parser_name or "whole-file",
+                parser_version=file_row.parser_version or "1",
+                verified_deep=False,
+                symbol_id=None,
+            )
+        )
+
+    # Dedupe again after fallback injection (prefer existing enrichment keys).
+    deduped = {}
+    for ch in extracted:
+        deduped[ch.enrichment_key] = ch
+    extracted = list(deduped.values())
+
     rows: list[Chunk] = []
     for ch in extracted:
         file_row = files_by_path.get(ch.path)
@@ -331,5 +388,11 @@ def replace_chunks_for_snapshot(
     enriched = _apply_enrichment(
         session, chunk_rows=rows, extracted=extracted, cfg=conf
     )
+    session.flush()
+    # Stamp pipeline version whenever chunks are (re)built so Ask can detect
+    # outdated workers / pre-version snapshots. Worker also stamps on success.
+    from app.services.index_pipeline import stamp_snapshot_pipeline_version
+
+    stamp_snapshot_pipeline_version(session, snapshot_id=snapshot_id)
     session.flush()
     return len(rows), enriched

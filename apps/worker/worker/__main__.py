@@ -16,7 +16,8 @@ from app.models.entities import IndexingJob, JobStatus, Repository, SnapshotStat
 from app.models.job_stages import JobStage
 from app.services.discovery import discover_repository
 from app.services.git_clone import GitCloneError, secure_clone
-from app.services.incremental_index import plan_index
+from app.services.incremental_index import force_full_index_plan, plan_index
+from app.services.import_repository import FORCE_FULL_REINDEX_CODE
 from app.services.job_queue import (
     claim_next_job,
     get_repository_for_job,
@@ -26,6 +27,7 @@ from app.services.job_queue import (
 from app.services.jobs import mark_job_succeeded, set_job_stage
 from app.services.chunking import replace_chunks_for_snapshot
 from app.services.embeddings import replace_embeddings_for_snapshot
+from app.services.files_query import latest_ready_snapshot
 from app.services.java_symbols import replace_java_symbols_for_snapshot
 from app.services.js_ts_symbols import replace_js_ts_symbols_for_snapshot
 from app.services.relationships import replace_structural_relations_for_snapshot
@@ -36,6 +38,11 @@ from app.services.snapshot_validation import (
 from app.services.source_files import replace_source_files_for_snapshot
 from app.services.snapshots import create_or_update_snapshot
 from app.services.symbols import replace_python_symbols_for_snapshot
+from app.services.index_pipeline import (
+    current_index_pipeline_version,
+    resolve_build_identity,
+    stamp_snapshot_pipeline_version,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("codeintel.worker")
@@ -73,6 +80,11 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
             return False
 
         job_id = job.id
+        force_full = job.error_code == FORCE_FULL_REINDEX_CODE
+        if force_full:
+            job.error_code = None
+            job.error_message = None
+            session.flush()
         repo = get_repository_for_job(session, job)
         clone_url = repo.clone_url
         repository_id = repo.id
@@ -81,7 +93,12 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
         clone_branch = (repo.default_branch or "").strip() or None
         set_job_stage(job, JobStage.CLONING)
         session.commit()
-        logger.info("Claimed job %s for %s", job_id, repo_label)
+        logger.info(
+            "Claimed job %s for %s%s",
+            job_id,
+            repo_label,
+            " (force_full)" if force_full else "",
+        )
 
         try:
             with secure_clone(
@@ -121,12 +138,22 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     lease_seconds=settings.job_lease_seconds,
                 )
 
-                index_plan = plan_index(
-                    session,
-                    repository_id=repository_id,
-                    commit_sha=cloned.commit_sha,
-                    discovery=discovery,
-                )
+                if force_full:
+                    prior = latest_ready_snapshot(session, repository_id)
+                    index_plan = force_full_index_plan(
+                        commit_sha=cloned.commit_sha,
+                        discovery=discovery,
+                        prior_snapshot_id=prior.id if prior is not None else None,
+                        prior_commit_sha=prior.commit_sha if prior is not None else None,
+                        prior_file_count=prior.file_count if prior is not None else 0,
+                    )
+                else:
+                    index_plan = plan_index(
+                        session,
+                        repository_id=repository_id,
+                        commit_sha=cloned.commit_sha,
+                        discovery=discovery,
+                    )
                 logger.info(
                     "Index plan for %s@%s: %s",
                     repo_label,
@@ -258,6 +285,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                 )
 
                 job = _reload_active_job(session, job_id)
+                stamp_snapshot_pipeline_version(session, snapshot_id=snapshot.id)
                 mark_job_succeeded(
                     job,
                     info_code=f"index_{index_plan.mode}",
@@ -270,7 +298,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     "relations=%s import_edges=%s export_edges=%s contains_edges=%s "
                     "chunks=%s enriched=%s embeddings=%s embed_skipped=%s "
                     "validated_chunks=%s validated_embeddings=%s truncated=%s "
-                    "index_mode=%s job=%s",
+                    "index_mode=%s pipeline=%s job=%s",
                     snapshot.id,
                     repo_label,
                     cloned.commit_sha[:12],
@@ -293,6 +321,7 @@ def process_one(session_factory: sessionmaker, worker_id: str) -> bool:  # type:
                     validation.embedding_count,
                     discovery.truncated,
                     index_plan.mode,
+                    current_index_pipeline_version(),
                     job_id,
                 )
             return True
@@ -345,7 +374,13 @@ def main() -> None:
     worker_id = _worker_id()
     engine = create_engine(settings.database_url, pool_pre_ping=True)
     session_factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-    logger.info("Worker started id=%s at %s", worker_id, datetime.now(UTC).isoformat())
+    logger.info(
+        "Worker started id=%s pipeline=%s build=%s at %s",
+        worker_id,
+        current_index_pipeline_version(),
+        resolve_build_identity(),
+        datetime.now(UTC).isoformat(),
+    )
 
     while True:
         did_work = process_one(session_factory, worker_id)

@@ -1,8 +1,17 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Always load apps/api/.env regardless of process cwd (API vs worker).
+_API_DIR = Path(__file__).resolve().parents[2]
+_ENV_FILE = _API_DIR / ".env"
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=str(_ENV_FILE) if _ENV_FILE.is_file() else ".env",
+        extra="ignore",
+    )
 
     app_env: str = "local"
     database_url: str = "postgresql+psycopg://codeintel:codeintel@localhost:5434/codeintel"
@@ -78,8 +87,8 @@ class Settings(BaseSettings):
     # Week 10 Days 3–4: query rewrite + context expansion.
     ask_query_rewrite_enabled: bool = True
     ask_query_max_rewrites: int = 4
-    ask_context_token_budget: int = 6000
-    ask_expand_seed_limit: int = 5
+    ask_context_token_budget: int = 8000
+    ask_expand_seed_limit: int = 12
     ask_expand_neighbor_limit: int = 2
     ask_expand_relation_limit: int = 4
     ask_expand_low_confidence_score: float = 0.02
@@ -87,7 +96,7 @@ class Settings(BaseSettings):
     # Week 10 Day 5: grounded Ask endpoint (opt-in; mock by default for CI).
     ask_enabled: bool = True
     ask_use_mock: bool = True
-    ask_prompt_version: str = "10.5"
+    ask_prompt_version: str = "10.7"
     ask_cache_enabled: bool = True
     ask_max_requests_per_call: int = 2
     ask_max_tokens_per_call: int = 16_000
@@ -101,6 +110,10 @@ class Settings(BaseSettings):
     incremental_indexing_enabled: bool = True
     incremental_max_change_ratio: float = 0.35
     incremental_max_changed_files: int = 200
+
+    # When True, Ask auto-queues force-full reindex if snapshot pipeline stamp
+    # does not match INDEX_PIPELINE_VERSION (never blocks the answer).
+    auto_reindex_stale_pipeline: bool = True
 
     @property
     def cors_origin_list(self) -> list[str]:

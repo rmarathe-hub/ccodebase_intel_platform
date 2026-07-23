@@ -71,6 +71,18 @@ def _span_covered_by_chunk(chunk: Chunk, start: int, end: int) -> bool:
     return chunk.start_line <= start <= end <= chunk.end_line
 
 
+def _span_covered_by_path_union(
+    same_path: list[Chunk], start: int, end: int
+) -> bool:
+    """True when every line in [start, end] is covered by some same-path chunk."""
+    if not same_path or end < start:
+        return False
+    for line in range(start, end + 1):
+        if not any(c.start_line <= line <= c.end_line for c in same_path):
+            return False
+    return True
+
+
 def _matching_chunk(
     evidence: list[Chunk],
     *,
@@ -85,11 +97,16 @@ def _matching_chunk(
             return chunk
     # Allow citation that exactly matches a chunk span even if path casing differs.
     path_l = path.lower()
+    same_path: list[Chunk] = []
     for chunk in evidence:
         if chunk.path.lower() != path_l:
             continue
+        same_path.append(chunk)
         if _span_covered_by_chunk(chunk, start, end):
             return chunk
+    # Exact-file aggregates may cite a multi-chunk union span.
+    if _span_covered_by_path_union(same_path, start, end):
+        return min(same_path, key=lambda c: (c.start_line, c.end_line, str(c.id)))
     return None
 
 

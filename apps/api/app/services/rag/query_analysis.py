@@ -19,11 +19,36 @@ _IDENT_RE = re.compile(
 _PATH_RE = re.compile(
     r"(?:^|[\s`\"'])([A-Za-z0-9_.\-]+(?:/[A-Za-z0-9_.\-]+)+\.[A-Za-z0-9]+)"
 )
+# Allow multi-dot basenames (vite.config.ts, docker-compose.yml, app.config.js).
 _FILE_EXT_RE = re.compile(
-    r"(?:^|[\s`\"'])([A-Za-z0-9_\-]+\.(?:py|ts|tsx|js|jsx|java|go|rs|cs|cpp|c|h|rb|sh|sql|md|yml|yaml|toml|json))\b"
+    r"(?:^|[\s`\"'])([A-Za-z0-9_.\-]+\.(?:py|ts|tsx|js|jsx|java|go|rs|cs|cpp|c|h|rb|sh|sql|md|yml|yaml|toml|json|xml|html|htm|css))\b"
+)
+_SPECIAL_FILE_RE = re.compile(
+    r"(?:^|[\s`\"'])("
+    r"Dockerfile(?:\.[A-Za-z0-9_-]+)?|"
+    r"Makefile|"
+    r"Gemfile|"
+    r"Procfile|"
+    r"README(?:\.[A-Za-z0-9]+)?|"
+    r"LICENSE(?:\.[A-Za-z0-9]+)?|"
+    r"go\.mod|"
+    r"go\.sum|"
+    r"Cargo\.toml|"
+    r"package\.json|"
+    r"tsconfig(?:\.[A-Za-z0-9_-]+)?\.json|"
+    r"vite\.config\.[A-Za-z0-9]+|"
+    r"next\.config\.[A-Za-z0-9]+|"
+    r"docker-compose\.ya?ml|"
+    r"dbt_project\.yml|"
+    r"pyproject\.toml|"
+    r"requirements\.txt|"
+    r"pom\.xml|"
+    r"build\.gradle(?:\.kts)?"
+    r")\b",
+    re.I,
 )
 _QUESTION_RE = re.compile(
-    r"\b(?:how|where|what|why|when|which|who|does|is|are|can|should|find|show|explain|list)\b",
+    r"\b(?:how|where|what|why|when|which|who|does|is|are|can|should|find|show|explain|list|walk|trace)\b",
     re.I,
 )
 _DEBUG_RE = re.compile(
@@ -82,21 +107,53 @@ def _extract_paths(q: str) -> list[str]:
     found: list[str] = []
     for match in _PATH_RE.finditer(q):
         found.append(match.group(1))
+    for match in _SPECIAL_FILE_RE.finditer(q):
+        token = match.group(1)
+        # Prefer canonical README.md when user says README
+        if token.lower() == "readme":
+            token = "README.md"
+        if token not in found:
+            found.append(token)
     for match in _FILE_EXT_RE.finditer(q):
         token = match.group(1)
         if token not in found:
+            # Drop shorter basename collisions already covered by multi-dot specials
+            # e.g. avoid adding config.ts when vite.config.ts is present.
+            if any(
+                existing.endswith("/" + token) or existing == token or existing.endswith("." + token)
+                or (existing.endswith(token) and len(existing) > len(token))
+                for existing in found
+            ):
+                continue
             found.append(token)
     return found
 
 
 def _extract_identifiers(q: str, *, paths: list[str]) -> list[str]:
-    skip = set(paths)
+    # Product / platform proper nouns that match PascalCase but are not code symbols.
+    non_code = {
+        "GitHub",
+        "GitLab",
+        "Bitbucket",
+        "Docker",
+        "Kubernetes",
+        "Linux",
+        "Windows",
+        "MacOS",
+        "JavaScript",
+        "TypeScript",
+        "OpenAI",
+        "Pages",
+    }
+    skip = set(paths) | non_code
     for p in paths:
         skip.update(p.split("/"))
     out: list[str] = []
     for match in _IDENT_RE.finditer(q):
         token = match.group(0)
         if token in skip or token in out:
+            continue
+        if token in non_code or token.lower() in {n.lower() for n in non_code}:
             continue
         out.append(token)
     # Backtick-quoted tokens

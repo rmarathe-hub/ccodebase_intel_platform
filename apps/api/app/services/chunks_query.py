@@ -251,6 +251,42 @@ def _query_vector(conf: Settings, query: str) -> list[float] | None:
     return list(vectors[0])
 
 
+def _embedding_identity_filters(conf: Settings) -> list[object]:
+    """ANN must use the same model/version/dims as persisted search vectors."""
+    return [
+        ChunkEmbedding.embedding_model == conf.embedding_model,
+        ChunkEmbedding.embedding_version == conf.embedding_version,
+        ChunkEmbedding.dimensions == conf.embedding_dimensions,
+    ]
+
+
+def _matching_embedding_count(
+    session: Session, *, snapshot_id: UUID, conf: Settings
+) -> int:
+    return int(
+        session.scalar(
+            select(func.count())
+            .select_from(ChunkEmbedding)
+            .where(
+                ChunkEmbedding.snapshot_id == snapshot_id,
+                *_embedding_identity_filters(conf),
+            )
+        )
+        or 0
+    )
+
+
+def _any_embedding_count(session: Session, *, snapshot_id: UUID) -> int:
+    return int(
+        session.scalar(
+            select(func.count())
+            .select_from(ChunkEmbedding)
+            .where(ChunkEmbedding.snapshot_id == snapshot_id)
+        )
+        or 0
+    )
+
+
 def _semantic_rows(
     session: Session,
     *,
@@ -268,9 +304,7 @@ def _semantic_rows(
         .where(
             *filters,
             ChunkEmbedding.snapshot_id == snapshot_id,
-            ChunkEmbedding.embedding_model == conf.embedding_model,
-            ChunkEmbedding.embedding_version == conf.embedding_version,
-            ChunkEmbedding.dimensions == conf.embedding_dimensions,
+            *_embedding_identity_filters(conf),
         )
         .order_by(distance.asc(), Chunk.path.asc(), Chunk.start_line.asc(), Chunk.id.asc())
         .limit(fetch_limit)
@@ -306,7 +340,7 @@ def _semantic_search(
     if query_vector is None:
         return [], 0
 
-    # Count matching embedded chunks (same filters).
+    # Count matching embedded chunks (same filters + embedding identity).
     count_stmt = (
         select(func.count())
         .select_from(Chunk)
@@ -314,9 +348,7 @@ def _semantic_search(
         .where(
             *filters,
             ChunkEmbedding.snapshot_id == snapshot_id,
-            ChunkEmbedding.embedding_model == conf.embedding_model,
-            ChunkEmbedding.embedding_version == conf.embedding_version,
-            ChunkEmbedding.dimensions == conf.embedding_dimensions,
+            *_embedding_identity_filters(conf),
         )
     )
     total = int(session.scalar(count_stmt) or 0)
@@ -401,6 +433,16 @@ def _hybrid_search(
     if not candidates:
         return [], 0
 
+    # Explain exact-only hybrid when ANN produced no neighbors for this identity.
+    semantic_miss = 0.0
+    embedding_mismatch = 0.0
+    if query_vector is not None and not semantic_by_id:
+        semantic_miss = 1.0
+        matched = _matching_embedding_count(session, snapshot_id=snapshot_id, conf=conf)
+        stored = _any_embedding_count(session, snapshot_id=snapshot_id)
+        if stored > 0 and matched == 0:
+            embedding_mismatch = 1.0
+
     exact_w = conf.hybrid_w_exact if w_exact is None else float(w_exact)
     semantic_w = conf.hybrid_w_semantic if w_semantic is None else float(w_semantic)
     scored: list[ChunkSearchResult] = []
@@ -424,6 +466,10 @@ def _hybrid_search(
         }
         if cosine_distance is not None:
             breakdown["cosine_distance"] = round(cosine_distance, 6)
+        if semantic_miss:
+            breakdown["semantic_index_miss"] = semantic_miss
+        if embedding_mismatch:
+            breakdown["embedding_model_mismatch"] = embedding_mismatch
         scored.append(
             ChunkSearchResult(
                 chunk=chunk,

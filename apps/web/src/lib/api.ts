@@ -47,11 +47,35 @@ export function cancelJob(jobId: string) {
   });
 }
 
-export function reindexRepository(repositoryId: string) {
+export function reindexRepository(repositoryId: string, options?: { force?: boolean }) {
+  const force = options?.force ? "?force=true" : "";
   return request<import("./jobs").RepositoryImportResponse>(
-    `/api/v1/repositories/${repositoryId}/reindex`,
+    `/api/v1/repositories/${repositoryId}/reindex${force}`,
     { method: "POST" },
   );
+}
+
+export function deleteRepository(repositoryId: string) {
+  return request<{
+    id: string;
+    owner_name: string;
+    name: string;
+    deleted: boolean;
+  }>(`/api/v1/repositories/${repositoryId}`, { method: "DELETE" });
+}
+
+export function cleanupTestRepositories() {
+  return request<{
+    deleted_count: number;
+    deleted: Array<{ id: string; owner_name: string; name: string; deleted: boolean }>;
+  }>("/api/v1/repositories/cleanup-test", { method: "POST" });
+}
+
+export function cleanupAllRepositories() {
+  return request<{
+    deleted_count: number;
+    deleted: Array<{ id: string; owner_name: string; name: string; deleted: boolean }>;
+  }>("/api/v1/repositories/cleanup-all", { method: "POST" });
 }
 
 export function fetchRepositoryJobs(repositoryId: string) {
@@ -89,6 +113,13 @@ export function fetchRepositoryFiles(
   const suffix = query.toString() ? `?${query.toString()}` : "";
   return request<import("./files").SourceFileListResponse>(
     `/api/v1/repositories/${repositoryId}/files${suffix}`,
+  );
+}
+
+export function fetchRepositoryFileContent(repositoryId: string, path: string) {
+  const query = new URLSearchParams({ path });
+  return request<import("./files").SourceFileContentResponse>(
+    `/api/v1/repositories/${repositoryId}/files/content?${query.toString()}`,
   );
 }
 

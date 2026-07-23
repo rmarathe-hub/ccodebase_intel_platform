@@ -56,9 +56,21 @@ services:
       GIT_CLONE_TIMEOUT_SECONDS: "120"
       GIT_CLONE_MAX_BYTES: "52428800"
       GIT_CLONE_BASE_DIR: /tmp/codeintel-clones
+      # Propagate for /health-style logs inside the worker process.
+      CODEINTEL_GIT_SHA: ${CODEINTEL_GIT_SHA:-local}
     depends_on:
       postgres:
         condition: service_healthy
+    # Compose Watch: restart worker when indexing/API code changes so local
+    # `docker compose watch` does not leave a stale indexer running.
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./apps/api/app
+          target: /opt/codeintel/api/app
+        - action: sync+restart
+          path: ./apps/worker/worker
+          target: /opt/codeintel/worker/worker
 
   web:
     build:

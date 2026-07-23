@@ -12,6 +12,7 @@ from app.core.config import Settings, settings
 from app.models import Chunk, Symbol
 from app.services.calls_query import list_callees_for_symbol, list_callers_for_symbol
 from app.services.chunks_query import ChunkSearchResult
+from app.services.rag.evidence_policy import normalize_repo_path
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,16 +161,22 @@ def expand_context(
     ranked: list[ChunkSearchResult],
     cfg: Settings | None = None,
     force_depth: int | None = None,
+    prefer_paths: set[str] | None = None,
+    exact_file_mode: bool = False,
 ) -> ExpandedContext:
     """Assemble neighboring + call-graph context under a token budget.
 
     Depth 1 by default; depth 2 only when retrieval confidence is low (or forced).
+    When ``prefer_paths`` is set, same-file neighbors for those paths are expanded
+    more aggressively (exact-file / onboarding routing).
+    In Exact File Mode, load ALL chunks for preferred paths before other expansion.
     """
     conf = cfg or settings
     budget = max(1, conf.ask_context_token_budget)
     seed_n = max(1, conf.ask_expand_seed_limit)
     neighbor_n = max(0, conf.ask_expand_neighbor_limit)
     relation_n = max(0, conf.ask_expand_relation_limit)
+    prefer = {normalize_repo_path(p) for p in (prefer_paths or set())}
 
     low = retrieval_confidence_is_low(ranked, cfg=conf)
     if force_depth is not None:
@@ -177,12 +184,44 @@ def expand_context(
     else:
         depth = 2 if low else 1
 
-    seeds = ranked[:seed_n]
+    # Prefer mandatory-path hits as seeds when present.
+    # Order prefer-path seeds by evidence tier so workflows cannot crowd out README/src.
+    if prefer:
+        from app.services.rag.evidence_policy import classify_evidence_path
+
+        preferred_seeds = [
+            r
+            for r in ranked
+            if normalize_repo_path(r.chunk.path) in prefer
+        ]
+        preferred_seeds.sort(
+            key=lambda r: (
+                int(classify_evidence_path(r.chunk.path)),
+                r.chunk.path,
+                r.chunk.start_line,
+            )
+        )
+        other_seeds = [
+            r
+            for r in ranked
+            if normalize_repo_path(r.chunk.path) not in prefer
+        ]
+        # Exact File Mode: keep ALL preferred-path chunks as seeds.
+        if exact_file_mode:
+            seeds = preferred_seeds + other_seeds[: max(0, seed_n)]
+        else:
+            seeds = (preferred_seeds + other_seeds)[:seed_n]
+    else:
+        seeds = ranked[:seed_n]
     units: list[ContextUnit] = []
     seen_chunk_ids: set[UUID] = set()
     tokens_used = 0
     truncated = False
     notes: list[str] = [f"depth={depth}", f"low_confidence={str(low).lower()}"]
+    if prefer:
+        notes.append(f"prefer_paths={len(prefer)}")
+    if exact_file_mode:
+        notes.append("exact_file_mode_expand")
 
     def try_add(
         chunk: Chunk,
@@ -213,20 +252,48 @@ def expand_context(
         )
         return True
 
-    # Seeds first.
+    # Seeds first (all exact-file chunks when in exact mode).
     for r in seeds:
-        if not try_add(r.chunk, role="seed", depth_val=0, source_seed_id=r.chunk.id):
+        role = (
+            "file_mandatory"
+            if normalize_repo_path(r.chunk.path) in prefer
+            else "seed"
+        )
+        if not try_add(r.chunk, role=role, depth_val=0, source_seed_id=r.chunk.id):
             break
 
-    # Depth-1 expansion from seeds.
+    # Exact File Mode: pull any remaining same-file chunks not already seeded.
+    if exact_file_mode and prefer and not truncated:
+        for path in sorted(prefer):
+            remaining = list(
+                session.scalars(
+                    select(Chunk)
+                    .where(Chunk.snapshot_id == snapshot_id, Chunk.path == path)
+                    .order_by(Chunk.start_line.asc(), Chunk.end_line.asc(), Chunk.id.asc())
+                ).all()
+            )
+            for ch in remaining:
+                if not try_add(
+                    ch, role="file_mandatory", depth_val=0, source_seed_id=ch.id
+                ):
+                    notes.append(f"exact_file_budget_truncated:{path}")
+                    break
+
+    # Depth-1 expansion from seeds (more neighbors for preferred paths).
     frontier_symbol_ids: list[tuple[UUID, str, UUID]] = []  # symbol_id, role, seed_id
     for r in seeds:
         seed = r.chunk
         if truncated:
             break
-        for nb in _neighbor_chunks(session, seed=seed, limit=neighbor_n):
+        path_key = normalize_repo_path(seed.path)
+        # In exact file mode preferred paths already loaded fully — skip neighbor fanout.
+        if exact_file_mode and path_key in prefer:
+            continue
+        local_neighbor_n = max(neighbor_n, 24) if path_key in prefer else neighbor_n
+        for nb in _neighbor_chunks(session, seed=seed, limit=local_neighbor_n):
+            nb_role = "file_mandatory" if path_key in prefer else "neighbor"
             if not try_add(
-                nb, role="neighbor", depth_val=1, source_seed_id=seed.id
+                nb, role=nb_role, depth_val=1, source_seed_id=seed.id
             ):
                 break
         if seed.symbol_id is None or seed.support_level != "deep":

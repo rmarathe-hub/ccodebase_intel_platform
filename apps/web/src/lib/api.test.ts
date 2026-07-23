@@ -2,6 +2,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   apiBase,
+  cancelJob,
+  cleanupAllRepositories,
+  cleanupTestRepositories,
+  deleteRepository,
   fetchRepositories,
   fetchRepositoryCalls,
   fetchRepositoryChunksSearch,
@@ -14,7 +18,6 @@ import {
   importRepository,
   reindexRepository,
   retryJob,
-  cancelJob,
 } from "./api";
 
 afterEach(() => {
@@ -236,6 +239,50 @@ describe("api client", () => {
     });
     await reindexRepository("r1");
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain("/api/v1/repositories/r1/reindex");
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        repository: { id: "r1" },
+        job: { id: "j3" },
+        created_new_job: true,
+      }),
+    });
+    await reindexRepository("r1", { force: true });
+    expect(String(fetchMock.mock.calls[2]?.[0])).toContain(
+      "/api/v1/repositories/r1/reindex?force=true",
+    );
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: "r1", owner_name: "a", name: "b", deleted: true }),
+    });
+    await deleteRepository("r1");
+    expect(String(fetchMock.mock.calls[3]?.[0])).toContain("/api/v1/repositories/r1");
+    expect((fetchMock.mock.calls[3]?.[1] as RequestInit).method).toBe("DELETE");
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        deleted_count: 1,
+        deleted: [{ id: "r2", owner_name: "week10", name: "ask-1", deleted: true }],
+      }),
+    });
+    await cleanupTestRepositories();
+    expect(String(fetchMock.mock.calls[4]?.[0])).toContain("/api/v1/repositories/cleanup-test");
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        deleted_count: 2,
+        deleted: [
+          { id: "r3", owner_name: "a", name: "b", deleted: true },
+          { id: "r4", owner_name: "c", name: "d", deleted: true },
+        ],
+      }),
+    });
+    await cleanupAllRepositories();
+    expect(String(fetchMock.mock.calls[5]?.[0])).toContain("/api/v1/repositories/cleanup-all");
   });
 
   it("throws on non-ok responses without inventing success", async () => {

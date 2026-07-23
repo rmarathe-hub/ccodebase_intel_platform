@@ -7,10 +7,12 @@ import {
   ReactFlowProvider,
   type Edge,
   type Node,
+  type NodeMouseHandler,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { PageShell } from "../components/PageShell";
 import {
   fetchRepositories,
@@ -50,6 +52,7 @@ function toFlowElements(graph: RepositoryGraphResponse): { nodes: Node[]; edges:
   const nodes: Node[] = graph.nodes.map((n) => {
     const pos = positions.get(n.id) ?? { x: 0, y: 0 };
     const isCenter = graph.center_symbol_id != null && n.symbol_id === graph.center_symbol_id;
+    const clickable = Boolean(n.path);
     return {
       id: n.id,
       position: pos,
@@ -59,6 +62,9 @@ function toFlowElements(graph: RepositoryGraphResponse): { nodes: Node[]; edges:
         nodeType: n.node_type,
         supportLevel: n.support_level,
         language: n.language,
+        path: n.path,
+        symbolId: n.symbol_id,
+        clickable,
       },
       style: {
         background: "color-mix(in srgb, var(--panel) 92%, black)",
@@ -69,6 +75,7 @@ function toFlowElements(graph: RepositoryGraphResponse): { nodes: Node[]; edges:
         padding: "6px 10px",
         minWidth: 120,
         boxShadow: isCenter ? "0 0 0 1px var(--accent)" : undefined,
+        cursor: clickable ? "pointer" : "default",
       },
     };
   });
@@ -93,6 +100,7 @@ function toFlowElements(graph: RepositoryGraphResponse): { nodes: Node[]; edges:
 }
 
 export function GraphPage() {
+  const navigate = useNavigate();
   const reposQuery = useQuery({
     queryKey: ["repositories"],
     queryFn: () => fetchRepositories(50),
@@ -109,6 +117,8 @@ export function GraphPage() {
   const [includeFiles, setIncludeFiles] = useState(false);
   const [depth, setDepth] = useState(1);
   const [centerSymbolId, setCenterSymbolId] = useState("");
+  const draggingRef = useRef(false);
+  const [openError, setOpenError] = useState<string | null>(null);
 
   const symbolsQuery = useQuery({
     queryKey: ["graph-symbols", selectedId],
@@ -198,6 +208,36 @@ export function GraphPage() {
     if (!graphQuery.data) return { nodes: [] as Node[], edges: [] as Edge[] };
     return toFlowElements(graphQuery.data);
   }, [graphQuery.data]);
+
+  const onNodeClick: NodeMouseHandler = useCallback(
+    (_event, node) => {
+      if (draggingRef.current) {
+        draggingRef.current = false;
+        return;
+      }
+      const data = node.data as {
+        path?: string | null;
+        symbolId?: string | null;
+        clickable?: boolean;
+      };
+      if (!data.path) {
+        setOpenError("This node has no file path to open.");
+        return;
+      }
+      setOpenError(null);
+      const q = new URLSearchParams({
+        repo: selectedId,
+        path: data.path,
+      });
+      if (data.symbolId) {
+        q.set("symbol", data.symbolId);
+        // Symbol nodes: jump near definition when viewer loads (line hint from API later).
+        q.set("line", "1");
+      }
+      navigate(`/files/view?${q.toString()}`);
+    },
+    [navigate, selectedId],
+  );
 
   const selectedRepo = useMemo(
     () => reposQuery.data?.find((repo) => repo.id === selectedId),
@@ -368,6 +408,11 @@ export function GraphPage() {
           </div>
         </div>
 
+        {openError && (
+          <p className="mt-2 text-xs text-amber-300" role="status">
+            {openError}
+          </p>
+        )}
         {selectedRepo && (
           <p className="mt-3 text-xs text-[var(--muted)]">
             {selectedRepo.owner_name}/{selectedRepo.name}
@@ -377,6 +422,7 @@ export function GraphPage() {
             {graphQuery.data
               ? ` · ${graphQuery.data.node_count} nodes · ${graphQuery.data.edge_count} edges`
               : ""}
+            {" · click a file/module node to open"}
           </p>
         )}
       </section>
@@ -409,6 +455,16 @@ export function GraphPage() {
                   fitView
                   minZoom={0.2}
                   proOptions={{ hideAttribution: true }}
+                  onNodeClick={onNodeClick}
+                  onNodeDragStart={() => {
+                    draggingRef.current = true;
+                  }}
+                  onNodeDragStop={() => {
+                    // Allow click handler to see drag flag once, then clear.
+                    window.setTimeout(() => {
+                      draggingRef.current = false;
+                    }, 0);
+                  }}
                 >
                   <Background color="#2a3648" gap={18} />
                   <Controls />

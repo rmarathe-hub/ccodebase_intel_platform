@@ -36,6 +36,11 @@ class AskEvidenceItem(BaseModel):
     role: str
     depth: int
     citation: str
+    evidence_tier: int | None = None
+    chars_stored: int | None = None
+    chars_sent: int | None = None
+    content_truncated: bool | None = None
+    estimated_tokens_sent: int | None = None
 
 
 class AskAnalysisEcho(BaseModel):
@@ -65,6 +70,36 @@ class AskBudgetEcho(BaseModel):
     remaining_requests: int = 0
 
 
+class AskFileCoverage(BaseModel):
+    requested_file: str | None = None
+    path: str | None = None
+    indexed: bool = False
+    coverage_complete: bool = False
+    indexed_line_range: list[int] | None = None
+    retrieved_line_ranges: list[list[int]] = Field(default_factory=list)
+    missing_ranges: list[list[int]] = Field(default_factory=list)
+    chunk_count: int = 0
+    language: str | None = None
+    classification: str | None = None
+
+
+class AskFileDiagnostic(BaseModel):
+    path: str
+    indexed: bool = False
+    source_file_present: bool = False
+    skip_reason: str | None = None
+    classification: str | None = None
+    language: str | None = None
+    chunk_count: int = 0
+    line_coverage: list[list[int]] | None = None
+    indexed_line_range: list[int] | None = None
+    coverage_complete: bool | None = None
+    missing_ranges: list[list[int]] | None = None
+    retrieval_reason: str | None = None
+    basename_aliases: list[str] = Field(default_factory=list)
+    snapshot_id: str | None = None
+
+
 class AskResponse(BaseModel):
     repository_id: UUID
     snapshot_id: UUID | None
@@ -83,3 +118,7 @@ class AskResponse(BaseModel):
     cached: bool = False
     notes: list[str] = Field(default_factory=list)
     budget: AskBudgetEcho | None = None
+    context_truncated: bool = False
+    exact_file_mode: bool = False
+    file_coverage: list[AskFileCoverage] = Field(default_factory=list)
+    file_diagnostics: list[AskFileDiagnostic] = Field(default_factory=list)

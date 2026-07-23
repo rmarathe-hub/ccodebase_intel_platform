@@ -54,6 +54,17 @@ def _endpoint_type(endpoint: str) -> str:
     return "unknown"
 
 
+def _normalize_azure_resource_endpoint(endpoint: str) -> str:
+    raw = (endpoint or "").strip()
+    if not raw:
+        return raw
+    parsed = urlparse(raw if "://" in raw else f"https://{raw}")
+    host = (parsed.hostname or "").lower()
+    if host.endswith("openai.azure.com") and parsed.scheme and parsed.netloc:
+        return f"{parsed.scheme}://{parsed.netloc}"
+    return raw.rstrip("/")
+
+
 def _azure_error_code(exc: BaseException) -> str:
     body = getattr(exc, "body", None)
     if isinstance(body, dict):
@@ -144,7 +155,9 @@ def main() -> int:
     api_root = Path(__file__).resolve().parents[1]
     _load_dotenv(api_root / ".env")
 
-    endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT", "").strip()
+    endpoint = _normalize_azure_resource_endpoint(
+        os.environ.get("AZURE_OPENAI_ENDPOINT", "").strip()
+    )
     api_key = os.environ.get("AZURE_OPENAI_API_KEY", "").strip() or os.environ.get(
         "LLM_API_KEY", ""
     ).strip()

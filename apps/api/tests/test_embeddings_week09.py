@@ -87,6 +87,19 @@ def test_endpoint_type_detection() -> None:
     assert endpoint_type("https://foo.services.ai.azure.com") == "foundry_v1"
     assert endpoint_type("https://foo.openai.azure.com/") == "legacy_azure_openai"
 
+    from app.services.embeddings.azure_openai import normalize_azure_resource_endpoint
+
+    assert (
+        normalize_azure_resource_endpoint(
+            "https://foo.openai.azure.com/openai/deployments/x/embeddings?api-version=1"
+        )
+        == "https://foo.openai.azure.com"
+    )
+    assert (
+        normalize_azure_resource_endpoint("https://foo.openai.azure.com/")
+        == "https://foo.openai.azure.com"
+    )
+
 
 def test_hash_embed_rejects_bad_dims() -> None:
     with pytest.raises(ValueError):

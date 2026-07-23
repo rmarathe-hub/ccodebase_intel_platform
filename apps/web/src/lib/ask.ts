@@ -82,6 +82,25 @@ export interface AskResponse {
   cached: boolean;
   notes: string[];
   budget: AskBudgetEcho | null;
+  context_truncated?: boolean;
+  exact_file_mode?: boolean;
+  file_coverage?: Array<{
+    requested_file?: string | null;
+    path?: string | null;
+    indexed: boolean;
+    coverage_complete: boolean;
+    indexed_line_range?: number[] | null;
+    retrieved_line_ranges?: number[][];
+    missing_ranges?: number[][];
+    chunk_count?: number;
+  }>;
+  file_diagnostics?: Array<{
+    path: string;
+    indexed: boolean;
+    retrieval_reason?: string | null;
+    chunk_count?: number;
+    coverage_complete?: boolean | null;
+  }>;
 }
 
 export function askCitationLabel(cite: {

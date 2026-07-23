@@ -34,6 +34,30 @@ class SourceFileListResponse(BaseModel):
     files: list[SourceFileRead]
 
 
+class SourceFileContentChunk(BaseModel):
+    chunk_id: UUID
+    start_line: int
+    end_line: int
+    content: str
+    support_level: str
+    symbol_id: UUID | None = None
+
+
+class SourceFileContentResponse(BaseModel):
+    repository_id: UUID
+    snapshot_id: UUID | None
+    path: str
+    indexed: bool
+    language: str | None = None
+    support_level: str | None = None
+    line_count: int | None = None
+    content: str = ""
+    chunks: list[SourceFileContentChunk] = Field(default_factory=list)
+    coverage_complete: bool = False
+    missing_ranges: list[list[int]] = Field(default_factory=list)
+    message: str | None = None
+
+
 class RepositoryListItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

@@ -60,6 +60,7 @@ def deep_chunks_from_symbols(
         ).all()
     }
     out: list[ExtractedChunk] = []
+    chunked_paths: set[str] = set()
     for sym in symbols:
         file_row = files.get(sym.source_file_id)
         if file_row is None or file_row.support_level != SupportLevel.DEEP.value:
@@ -96,6 +97,51 @@ def deep_chunks_from_symbols(
                 parser_version=parser_version,
                 verified_deep=True,
                 symbol_id=sym.id,
+            )
+        )
+        chunked_paths.add(file_row.path)
+
+    # Whole-file fallback for deep files with no extractable symbols
+    # (e.g. vite.config.ts with only a default export expression).
+    for file_row in files.values():
+        if file_row.support_level != SupportLevel.DEEP.value:
+            continue
+        if file_row.path in chunked_paths:
+            continue
+        if not file_row.language or file_row.language not in _PARSER_BY_LANG:
+            continue
+        abs_path = repo_root / file_row.path
+        try:
+            text = abs_path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if not text.strip():
+            continue
+        # Match discovery line counts (do not use splitlines — drops trailing blank).
+        end_line = max(
+            1,
+            text.count("\n") + (0 if text.endswith("\n") else 1),
+        )
+        parser_name, parser_version = _PARSER_BY_LANG[file_row.language]
+        if file_row.parser_name:
+            parser_name = file_row.parser_name
+        if file_row.parser_version:
+            parser_version = file_row.parser_version
+        out.append(
+            ExtractedChunk.make(
+                path=file_row.path,
+                language=file_row.language,
+                support_level=SupportLevel.DEEP.value,
+                chunk_type="file",
+                start_line=1,
+                end_line=end_line,
+                content=text,
+                parent_context=file_row.path,
+                extraction_method="deep_file_fallback",
+                parser_name=parser_name,
+                parser_version=parser_version,
+                verified_deep=False,
+                symbol_id=None,
             )
         )
     return out

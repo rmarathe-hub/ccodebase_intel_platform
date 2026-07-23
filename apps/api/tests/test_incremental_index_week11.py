@@ -101,6 +101,101 @@ def test_plan_unchanged_same_commit(session: Session) -> None:
     assert plan.prior_snapshot_id == snap.id
 
 
+def test_plan_full_when_same_commit_but_embedding_model_mismatch(
+    session: Session,
+) -> None:
+    """Re-index must not short-circuit when search config no longer matches stored vectors."""
+    from pydantic_settings import SettingsConfigDict
+
+    from app.models import Chunk, ChunkEmbedding, SourceFile
+    from app.services.incremental_index import snapshot_embeddings_match_search_config
+
+    repo = Repository(
+        host="github.com",
+        owner_name="t",
+        name=f"inc-{uuid4().hex[:8]}",
+        default_branch="main",
+        clone_url="https://github.com/t/t.git",
+    )
+    session.add(repo)
+    session.flush()
+    snap = RepositorySnapshot(
+        repository_id=repo.id,
+        branch="main",
+        commit_sha="deadbeef",
+        file_count=1,
+        status=SnapshotStatus.READY,
+    )
+    session.add(snap)
+    session.flush()
+    sf = SourceFile(
+        snapshot_id=snap.id,
+        path="a.py",
+        language="python",
+        support_level="deep",
+        content_hash="h1",
+        size_bytes=10,
+        is_binary=False,
+        parser_name="python-ast",
+        parser_version="1",
+    )
+    session.add(sf)
+    session.flush()
+    chunk = Chunk(
+        snapshot_id=snap.id,
+        source_file_id=sf.id,
+        path="a.py",
+        language="python",
+        support_level="deep",
+        chunk_type="function",
+        start_line=1,
+        end_line=2,
+        content="def a():\n    return 1\n",
+        content_hash="hash-a",
+        extraction_method="deep_symbol",
+        parser_name="python-ast",
+        parser_version="1",
+        verified_deep=True,
+    )
+    session.add(chunk)
+    session.flush()
+    session.add(
+        ChunkEmbedding(
+            snapshot_id=snap.id,
+            chunk_id=chunk.id,
+            content_hash=chunk.content_hash,
+            embedding_provider="local",
+            embedding_model="local-hash-v1",
+            embedding_version="9.2",
+            dimensions=1536,
+            embedding=[0.0] * 1536,
+        )
+    )
+    session.commit()
+
+    class AzureSearchCfg(Settings):
+        model_config = SettingsConfigDict(env_file=None, extra="ignore")
+        embeddings_enabled: bool = True
+        embedding_provider: str = "azure_openai"
+        embedding_model: str = "text-embedding-3-small"
+        embedding_version: str = "9.2"
+        embedding_dimensions: int = 1536
+
+    cfg = AzureSearchCfg()
+    assert not snapshot_embeddings_match_search_config(
+        session, snapshot_id=snap.id, cfg=cfg
+    )
+    plan = plan_index(
+        session,
+        repository_id=repo.id,
+        commit_sha="deadbeef",
+        discovery=_disc(("a.py", "h1")),
+        cfg=cfg,
+    )
+    assert plan.mode == "full"
+    assert plan.reason == "embedding_config_mismatch"
+
+
 def test_plan_incremental_within_threshold(session: Session) -> None:
     repo = Repository(
         host="github.com",

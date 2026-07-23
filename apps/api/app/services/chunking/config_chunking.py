@@ -20,8 +20,29 @@ from app.services.chunking.types import ExtractedChunk
 PARSER_VERSION = "7.3-config"
 
 
+def physical_line_count(source: str) -> int:
+    """Match discovery.count_lines: newline separators, 1-based physical lines."""
+    if not source:
+        return 0
+    return source.count("\n") + (0 if source.endswith("\n") else 1)
+
+
+def physical_lines(source: str) -> list[str]:
+    """Split into physical lines without dropping a trailing blank line.
+
+    ``str.splitlines()`` drops a final empty line when the source ends with a
+    newline; that breaks 1-based coverage for files that end with ``}\\n\\n``.
+    """
+    if not source:
+        return []
+    parts = source.split("\n")
+    if source.endswith("\n") and parts:
+        parts = parts[:-1]
+    return parts
+
+
 def _slice(source: str, start_line: int, end_line: int) -> str:
-    lines = source.splitlines()
+    lines = physical_lines(source)
     return "\n".join(lines[start_line - 1 : end_line])
 
 
@@ -55,9 +76,9 @@ def _chunk(
 def _top_level_json_key_spans(source: str) -> list[tuple[str, int, int]]:
     """Brace-depth scanner after json.loads validation — not regex."""
     data = json.loads(source)
+    total = max(1, physical_line_count(source))
     if not isinstance(data, dict):
-        end = source.count("\n") + 1
-        return [("__root__", 1, end)]
+        return [("__root__", 1, total)]
 
     def line_at(pos: int) -> int:
         return source.count("\n", 0, pos) + 1
@@ -112,7 +133,9 @@ def _top_level_json_key_spans(source: str) -> list[tuple[str, int, int]]:
                         end_line = max(current_start, line_at(i) - 1)
                         spans.append((pending_key, current_start, end_line))
                     pending_key = key
-                    current_start = line_at(i)
+                    # First key always starts at line 1 so opening `{` and any
+                    # blank preamble are never dropped (off-by-one / first-line loss).
+                    current_start = 1 if key_idx == 0 else line_at(i)
                     key_idx += 1
             in_str = True
             i += 1
@@ -123,9 +146,14 @@ def _top_level_json_key_spans(source: str) -> list[tuple[str, int, int]]:
             depth -= 1
             if depth == 0:
                 if pending_key is not None and current_start is not None:
-                    spans.append((pending_key, current_start, line_at(i)))
+                    spans.append((pending_key, current_start, max(line_at(i), total)))
                 break
         i += 1
+    if spans:
+        k0, _s0, e0 = spans[0]
+        spans[0] = (k0, 1, e0)
+        kN, sN, _eN = spans[-1]
+        spans[-1] = (kN, sN, max(spans[-1][2], total))
     return spans
 
 
@@ -399,13 +427,43 @@ def chunk_configuration_file(*, source: str, path: str) -> list[ExtractedChunk]:
     suffix = Path(path).suffix.lower()
 
     if name == "dockerfile" or name.startswith("dockerfile."):
-        return chunk_dockerfile_source(source=source, path=path)
-    if suffix == ".json":
-        return chunk_json_source(source=source, path=path)
-    if suffix in {".yaml", ".yml"}:
-        return chunk_yaml_source(source=source, path=path)
-    if suffix == ".toml":
-        return chunk_toml_source(source=source, path=path)
-    if suffix == ".xml":
-        return chunk_xml_source(source=source, path=path)
-    return []
+        chunks = chunk_dockerfile_source(source=source, path=path)
+    elif name in {"go.mod", "go.sum"}:
+        end = max(1, physical_line_count(source) or 1)
+        chunks = [
+            _chunk(
+                path=path,
+                start_line=1,
+                end_line=end,
+                source=source,
+                parent_context=name,
+                parser_name="go-mod",
+                metadata="{}",
+            )
+        ]
+    elif suffix == ".json":
+        chunks = chunk_json_source(source=source, path=path)
+    elif suffix in {".yaml", ".yml"}:
+        chunks = chunk_yaml_source(source=source, path=path)
+    elif suffix == ".toml":
+        chunks = chunk_toml_source(source=source, path=path)
+    elif suffix == ".xml":
+        chunks = chunk_xml_source(source=source, path=path)
+    else:
+        chunks = []
+
+    # Whole-file fallback when format parsers yield nothing but file has text.
+    if not chunks and source.strip():
+        end = max(1, physical_line_count(source) or 1)
+        return [
+            _chunk(
+                path=path,
+                start_line=1,
+                end_line=end,
+                source=source,
+                parent_context="__file__",
+                parser_name="config-whole-file",
+                metadata='{"fallback":"whole_file"}',
+            )
+        ]
+    return chunks

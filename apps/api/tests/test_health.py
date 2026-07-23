@@ -7,7 +7,11 @@ def test_health() -> None:
     client = TestClient(create_app())
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    body = response.json()
+    assert body["status"] == "ok"
+    assert "index_pipeline_version" in body
+    assert body["index_pipeline_version"]
+    assert "build" in body
 
 
 def test_ready_shape() -> None:
@@ -17,3 +21,5 @@ def test_ready_shape() -> None:
     body = response.json()
     assert "status" in body
     assert "database" in body
+    assert "index_pipeline_version" in body
+    assert "build" in body

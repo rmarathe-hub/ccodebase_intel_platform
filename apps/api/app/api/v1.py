@@ -4,14 +4,24 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.db.deps import get_db
-from app.models.entities import IndexingJob, Repository, Symbol, SymbolCall, SymbolRelation
+from app.models.entities import (
+    IndexingJob,
+    Repository,
+    SourceFile,
+    Symbol,
+    SymbolCall,
+    SymbolRelation,
+)
 from app.models.relation_kinds import ALL_RELATION_KINDS, RELATION_CONFIDENCES
 from app.schemas.ask import (
     AskAnalysisEcho,
     AskBudgetEcho,
     AskCitation,
     AskEvidenceItem,
+    AskFileCoverage,
+    AskFileDiagnostic,
     AskRequest,
     AskResponse,
     AskValidationEcho,
@@ -28,12 +38,22 @@ from app.schemas.chunks import (
     EvidenceRef,
     RepositorySummaryResponse,
 )
-from app.schemas.files import RepositoryListItem, SourceFileListResponse, SourceFileRead
+from app.schemas.files import (
+    RepositoryListItem,
+    SourceFileContentResponse,
+    SourceFileListResponse,
+    SourceFileRead,
+)
 from app.schemas.graphs import GraphEdgeRead, GraphNodeRead, RepositoryGraphResponse
 from app.schemas.implementations import SymbolImplementationRead, SymbolImplementationsResponse
 from app.schemas.jobs import IndexingJobRead
 from app.schemas.relations import SymbolRelationListResponse, SymbolRelationRead
-from app.schemas.repositories import RepositoryImportRequest, RepositoryRead
+from app.schemas.repositories import (
+    RepositoryCleanupResponse,
+    RepositoryDeleteResponse,
+    RepositoryImportRequest,
+    RepositoryRead,
+)
 from app.schemas.snapshots import RepositoryImportResponse
 from app.schemas.symbols import SymbolListResponse, SymbolRead
 from app.services.calls_query import (
@@ -60,10 +80,14 @@ from app.services.graphs import (
 from app.services.import_repository import (
     RepositoryImportError,
     cancel_indexing_job,
+    delete_all_repositories,
+    delete_repository,
+    delete_test_repositories,
     import_repository,
     reindex_repository,
     retry_indexing_job,
 )
+from app.services.index_pipeline import ensure_snapshot_pipeline_fresh
 from app.services.rag.answer import run_ask
 from app.services.rag.ask_repo_budget import snapshot_repository_ask_budget
 from app.services.rag.citations import citation_key
@@ -215,6 +239,113 @@ def get_repository_files(
         limit=limit,
         offset=offset,
         files=[SourceFileRead.model_validate(row) for row in rows],
+    )
+
+
+@router.get(
+    "/repositories/{repository_id}/files/content",
+    response_model=SourceFileContentResponse,
+)
+def get_repository_file_content(
+    repository_id: UUID,
+    path: str = Query(..., min_length=1, max_length=1000),
+    db: Session = Depends(get_db),
+) -> SourceFileContentResponse:
+    """Assemble indexed chunk content for a repository-relative file path."""
+    from app.schemas.files import SourceFileContentChunk
+    from app.services.rag.evidence_policy import (
+        assemble_file_lines,
+        compute_file_coverage,
+        lookup_source_file,
+        resolve_path_chunks,
+    )
+
+    repo = db.get(Repository, repository_id)
+    if repo is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Repository not found",
+        )
+    snapshot = latest_ready_snapshot(db, repository_id)
+    if snapshot is None:
+        return SourceFileContentResponse(
+            repository_id=repository_id,
+            snapshot_id=None,
+            path=path,
+            indexed=False,
+            message="No ready snapshot",
+        )
+
+    chunks = resolve_path_chunks(
+        db, snapshot_id=snapshot.id, path_token=path, limit=None
+    )
+    sf = lookup_source_file(db, snapshot_id=snapshot.id, path=path)
+    if not chunks and sf is None:
+        # Basename fallback via SourceFile
+        from pathlib import PurePosixPath
+
+        from sqlalchemy import func, or_
+
+        base = PurePosixPath(path).name
+        sf = db.scalars(
+            select(SourceFile)
+            .where(
+                SourceFile.snapshot_id == snapshot.id,
+                or_(
+                    SourceFile.path.endswith("/" + base),
+                    func.lower(SourceFile.path) == base.lower(),
+                ),
+            )
+            .order_by(SourceFile.path.asc())
+            .limit(1)
+        ).first()
+        if sf is not None:
+            chunks = resolve_path_chunks(
+                db, snapshot_id=snapshot.id, path_token=sf.path, limit=None
+            )
+
+    if not chunks and sf is None:
+        return SourceFileContentResponse(
+            repository_id=repository_id,
+            snapshot_id=snapshot.id,
+            path=path,
+            indexed=False,
+            message="File not found in latest ready snapshot",
+        )
+
+    resolved_path = chunks[0].path if chunks else (sf.path if sf is not None else path)
+    if sf is None:
+        sf = lookup_source_file(db, snapshot_id=snapshot.id, path=resolved_path)
+
+    text, _stored, _sent, _trunc, covered = assemble_file_lines(
+        chunks, max_chars=500_000
+    )
+    cov = compute_file_coverage(chunks, source_file=sf, covered_ranges=covered)
+    return SourceFileContentResponse(
+        repository_id=repository_id,
+        snapshot_id=snapshot.id,
+        path=resolved_path,
+        indexed=bool(chunks) or (sf is not None and sf.support_level != "skip"),
+        language=sf.language if sf is not None else (chunks[0].language if chunks else None),
+        support_level=(
+            sf.support_level if sf is not None else (chunks[0].support_level if chunks else None)
+        ),
+        line_count=sf.line_count if sf is not None else None,
+        content=text,
+        chunks=[
+            SourceFileContentChunk(
+                chunk_id=c.id,
+                start_line=c.start_line,
+                end_line=c.end_line,
+                content=c.content,
+                support_level=c.support_level,
+                symbol_id=c.symbol_id,
+            )
+            for c in chunks
+        ],
+        coverage_complete=bool(cov.get("coverage_complete")),
+        missing_ranges=list(cov.get("missing_ranges") or []),  # type: ignore[arg-type]
+        message=None if chunks else "File metadata present but no chunks indexed",
     )
 
 
@@ -1202,6 +1333,13 @@ def ask_repository(
             budget=_budget_echo(),
         )
 
+    freshness = ensure_snapshot_pipeline_fresh(
+        db,
+        repository_id=repository_id,
+        snapshot=snapshot,
+        auto_reindex=settings.auto_reindex_stale_pipeline,
+    )
+
     result = run_ask(
         db,
         snapshot_id=snapshot.id,
@@ -1226,19 +1364,29 @@ def ask_repository(
         )
         for c in result.validation.valid_citations
     ]
-    evidence = [
-        AskEvidenceItem(
-            chunk_id=u.chunk.id,
-            path=u.chunk.path,
-            start_line=u.chunk.start_line,
-            end_line=u.chunk.end_line,
-            support_level=u.chunk.support_level,
-            role=u.role,
-            depth=u.depth,
-            citation=citation_key(u.chunk.path, u.chunk.start_line, u.chunk.end_line),
+    evidence = []
+    diag_by_chunk: dict[str, dict] = {
+        str(d.get("chunk_id")): d for d in result.evidence_diagnostics if d.get("chunk_id")
+    }
+    for u in result.context.units:
+        diag = diag_by_chunk.get(str(u.chunk.id), {})
+        evidence.append(
+            AskEvidenceItem(
+                chunk_id=u.chunk.id,
+                path=u.chunk.path,
+                start_line=u.chunk.start_line,
+                end_line=u.chunk.end_line,
+                support_level=u.chunk.support_level,
+                role=u.role,
+                depth=u.depth,
+                citation=citation_key(u.chunk.path, u.chunk.start_line, u.chunk.end_line),
+                evidence_tier=diag.get("evidence_tier"),
+                chars_stored=diag.get("chars_stored"),
+                chars_sent=diag.get("chars_sent"),
+                content_truncated=diag.get("content_truncated"),
+                estimated_tokens_sent=diag.get("estimated_tokens_sent"),
+            )
         )
-        for u in result.context.units
-    ]
     analysis = AskAnalysisEcho(
         kind=str(result.analysis.kind),
         rewrite_applied=result.analysis.rewrite_applied,
@@ -1273,8 +1421,16 @@ def ask_repository(
         ranked_chunk_ids=list(result.ranked_chunk_ids),
         model_provenance=result.model_provenance,
         cached=result.cached,
-        notes=list(result.notes),
+        notes=list(result.notes) + list(freshness.notes),
         budget=budget,
+        context_truncated=bool(result.context.truncated),
+        exact_file_mode=bool(result.exact_file_mode),
+        file_coverage=[
+            AskFileCoverage.model_validate(item) for item in result.file_coverage
+        ],
+        file_diagnostics=[
+            AskFileDiagnostic.model_validate(item) for item in result.file_diagnostics
+        ],
     )
 
 
@@ -1347,11 +1503,15 @@ def list_repository_jobs(
 )
 def reindex_repository_endpoint(
     repository_id: UUID,
+    force: bool = Query(
+        default=False,
+        description="Bypass planner and always regenerate chunks + embeddings",
+    ),
     db: Session = Depends(get_db),
 ) -> RepositoryImportResponse:
-    """Queue a full re-index for a previously imported repository."""
+    """Queue a re-index for a previously imported repository."""
     try:
-        repo, job, created = reindex_repository(db, repository_id)
+        repo, job, created = reindex_repository(db, repository_id, force=force)
     except RepositoryImportError as exc:
         code = (
             status.HTTP_404_NOT_FOUND
@@ -1366,6 +1526,81 @@ def reindex_repository_endpoint(
         repository=RepositoryRead.model_validate(repo),
         job=IndexingJobRead.model_validate(job),
         created_new_job=created,
+    )
+
+
+@router.delete(
+    "/repositories/{repository_id}",
+    response_model=RepositoryDeleteResponse,
+)
+def delete_repository_endpoint(
+    repository_id: UUID,
+    db: Session = Depends(get_db),
+) -> RepositoryDeleteResponse:
+    """Delete a repository and all cascaded index data."""
+    try:
+        payload = delete_repository(db, repository_id)
+    except RepositoryImportError as exc:
+        code = (
+            status.HTTP_404_NOT_FOUND
+            if exc.code == "repository_not_found"
+            else status.HTTP_409_CONFLICT
+        )
+        raise HTTPException(
+            status_code=code,
+            detail={"code": exc.code, "message": str(exc)},
+        ) from exc
+    return RepositoryDeleteResponse(
+        id=payload["id"],  # type: ignore[arg-type]
+        owner_name=str(payload["owner_name"]),
+        name=str(payload["name"]),
+        deleted=True,
+    )
+
+
+@router.post(
+    "/repositories/cleanup-test",
+    response_model=RepositoryCleanupResponse,
+)
+def cleanup_test_repositories_endpoint(
+    db: Session = Depends(get_db),
+) -> RepositoryCleanupResponse:
+    """Delete ephemeral local test/fixture repositories (week10/ask-*, etc.)."""
+    deleted = delete_test_repositories(db)
+    return RepositoryCleanupResponse(
+        deleted_count=len(deleted),
+        deleted=[
+            RepositoryDeleteResponse(
+                id=row["id"],  # type: ignore[arg-type]
+                owner_name=str(row["owner_name"]),
+                name=str(row["name"]),
+                deleted=True,
+            )
+            for row in deleted
+        ],
+    )
+
+
+@router.post(
+    "/repositories/cleanup-all",
+    response_model=RepositoryCleanupResponse,
+)
+def cleanup_all_repositories_endpoint(
+    db: Session = Depends(get_db),
+) -> RepositoryCleanupResponse:
+    """Delete every repository and cascaded index data (local/dev cleanup)."""
+    deleted = delete_all_repositories(db)
+    return RepositoryCleanupResponse(
+        deleted_count=len(deleted),
+        deleted=[
+            RepositoryDeleteResponse(
+                id=row["id"],  # type: ignore[arg-type]
+                owner_name=str(row["owner_name"]),
+                name=str(row["name"]),
+                deleted=True,
+            )
+            for row in deleted
+        ],
     )
 
 

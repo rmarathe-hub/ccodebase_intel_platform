@@ -4,11 +4,15 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { JobProgress } from "../components/JobProgress";
 import { PageShell } from "../components/PageShell";
 import {
+  CleanupAllRepositoriesButton,
+  CleanupTestRepositoriesButton,
+  RepositoryCardActions,
+} from "../components/RepositoryCardActions";
+import {
   cancelJob,
   fetchRepositories,
   fetchRepositoryJobs,
   fetchRepositorySummary,
-  reindexRepository,
 } from "../lib/api";
 import { supportLevelLabel } from "../lib/files";
 import { isTerminalStatus } from "../lib/jobs";
@@ -24,7 +28,7 @@ export function RepositoryOverviewPage() {
 
   const reposQuery = useQuery({
     queryKey: ["repositories"],
-    queryFn: () => fetchRepositories(50),
+    queryFn: () => fetchRepositories(200),
   });
 
   const selectedId = id || reposQuery.data?.[0]?.id || "";
@@ -52,16 +56,6 @@ export function RepositoryOverviewPage() {
 
   const latestJob = jobsQuery.data?.[0];
 
-  const reindexMutation = useMutation({
-    mutationFn: () => reindexRepository(selectedId),
-    onSuccess: (result) => {
-      void queryClient.invalidateQueries({ queryKey: ["repository-jobs", selectedId] });
-      void queryClient.invalidateQueries({ queryKey: ["jobs"] });
-      void queryClient.invalidateQueries({ queryKey: ["job", result.job.id] });
-      void queryClient.invalidateQueries({ queryKey: ["repository-summary", selectedId] });
-    },
-  });
-
   const cancelMutation = useMutation({
     mutationFn: (jobId: string) => cancelJob(jobId),
     onSuccess: (job) => {
@@ -81,15 +75,19 @@ export function RepositoryOverviewPage() {
     <div className="space-y-4">
       <PageShell
         title="Repository overview"
-        description="Switch between previously indexed repositories, inspect language and support mix, and queue a full re-index."
+        description="Switch between previously indexed repositories, force re-index after pipeline fixes, or delete unused imports."
       />
 
       <section className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-lg font-semibold">Indexed repositories</h3>
-          <Link className="text-sm text-[var(--accent)] underline" to="/">
-            Import another
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <CleanupTestRepositoriesButton />
+            <CleanupAllRepositoriesButton />
+            <Link className="text-sm text-[var(--accent)] underline" to="/">
+              Import another
+            </Link>
+          </div>
         </div>
 
         {reposQuery.isLoading && (
@@ -112,27 +110,29 @@ export function RepositoryOverviewPage() {
             {reposQuery.data.map((repo) => {
               const active = repo.id === selectedId;
               return (
-                <li key={repo.id}>
+                <li
+                  key={repo.id}
+                  className={[
+                    "flex flex-wrap items-center justify-between gap-3 py-3 px-1",
+                    active
+                      ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]"
+                      : "",
+                  ].join(" ")}
+                >
                   <button
                     type="button"
-                    className={[
-                      "flex w-full items-center justify-between gap-3 py-3 text-left hover:bg-[color-mix(in_srgb,var(--bg)_35%,transparent)]",
-                      active ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]" : "",
-                    ].join(" ")}
+                    className="min-w-0 flex-1 text-left hover:text-[var(--accent)]"
                     onClick={() => navigate(`/repositories/${repo.id}`)}
                   >
-                    <div>
-                      <p className="font-medium">
-                        {repo.owner_name}/{repo.name}
-                      </p>
-                      <p className="mt-1 text-xs text-[var(--muted)]">
-                        {repo.default_branch || "default"} · {repo.host}
-                      </p>
-                    </div>
-                    <span className="text-xs tracking-wide text-[var(--muted)] uppercase">
-                      {active ? "Selected" : "Open"}
-                    </span>
+                    <p className="font-medium">
+                      {repo.owner_name}/{repo.name}
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      {repo.default_branch || "default"} · {repo.host}
+                      {active ? " · Selected" : ""}
+                    </p>
                   </button>
+                  <RepositoryCardActions repo={repo} compact />
                 </li>
               );
             })}
@@ -159,26 +159,13 @@ export function RepositoryOverviewPage() {
                 </a>
               </p>
             </div>
-            <button
-              type="button"
-              className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-              onClick={() => reindexMutation.mutate()}
-              disabled={reindexMutation.isPending}
-            >
-              {reindexMutation.isPending ? "Queueing…" : "Re-index"}
-            </button>
+            <RepositoryCardActions repo={selectedRepo} />
           </div>
 
-          {reindexMutation.isError && (
-            <p className="text-sm text-rose-300">
-              {(reindexMutation.error as Error).message}
-            </p>
-          )}
-          {reindexMutation.data && !reindexMutation.data.created_new_job && (
-            <p className="text-sm text-amber-200">
-              An indexing job is already active — showing live progress below.
-            </p>
-          )}
+          <p className="text-xs text-[var(--muted)]">
+            Re-index may skip work when the commit is unchanged. Force Re-index always rebuilds
+            chunks and embeddings.
+          </p>
 
           {summaryQuery.isLoading && (
             <p className="text-sm text-[var(--muted)]">Loading summary…</p>

@@ -3,6 +3,7 @@ import { AppLayout } from "./components/AppLayout";
 import { AskPage } from "./pages/AskPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { FilesPage } from "./pages/FilesPage";
+import { FileViewPage } from "./pages/FileViewPage";
 import { GraphPage } from "./pages/GraphPage";
 import { JobsPage } from "./pages/JobsPage";
 import { RepositoryOverviewPage } from "./pages/RepositoryOverviewPage";
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="symbols" element={<SymbolsPage />} />
           <Route path="graph" element={<GraphPage />} />
           <Route path="files" element={<FilesPage />} />
+          <Route path="files/view" element={<FileViewPage />} />
           <Route path="jobs" element={<JobsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

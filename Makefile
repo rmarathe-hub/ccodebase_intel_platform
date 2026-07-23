@@ -1,7 +1,7 @@
-.PHONY: help dev stop test lint migrate reset-db api-install web-install ci docker-build
+.PHONY: help dev stop test lint migrate reset-db api-install web-install ci docker-build worker worker-watch
 
 help:
-	@echo "Targets: dev stop test lint migrate reset-db api-install web-install ci docker-build"
+	@echo "Targets: dev stop test lint migrate reset-db api-install web-install ci docker-build worker worker-watch"
 
 dev:
 	docker compose up --build
@@ -35,6 +35,15 @@ api-install:
 
 web-install:
 	cd apps/web && npm install
+
+# Long-lived worker WITHOUT reload (production-like). Prefer worker-watch locally.
+worker:
+	PYTHONPATH=apps/api:apps/worker apps/api/.venv/bin/python -m worker
+
+# Auto-restarts worker when apps/api or apps/worker Python changes.
+worker-watch:
+	chmod +x scripts/dev-worker.sh
+	./scripts/dev-worker.sh
 
 docker-build:
 	docker build -f apps/api/Dockerfile -t codeintel-api:local .

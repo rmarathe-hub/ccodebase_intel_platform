@@ -2,6 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { ImportRepositoryPanel } from "../components/ImportRepositoryPanel";
 import { PageShell } from "../components/PageShell";
+import {
+  CleanupAllRepositoriesButton,
+  CleanupTestRepositoriesButton,
+  RepositoryCardActions,
+} from "../components/RepositoryCardActions";
 import { fetchRepositories } from "../lib/api";
 
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
@@ -53,9 +58,13 @@ export function DashboardPage() {
       <section className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-lg font-semibold">Previously indexed</h3>
-          <Link className="text-sm text-[var(--accent)] underline" to="/repositories">
-            View all
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <CleanupTestRepositoriesButton />
+            <CleanupAllRepositoriesButton />
+            <Link className="text-sm text-[var(--accent)] underline" to="/repositories">
+              View all
+            </Link>
+          </div>
         </div>
         {reposQuery.isLoading && (
           <p className="mt-3 text-sm text-[var(--muted)]">Loading…</p>
@@ -68,10 +77,13 @@ export function DashboardPage() {
         {reposQuery.data && reposQuery.data.length > 0 && (
           <ul className="mt-3 divide-y divide-[var(--border)]">
             {reposQuery.data.map((repo) => (
-              <li key={repo.id}>
+              <li
+                key={repo.id}
+                className="flex flex-wrap items-center justify-between gap-3 py-2.5"
+              >
                 <Link
                   to={`/repositories/${repo.id}`}
-                  className="flex items-center justify-between gap-3 py-2.5 text-sm hover:text-[var(--accent)]"
+                  className="min-w-0 flex-1 text-sm hover:text-[var(--accent)]"
                 >
                   <span>
                     {repo.owner_name}/{repo.name}
@@ -79,8 +91,8 @@ export function DashboardPage() {
                       {repo.default_branch || "default"}
                     </span>
                   </span>
-                  <span className="text-xs text-[var(--muted)]">Open</span>
                 </Link>
+                <RepositoryCardActions repo={repo} compact linkJobsOnReindex />
               </li>
             ))}
           </ul>
@@ -116,7 +128,7 @@ export function DashboardPage() {
           <Link className="text-[var(--accent)] underline" to="/jobs">
             Jobs
           </Link>{" "}
-          page.
+          page. Use Force Re-index on a card to rebuild chunks after pipeline fixes.
         </p>
       </section>
     </div>

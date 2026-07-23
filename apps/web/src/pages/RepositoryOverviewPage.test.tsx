@@ -104,6 +104,13 @@ vi.mock("../lib/api", async () => {
       },
       created_new_job: true,
     })),
+    deleteRepository: vi.fn(async () => ({
+      id: "repo-a",
+      owner_name: "acme",
+      name: "alpha",
+      deleted: true,
+    })),
+    cleanupTestRepositories: vi.fn(async () => ({ deleted_count: 0, deleted: [] })),
   };
 });
 
@@ -139,9 +146,16 @@ describe("RepositoryOverviewPage", () => {
     expect(screen.getByText("Deep")).toBeInTheDocument();
     expect(screen.getByText("Generic")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /re-index/i }));
+    const reindexButtons = screen.getAllByRole("button", { name: /^re-index$/i });
+    fireEvent.click(reindexButtons[0]!);
     await waitFor(() => {
-      expect(reindexRepository).toHaveBeenCalled();
+      expect(reindexRepository).toHaveBeenCalledWith(expect.any(String), { force: false });
+    });
+
+    const forceButtons = screen.getAllByRole("button", { name: /force re-index/i });
+    fireEvent.click(forceButtons[0]!);
+    await waitFor(() => {
+      expect(reindexRepository).toHaveBeenCalledWith(expect.any(String), { force: true });
     });
   });
 
@@ -152,7 +166,7 @@ describe("RepositoryOverviewPage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /acme\/beta/i }));
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /acme\/beta/i }).className).toMatch(
+      expect(screen.getByRole("button", { name: /acme\/beta/i }).closest("li")?.className).toMatch(
         /accent/,
       );
     });
