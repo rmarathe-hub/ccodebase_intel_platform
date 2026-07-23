@@ -102,20 +102,20 @@ def build_module_graph(
     for s in symbols:
         if s.kind in {"import", "export"}:
             continue
-        mod = None
+        sym_mod: str | None = None
         if s.language == "python":
             from app.services.python_calls import module_from_qname
 
-            mod = module_from_qname(s.qualified_name, s.kind, s.name)
+            sym_mod = module_from_qname(s.qualified_name, s.kind, s.name)
         elif s.language in {"javascript", "typescript"}:
             from app.services.js_ts_calls import module_from_qname as js_mod
 
-            mod = js_mod(s.qualified_name, s.kind, s.name)
+            sym_mod = js_mod(s.qualified_name, s.kind, s.name)
         elif s.language == "java":
-            mod = package_of_qname(s.qualified_name) or s.qualified_name
-        if mod and mod in modules:
-            n = modules[mod]
-            modules[mod] = GraphNode(
+            sym_mod = package_of_qname(s.qualified_name) or s.qualified_name
+        if sym_mod and sym_mod in modules:
+            n = modules[sym_mod]
+            modules[sym_mod] = GraphNode(
                 id=n.id,
                 label=n.label,
                 node_type=n.node_type,
@@ -124,7 +124,7 @@ def build_module_graph(
                 path=n.path,
                 symbol_count=n.symbol_count + 1,
             )
-        elif mod and mod not in modules and language is None:
+        elif sym_mod and sym_mod not in modules and language is None:
             # Include module-like packages referenced by symbols when filtering off
             pass
 

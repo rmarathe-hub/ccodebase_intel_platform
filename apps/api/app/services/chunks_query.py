@@ -7,6 +7,7 @@ from uuid import UUID
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.config import Settings, settings
 from app.models import Chunk, ChunkEmbedding
@@ -38,8 +39,8 @@ def _chunk_filters(
     parser_name: str | None,
     llm_enriched: bool | None,
     validation_status: str | None,
-) -> list[object]:
-    filters: list[object] = [Chunk.snapshot_id == snapshot_id]
+) -> list[ColumnElement[bool]]:
+    filters: list[ColumnElement[bool]] = [Chunk.snapshot_id == snapshot_id]
     if language:
         filters.append(Chunk.language == language)
     if path_prefix:
@@ -212,7 +213,7 @@ def _exact_search(
     session: Session,
     *,
     query: str,
-    filters: list[object],
+    filters: list[ColumnElement[bool]],
     limit: int,
     offset: int,
 ) -> tuple[list[ChunkSearchResult], int]:
@@ -251,7 +252,7 @@ def _query_vector(conf: Settings, query: str) -> list[float] | None:
     return list(vectors[0])
 
 
-def _embedding_identity_filters(conf: Settings) -> list[object]:
+def _embedding_identity_filters(conf: Settings) -> list[ColumnElement[bool]]:
     """ANN must use the same model/version/dims as persisted search vectors."""
     return [
         ChunkEmbedding.embedding_model == conf.embedding_model,
@@ -291,7 +292,7 @@ def _semantic_rows(
     session: Session,
     *,
     query_vector: list[float],
-    filters: list[object],
+    filters: list[ColumnElement[bool]],
     snapshot_id: UUID,
     conf: Settings,
     fetch_limit: int,
@@ -330,7 +331,7 @@ def _semantic_search(
     session: Session,
     *,
     query: str,
-    filters: list[object],
+    filters: list[ColumnElement[bool]],
     snapshot_id: UUID,
     limit: int,
     offset: int,
@@ -391,7 +392,7 @@ def _hybrid_search(
     session: Session,
     *,
     query: str,
-    filters: list[object],
+    filters: list[ColumnElement[bool]],
     snapshot_id: UUID,
     limit: int,
     offset: int,

@@ -413,8 +413,10 @@ def _extract_inheritance(
     else:
         superclass = _child_by_type(node, "superclass")
         if superclass is not None:
-            type_n = superclass.named_children[0] if superclass.named_children else None
-            raw = _type_name_from_node(source, type_n)
+            extends_type = (
+                superclass.named_children[0] if superclass.named_children else None
+            )
+            raw = _type_name_from_node(source, extends_type)
             if raw:
                 out.append(
                     ExtractedRelation(

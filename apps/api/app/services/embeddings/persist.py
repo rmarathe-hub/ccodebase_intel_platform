@@ -53,7 +53,7 @@ def replace_embeddings_for_snapshot(
         logger.info(
             "Embeddings disabled for snapshot %s; cleared=%s chunks=%s",
             snapshot_id,
-            deleted.rowcount or 0,
+            int(getattr(deleted, "rowcount", 0) or 0),
             len(chunks),
         )
         return 0, len(chunks)

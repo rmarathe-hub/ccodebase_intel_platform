@@ -1,3 +1,4 @@
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -96,6 +97,16 @@ from app.services.repository_summary import build_repository_summary
 from app.services.symbols_query import list_symbols
 
 router = APIRouter(prefix="/api/v1")
+
+
+def _as_int_ranges(value: object) -> list[list[int]]:
+    if not isinstance(value, list):
+        return []
+    out: list[list[int]] = []
+    for item in value:
+        if isinstance(item, (list, tuple)) and len(item) >= 2:
+            out.append([int(item[0]), int(item[1])])
+    return out
 
 
 def _call_read(call: SymbolCall, path: str) -> SymbolCallRead:
@@ -344,7 +355,7 @@ def get_repository_file_content(
             for c in chunks
         ],
         coverage_complete=bool(cov.get("coverage_complete")),
-        missing_ranges=list(cov.get("missing_ranges") or []),  # type: ignore[arg-type]
+        missing_ranges=_as_int_ranges(cov.get("missing_ranges")),
         message=None if chunks else "File metadata present but no chunks indexed",
     )
 
@@ -561,8 +572,8 @@ def _graph_response(
     repository_id: UUID,
     snapshot_id: UUID | None,
     graph_type: str,
-    nodes,
-    edges,
+    nodes: list[Any],
+    edges: list[Any],
     center_symbol_id: UUID | None = None,
     depth: int | None = None,
     filters: dict[str, object] | None = None,
@@ -1143,22 +1154,20 @@ def get_repository_summary(
         )
     built = build_repository_summary(db, snapshot_id=snapshot.id)
     det = built.get("deterministic_summary")
+    llm_raw = built.get("llm_summary")
+    prov_raw = built.get("model_provenance")
+    evidence_raw = built.get("evidence")
+    evidence_list = evidence_raw if isinstance(evidence_raw, list) else []
     return RepositorySummaryResponse(
         repository_id=repository_id,
         snapshot_id=snapshot.id,
         deterministic_summary=(
             DeterministicSummary.model_validate(det) if isinstance(det, dict) else None
         ),
-        llm_summary=(
-            built.get("llm_summary") if isinstance(built.get("llm_summary"), dict) else None
-        ),
+        llm_summary=llm_raw if isinstance(llm_raw, dict) else None,
         llm_summary_status=str(built.get("llm_summary_status", "skipped")),
-        evidence=[EvidenceRef.model_validate(e) for e in (built.get("evidence") or [])],
-        model_provenance=(
-            built.get("model_provenance")
-            if isinstance(built.get("model_provenance"), dict)
-            else None
-        ),
+        evidence=[EvidenceRef.model_validate(e) for e in evidence_list],
+        model_provenance=prov_raw if isinstance(prov_raw, dict) else None,
     )
 
 
@@ -1365,7 +1374,7 @@ def ask_repository(
         for c in result.validation.valid_citations
     ]
     evidence = []
-    diag_by_chunk: dict[str, dict] = {
+    diag_by_chunk: dict[str, dict[str, Any]] = {
         str(d.get("chunk_id")): d for d in result.evidence_diagnostics if d.get("chunk_id")
     }
     for u in result.context.units:

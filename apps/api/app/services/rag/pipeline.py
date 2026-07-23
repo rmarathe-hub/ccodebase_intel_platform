@@ -181,9 +181,13 @@ def _route_mandatory_hits(
             "coverage_complete" if cov.get("coverage_complete") else "coverage_partial"
         )
         missing = cov.get("missing_ranges") or []
-        if missing:
-            missing_s = ",".join(f"{a}-{b}" for a, b in missing)  # type: ignore[misc]
-            notes.append(f"missing_ranges:{path}:{missing_s}")
+        if isinstance(missing, list) and missing:
+            parts: list[str] = []
+            for item in missing:
+                if isinstance(item, (list, tuple)) and len(item) >= 2:
+                    parts.append(f"{item[0]}-{item[1]}")
+            if parts:
+                notes.append(f"missing_ranges:{path}:{','.join(parts)}")
 
         diag = build_path_retrieval_diagnostic(
             session,

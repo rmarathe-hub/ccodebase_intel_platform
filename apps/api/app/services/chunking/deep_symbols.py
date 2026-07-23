@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -40,7 +41,7 @@ _PARSER_BY_LANG = {
 def deep_chunks_from_symbols(
     session: Session,
     *,
-    snapshot_id,
+    snapshot_id: UUID,
     repo_root: Path,
 ) -> list[ExtractedChunk]:
     """Build symbol-aware chunks; never re-route deep langs through generic Tree-sitter."""

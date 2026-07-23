@@ -129,13 +129,14 @@ def build_deterministic_summary(
         )
         or 0
     )
-    chunk_by_type = dict(
-        session.execute(
+    chunk_by_type: dict[str, int] = {
+        str(row[0]): int(row[1])
+        for row in session.execute(
             select(Chunk.chunk_type, func.count())
             .where(Chunk.snapshot_id == snapshot_id)
             .group_by(Chunk.chunk_type)
         ).all()
-    )
+    }
 
     return {
         "language_mix": dict(lang_counts.most_common()),
@@ -222,7 +223,7 @@ def build_repository_summary(
         result["llm_summary_status"] = "no_evidence"
         return result
 
-    evidence_payload = [
+    evidence_payload: list[dict[str, object]] = [
         {
             "path": c.path,
             "start_line": c.start_line,
@@ -288,8 +289,8 @@ def mock_repository_summary(
     if not evidence:
         raise ValueError("evidence required")
     first = evidence[0]
-    start = int(first["start_line"])
-    end = int(first["end_line"])
+    start = int(str(first["start_line"]))
+    end = int(str(first["end_line"]))
     return RepositoryLlmSummary(
         probable_architecture="mock layered service",
         major_components=["api", "worker"],

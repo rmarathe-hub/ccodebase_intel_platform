@@ -77,6 +77,37 @@ python_version = "3.11"
 strict = true
 packages = ["app"]
 
+# Optional [llm] extra is not installed in CI; keep those imports soft for typecheck.
+[[tool.mypy.overrides]]
+module = [
+  "openai",
+  "openai.*",
+  "langchain_openai",
+  "langchain_openai.*",
+  "langchain_core",
+  "langchain_core.*",
+]
+ignore_missing_imports = true
+
+# Third-party packages without reliable stubs in the default CI install.
+[[tool.mypy.overrides]]
+module = [
+  "yaml",
+  "yaml.*",
+  "defusedxml",
+  "defusedxml.*",
+  "dockerfile_parse",
+  "dockerfile_parse.*",
+  "sqlglot",
+  "sqlglot.*",
+]
+ignore_missing_imports = true
+
+# sqlglot.tokens.TokenType is runtime-exported but not in the stub __all__.
+[[tool.mypy.overrides]]
+module = "app.services.chunking.sql_chunks"
+disable_error_code = ["attr-defined"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"

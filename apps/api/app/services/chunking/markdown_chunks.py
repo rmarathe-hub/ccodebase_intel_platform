@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
+from typing import Any
 
 import mistune
 
@@ -13,9 +15,12 @@ PARSER_NAME = "mistune-ast"
 PARSER_VERSION = "7.4-markdown"
 
 
-def _heading_text(token: dict[str, object]) -> str:
+def _heading_text(token: dict[str, Any]) -> str:
     parts: list[str] = []
-    for child in token.get("children") or []:
+    children = token.get("children")
+    if not isinstance(children, list):
+        return ""
+    for child in children:
         if not isinstance(child, dict):
             continue
         if child.get("type") == "text":
@@ -27,7 +32,7 @@ def _heading_text(token: dict[str, object]) -> str:
     return "".join(parts)
 
 
-def _collect_headings(tokens: list[object]) -> list[tuple[int, str]]:
+def _collect_headings(tokens: Sequence[Any]) -> list[tuple[int, str]]:
     headings: list[tuple[int, str]] = []
     for tok in tokens:
         if not isinstance(tok, dict):

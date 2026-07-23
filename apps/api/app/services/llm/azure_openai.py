@@ -166,7 +166,7 @@ class AzureOpenAIProvider:
                     "content": json.dumps(items, ensure_ascii=False),
                 },
             ],
-            response_format={
+            response_format={  # type: ignore[arg-type]
                 "type": "json_schema",
                 "json_schema": {
                     "name": "EnrichmentBatchResult",
@@ -194,7 +194,7 @@ class AzureOpenAIProvider:
     ) -> RepositoryLlmSummary:
         """LangChain structured summary grounded in deterministic metadata + evidence."""
         use_langchain = self.orchestration in {"auto", "langchain"}
-        payload = {
+        payload: dict[str, object] = {
             "deterministic_summary": deterministic_summary,
             "evidence": evidence,
             "prompt_version": prompt_version,
@@ -289,7 +289,7 @@ class AzureOpenAIProvider:
                 },
                 {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
             ],
-            response_format={
+            response_format={  # type: ignore[arg-type]
                 "type": "json_schema",
                 "json_schema": {
                     "name": "RepositoryLlmSummary",
@@ -320,8 +320,8 @@ def mock_enrichment_for_items(
     """Deterministic mock used by tests — no network."""
     out: list[EnrichmentItem] = []
     for item in items:
-        start = int(item["start_line"])
-        end = int(item["end_line"])
+        start = int(str(item["start_line"]))
+        end = int(str(item["end_line"]))
         out.append(
             EnrichmentItem(
                 chunk_id=str(item["chunk_id"]),

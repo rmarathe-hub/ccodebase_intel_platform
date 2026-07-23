@@ -214,24 +214,24 @@ def _apply_enrichment(
             except Exception:
                 # Fail closed: keep deterministic chunks.
                 break
-            for item in batch_result.items:
-                validation = validate_enrichment_item(item, bounds_map)
+            for enrichment in batch_result.items:
+                validation = validate_enrichment_item(enrichment, bounds_map)
                 if not validation.ok:
-                    row = row_by_key.get(item.chunk_id)
+                    row = row_by_key.get(enrichment.chunk_id)
                     if row is not None:
                         row.validation_status = "rejected"
                         row.metadata_json = json.dumps({"validation_errors": validation.errors})
                     continue
-                results.append(item)
-                ext = by_key.get(item.chunk_id)
-                if ext is None:
+                results.append(enrichment)
+                extracted_for_cache = by_key.get(enrichment.chunk_id)
+                if extracted_for_cache is None:
                     continue
                 key = _cache_key(
-                    path=ext.path,
-                    start_line=ext.start_line,
-                    end_line=ext.end_line,
-                    content_hash=ext.content_hash,
-                    parser_version=ext.parser_version,
+                    path=extracted_for_cache.path,
+                    start_line=extracted_for_cache.start_line,
+                    end_line=extracted_for_cache.end_line,
+                    content_hash=extracted_for_cache.content_hash,
+                    parser_version=extracted_for_cache.parser_version,
                     prompt_version=cfg.llm_prompt_version,
                     model=model_name,
                 )
@@ -248,24 +248,24 @@ def _apply_enrichment(
                                 provider=batch_result.provider,
                                 model=model_name,
                                 prompt_version=cfg.llm_prompt_version,
-                                response_json=item.model_dump_json(),
+                                response_json=enrichment.model_dump_json(),
                             )
                         )
 
-        for item in results:
-            row = row_by_key.get(item.chunk_id)
+        for enrichment in results:
+            row = row_by_key.get(enrichment.chunk_id)
             if row is None:
                 continue
             row.llm_enriched = True
             row.llm_provider = provider.provider_name
             row.llm_model = model_name
             row.prompt_version = cfg.llm_prompt_version
-            row.confidence = item.confidence
+            row.confidence = enrichment.confidence
             row.validation_status = "accepted"
-            row.semantic_label = item.semantic_label
-            row.concise_summary = item.concise_summary
-            row.probable_construct_type = item.probable_construct_type.value
-            row.entry_point_likelihood = item.entry_point_likelihood
+            row.semantic_label = enrichment.semantic_label
+            row.concise_summary = enrichment.concise_summary
+            row.probable_construct_type = enrichment.probable_construct_type.value
+            row.entry_point_likelihood = enrichment.entry_point_likelihood
             enriched += 1
     return enriched
 
@@ -358,13 +358,13 @@ def replace_chunks_for_snapshot(
 
     rows: list[Chunk] = []
     for ch in extracted:
-        file_row = files_by_path.get(ch.path)
-        if file_row is None:
+        source_file = files_by_path.get(ch.path)
+        if source_file is None:
             continue
         row = Chunk(
             id=uuid4(),
             snapshot_id=snapshot_id,
-            source_file_id=file_row.id,
+            source_file_id=source_file.id,
             symbol_id=ch.symbol_id,
             path=ch.path,
             language=ch.language,

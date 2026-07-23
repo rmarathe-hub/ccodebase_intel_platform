@@ -6,8 +6,9 @@ import json
 import tomllib
 from io import StringIO
 from pathlib import Path
-from xml.sax import ContentHandler, handler
-from xml.sax.xmlreader import InputSource
+from typing import Any
+from xml.sax import ContentHandler
+from xml.sax.xmlreader import InputSource, Locator
 
 import defusedxml.sax
 import yaml
@@ -320,21 +321,24 @@ class _TopLevelXmlHandler(ContentHandler):
         self.depth = 0
         self.spans: list[tuple[str, int, int]] = []
         self._stack: list[tuple[str, int]] = []
-        self._locator: handler.Locator | None = None
+        self._locator: Locator | None = None
 
-    def setDocumentLocator(self, locator: handler.Locator) -> None:
+    def setDocumentLocator(self, locator: Locator) -> None:
         self._locator = locator
 
-    def startElement(self, name: str, attrs: handler.Attributes) -> None:  # type: ignore[override]
+    def startElement(self, name: str, attrs: Any) -> None:
         line = self._locator.getLineNumber() if self._locator else 1
+        start_line = int(line or 1)
+
         self.depth += 1
         if self.depth == 2:
-            self._stack.append((name, line))
+            self._stack.append((name, start_line))
 
     def endElement(self, name: str) -> None:
         if self.depth == 2 and self._stack:
             start_name, start_line = self._stack.pop()
-            end_line = self._locator.getLineNumber() if self._locator else start_line
+            end_raw = self._locator.getLineNumber() if self._locator else start_line
+            end_line = int(end_raw or start_line)
             self.spans.append((start_name, start_line, end_line))
         self.depth -= 1
 
